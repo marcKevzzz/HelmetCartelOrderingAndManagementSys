@@ -199,7 +199,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <asp:Repeater ID="rptBrandReport" runat="server">
+                        <asp:Repeater ID="rptBrandReport" runat="server" OnItemDataBound="rptBrandReport_ItemDataBound">
                             <ItemTemplate>
                                 <tr>
                                     <td>
@@ -220,10 +220,13 @@
                                         <%# Convert.ToInt32(Eval("LowStockCount")) > 0 ? "<span class=\"admin-badge admin-badge--low-stock\">" + Eval("LowStockCount") + " Low</span>" : "<span class=\"admin-badge admin-badge--in-stock\">Healthy (0)</span>" %>
                                     </td>
                                     <td class="admin-table-align-right">
-                                        <a href='/Admin/Inventory.aspx?brand=<%# Server.UrlEncode(Convert.ToString(Eval("Brand"))) %>' class="admin-row-action-btn" title="View brand stock">
-                                            <span>View Inventory &rarr;</span>
-                                        </a>
+                                        <button type="button" class="admin-row-action-btn js-brand-inventory-toggle" aria-expanded="false" aria-controls='brand-details-<%# Container.ItemIndex %>'>
+                                            <span>View Inventory &darr;</span>
+                                        </button>
                                     </td>
+                                </tr>
+                                <tr id='brand-details-<%# Container.ItemIndex %>' class="admin-brand-detail-row" hidden>
+                                    <td colspan="6"><asp:Literal ID="litBrandDetails" runat="server" /></td>
                                 </tr>
                             </ItemTemplate>
                         </asp:Repeater>
@@ -234,5 +237,5 @@
     </div>
 
     <!-- External Reports Scripts (Zero Inline JavaScript) -->
-    <script src="/Scripts/admin/reports.js?v=1"></script>
+    <script src="/Scripts/admin/reports.js?v=2"></script>
 </asp:Content>

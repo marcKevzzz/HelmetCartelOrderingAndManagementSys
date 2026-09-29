@@ -89,6 +89,11 @@ namespace HelmetCartelOrderingAndManagementSys.Services
                 return ApiResponse<OrderSummaryDto>.Fail("POS Order must contain at least one item.", AppConstants.ErrorCodes.OrderNotFound);
             if (request.PaymentMethod != AppConstants.PaymentGateways.Cash && request.PaymentMethod != AppConstants.PaymentGateways.CardPos)
                 return ApiResponse<OrderSummaryDto>.Fail("Choose cash or card POS payment.");
+            if (request.PaymentMethod == AppConstants.PaymentGateways.Cash &&
+                (!request.CashTendered.HasValue || request.CashTendered.Value < 0))
+                return ApiResponse<OrderSummaryDto>.Fail("Enter the cash amount received.");
+            if (request.PaymentMethod == AppConstants.PaymentGateways.CardPos && !request.CardTerminalApproved)
+                return ApiResponse<OrderSummaryDto>.Fail("Confirm the card terminal payment before completing the sale.");
             if (request.Items.Any(x => x.Quantity <= 0) || request.Items.Select(x => x.VariantId).Distinct().Count() != request.Items.Count)
                 return ApiResponse<OrderSummaryDto>.Fail("Invalid or duplicate items.", AppConstants.ErrorCodes.VariantNotFound);
             try

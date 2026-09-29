@@ -32,6 +32,8 @@
                         <asp:LinkButton ID="btnTabOutOfStock" runat="server" CssClass="admin-tab-btn" CommandArgument="out_of_stock" OnClick="FilterTab_Click">Out of Stock</asp:LinkButton>
                     </div>
 
+                    <asp:DropDownList ID="ddlBrandFilter" runat="server" AutoPostBack="true" OnSelectedIndexChanged="FilterDropdown_Changed" CssClass="admin-filter-select" aria-label="Filter by brand">
+                    </asp:DropDownList>
                     <!-- Helmet Type / Category Dropdown -->
                     <asp:DropDownList ID="ddlCategoryFilter" runat="server" AutoPostBack="true" OnSelectedIndexChanged="FilterDropdown_Changed" CssClass="admin-filter-select" aria-label="Filter by helmet category">
                     </asp:DropDownList>
@@ -124,8 +126,10 @@
                                     </td>
                                     <td class="admin-table-align-right">
                                         <div class="admin-actions-cell admin-actions-cell--right">
-                                            <button type="button" class="btn-pill-sm btn-pill--outline" 
-                                                onclick='openStockAdjustModal(<%# Eval("VariantId") %>, "<%# Server.HtmlEncode(Convert.ToString(Eval("ProductName"))).Replace("\"", "\\\"") %> - <%# Server.HtmlEncode(Convert.ToString(Eval("Color"))) %> (<%# Server.HtmlEncode(Convert.ToString(Eval("Size"))) %>)", <%# Eval("AvailableStock") %>);' 
+                                            <button type="button" class="btn-pill-sm btn-pill--outline js-open-stock-modal"
+                                                data-variant-id='<%# Eval("VariantId") %>'
+                                                data-title='<%# System.Web.HttpUtility.HtmlAttributeEncode(string.Format("{0} - {1} ({2})", Eval("ProductName"), Eval("Color"), Eval("Size"))) %>'
+                                                data-current-stock='<%# Eval("AvailableStock") %>'
                                                 title="Add stock units">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-plus" viewBox="0 0 16 16">
                                                     <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
@@ -188,12 +192,6 @@
                     </div>
 
                     <asp:DropDownList ID="ddlAuditBrandFilter" runat="server" AutoPostBack="true" OnSelectedIndexChanged="AuditFilterDropdown_Changed" CssClass="admin-filter-select" aria-label="Filter stock history by brand">
-                        <asp:ListItem Value="all" Text="All Brands" />
-                        <asp:ListItem Value="AGV" Text="AGV" />
-                        <asp:ListItem Value="Gille" Text="Gille" />
-                        <asp:ListItem Value="HNJ" Text="HNJ" />
-                        <asp:ListItem Value="Shoei" Text="Shoei" />
-                        <asp:ListItem Value="Zebra" Text="Zebra" />
                     </asp:DropDownList>
                 </div>
                 <div class="admin-meta-top">
@@ -283,7 +281,7 @@
                     <h3 class="admin-modal-title">Add Stock</h3>
                     <div id="adjustModalHelmetTitle" class="admin-modal-desc-subtle">Helmet Variant</div>
                 </div>
-                <button type="button" class="admin-modal-close-btn" onclick="closeStockAdjustModal();" aria-label="Close modal">&times;</button>
+                <button type="button" class="admin-modal-close-btn js-close-stock-modal" aria-label="Close modal">&times;</button>
             </div>
 
             <asp:HiddenField ID="hdnAdjustVariantId" runat="server" />
@@ -302,8 +300,7 @@
             <div class="admin-form-grid-2">
                 <div class="admin-form-group">
                     <label class="admin-form-label">Units to Add (+)</label>
-                    <input type="number" id="txtAdjustQuantity" runat="server" min="1" max="10000" class="admin-form-input" value="5" required="required" oninput="updateStockPreview();" />
-                    <span class="admin-cell-mono-muted">Only positive stock increments are permitted.</span>
+                    <input type="number" id="txtAdjustQuantity" runat="server" min="1" max="10000" class="admin-form-input" value="5" required="required" />
                 </div>
                 <div class="admin-form-group">
                     <label class="admin-form-label">Stock In Reason</label>
@@ -322,7 +319,7 @@
             </div>
 
             <div class="admin-modal-footer">
-                <button type="button" class="btn-pill btn-pill--outline" onclick="closeStockAdjustModal();">Cancel</button>
+                <button type="button" class="btn-pill btn-pill--outline js-close-stock-modal">Cancel</button>
                 <asp:Button ID="btnSubmitStockAdjust" runat="server" CssClass="btn-pill btn-pill--primary" Text="Add Stock" OnClick="btnSubmitStockAdjust_Click" />
             </div>
         </div>

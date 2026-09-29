@@ -15,6 +15,7 @@ export const APP_CONSTANTS = Object.freeze({
     INVENTORY_RESTOCK: '/api/v1/inventory/restock',
     ORDERS: '/api/v1/orders',
     ORDERS_INSTORE: '/api/v1/orders/in-store',
+    ADMIN_SELLABLE_VARIANTS: '/api/v1/admin/sellable-variants',
     ORDER_STATUS: (id) => `/api/v1/orders/${id}/status`,
     REPORTS_SALES: '/api/v1/reports/sales-summary',
     REPORTS_INVENTORY: '/api/v1/reports/inventory-valuation'
@@ -62,7 +63,8 @@ export const APP_CONSTANTS = Object.freeze({
     CART_ITEMS: 'hc_cart_items',
     FAVORITES_ITEMS: 'hc_favorites_items',
     CART_PROMO: 'hc_cart_promo',
-    SEARCH_HISTORY: 'hc_search_history'
+    SEARCH_HISTORY: 'hc_search_history',
+    POS_SALE: 'hc_pos_sale'
   },
 
   UI: {

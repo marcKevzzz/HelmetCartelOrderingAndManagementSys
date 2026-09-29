@@ -39,6 +39,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                 cmd.Parameters.Add(new SqlParameter("@OrderStatus", SqlDbType.NVarChar, 50) { Value = status });
                 cmd.Parameters.Add(new SqlParameter("@PaymentMethod", SqlDbType.NVarChar, 50) { Value = request.PaymentMethod });
                 cmd.Parameters.Add(new SqlParameter("@PaymentStatus", SqlDbType.NVarChar, 50) { Value = paymentStatus });
+                cmd.Parameters.Add(new SqlParameter("@CashTendered", SqlDbType.Decimal) { Precision = 18, Scale = 2, Value = (object)request.CashTendered ?? DBNull.Value });
                 cmd.Parameters.Add(new SqlParameter("@Notes", SqlDbType.NVarChar, 500) { Value = (object)request.Notes ?? DBNull.Value });
                 cmd.Parameters.Add(new SqlParameter("@Items", SqlDbType.Structured) { TypeName = "dbo.SaleLineInput", Value = lines });
                 await conn.OpenAsync().ConfigureAwait(false);

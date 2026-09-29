@@ -50,7 +50,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             return rows;
         }
 
-        public async Task<int> AdjustStockAsync(int variantId, int delta, int userId, string reference, string notes)
+        public async Task<int> AdjustStockAsync(int variantId, int delta, int? userId, string reference, string notes)
         {
             using (var connection = (SqlConnection)_factory.CreateConnection())
             using (var command = new SqlCommand("dbo.sp_AdminAdjustStock", connection))
@@ -58,7 +58,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                 command.CommandType = CommandType.StoredProcedure;
                 command.Parameters.Add(new SqlParameter("@VariantId", SqlDbType.Int) { Value = variantId });
                 command.Parameters.Add(new SqlParameter("@QuantityChanged", SqlDbType.Int) { Value = delta });
-                command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+                command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = (object)userId ?? DBNull.Value });
                 command.Parameters.Add(new SqlParameter("@ReferenceNumber", SqlDbType.NVarChar, 100) { Value = (object)reference ?? DBNull.Value });
                 command.Parameters.Add(new SqlParameter("@Notes", SqlDbType.NVarChar, 500) { Value = notes });
                 var result = new SqlParameter("@NewStock", SqlDbType.Int) { Direction = ParameterDirection.Output };
@@ -114,7 +114,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             return list;
         }
 
-        public async Task<List<AdminInventoryVariantDto>> GetInventoryVariantsAsync(string search = null, string brand = null, string category = null, string stockStatus = "all")
+        public async Task<List<AdminInventoryVariantDto>> GetInventoryVariantsAsync(string search = null, string brand = null, string category = null, string stockStatus = "all", int? productId = null, int? variantId = null)
         {
             var list = new List<AdminInventoryVariantDto>();
             using (var connection = (SqlConnection)_factory.CreateConnection())
@@ -125,6 +125,8 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                 command.Parameters.Add(new SqlParameter("@Brand", SqlDbType.NVarChar, 100) { Value = (object)brand ?? DBNull.Value });
                 command.Parameters.Add(new SqlParameter("@Category", SqlDbType.NVarChar, 100) { Value = (object)category ?? DBNull.Value });
                 command.Parameters.Add(new SqlParameter("@StockStatus", SqlDbType.NVarChar, 50) { Value = (object)stockStatus ?? "all" });
+                command.Parameters.Add(new SqlParameter("@ProductId", SqlDbType.Int) { Value = (object)productId ?? DBNull.Value });
+                command.Parameters.Add(new SqlParameter("@VariantId", SqlDbType.Int) { Value = (object)variantId ?? DBNull.Value });
 
                 await connection.OpenAsync().ConfigureAwait(false);
                 using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
@@ -384,6 +386,68 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                 }
             }
             return list;
+        }
+
+        public async Task<List<AdminBrandInventoryDetailDto>> GetBrandInventoryDetailsAsync()
+        {
+            var list = new List<AdminBrandInventoryDetailDto>();
+            using (var connection = (SqlConnection)_factory.CreateConnection())
+            using (var command = new SqlCommand("dbo.sp_AdminBrandInventoryDetails", connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+                await connection.OpenAsync().ConfigureAwait(false);
+                using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync().ConfigureAwait(false))
+                    {
+                        list.Add(new AdminBrandInventoryDetailDto
+                        {
+                            Brand = reader.GetString(reader.GetOrdinal("Brand")),
+                            ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
+                            VariantId = reader.GetInt32(reader.GetOrdinal("VariantId")),
+                            ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
+                            CategoryName = reader.GetString(reader.GetOrdinal("CategoryName")),
+                            MainImageUrl = reader.IsDBNull(reader.GetOrdinal("MainImageUrl")) ? null : reader.GetString(reader.GetOrdinal("MainImageUrl")),
+                            Color = reader.GetString(reader.GetOrdinal("Color")),
+                            Size = reader.GetString(reader.GetOrdinal("Size")),
+                            SKU = reader.GetString(reader.GetOrdinal("SKU")),
+                            OnHandStock = reader.GetInt32(reader.GetOrdinal("OnHandStock")),
+                            AvailableStock = reader.GetInt32(reader.GetOrdinal("AvailableStock")),
+                            ReorderPoint = reader.GetInt32(reader.GetOrdinal("ReorderPoint")),
+                            StockStatus = reader.GetString(reader.GetOrdinal("StockStatus"))
+                        });
+                    }
+                }
+            }
+            return list;
+        }
+
+        public async Task<AdminInventoryTrendDto> GetInventoryTrendAsync(DateTime startDate, DateTime endDate)
+        {
+            using (var connection = (SqlConnection)_factory.CreateConnection())
+            using (var command = new SqlCommand("dbo.sp_AdminInventoryTrend", connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add(new SqlParameter("@StartDate", SqlDbType.DateTime2) { Value = startDate.Date });
+                command.Parameters.Add(new SqlParameter("@EndDate", SqlDbType.DateTime2) { Value = endDate.Date });
+
+                await connection.OpenAsync().ConfigureAwait(false);
+                using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    if (await reader.ReadAsync().ConfigureAwait(false))
+                    {
+                        return new AdminInventoryTrendDto
+                        {
+                            StartTotalUnits = reader.GetInt32(reader.GetOrdinal("StartTotalUnits")),
+                            EndTotalUnits = reader.GetInt32(reader.GetOrdinal("EndTotalUnits")),
+                            StartActiveSkus = reader.GetInt32(reader.GetOrdinal("StartActiveSkus")),
+                            EndActiveSkus = reader.GetInt32(reader.GetOrdinal("EndActiveSkus"))
+                        };
+                    }
+                }
+            }
+
+            return new AdminInventoryTrendDto();
         }
 
         public async Task<List<Dictionary<string, object>>> GetRecentActivityAsync(int limit = 6)

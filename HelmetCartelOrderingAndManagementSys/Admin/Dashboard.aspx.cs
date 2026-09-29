@@ -37,46 +37,29 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             {
                 // 1. Core KPIs
                 var stats = await _adminRepo.GetDashboardStatsAsync().ConfigureAwait(false);
-                int onHandQty = stats.TryGetValue("onHandStock", out var onHand) && onHand != null ? Convert.ToInt32(onHand) : 5818;
+                int onHandQty = GetInt32(stats, "onHandStock");
                 litOnHandStock.Text = onHandQty.ToString("N0");
-                litOnHandStockTrend.Text = TrendHelper.RenderSimpleBadge("up", "Optimal", "Warehouse inventory capacity healthy");
+                litOnHandStockTrend.Text = TrendHelper.RenderTrend(onHandQty, GetNullableInt32(stats, "yesterdayOnHandStock"), "previous day");
 
-                int availQty = stats.TryGetValue("availableStock", out var avail) && avail != null ? Convert.ToInt32(avail) : 5818;
+                int availQty = GetInt32(stats, "availableStock");
                 litAvailableStock.Text = availQty.ToString("N0");
-                litAvailableStockTrend.Text = TrendHelper.RenderSimpleBadge("up", "Available", "All stock units ready for fulfillment");
+                litAvailableStockTrend.Text = TrendHelper.RenderTrend(availQty, GetNullableInt32(stats, "yesterdayAvailableStock"), "previous day");
 
-                int lowStockCount = stats.TryGetValue("lowStockCount", out var low) && low != null ? Convert.ToInt32(low) : 0;
+                int lowStockCount = GetInt32(stats, "lowStockCount");
                 litLowStock.Text = lowStockCount.ToString("N0");
-                litLowStockTrend.Text = lowStockCount == 0
-                    ? TrendHelper.RenderSimpleBadge("neutral", "0 Alerts", "No variants below reorder threshold")
-                    : TrendHelper.RenderSimpleBadge("down", $"{lowStockCount} Need Restock", "Action required: variants at or below reorder threshold");
+                litLowStockTrend.Text = TrendHelper.RenderTrend(
+                    lowStockCount,
+                    GetNullableInt32(stats, "yesterdayLowStockCount"),
+                    "previous day",
+                    invertSentiment: true);
 
-                int activeOrders = stats.TryGetValue("activeOrders", out var orders) && orders != null ? Convert.ToInt32(orders) : 0;
+                int activeOrders = GetInt32(stats, "activeOrders");
                 litActiveOrders.Text = activeOrders.ToString("N0");
+                litActiveOrdersTrend.Text = TrendHelper.RenderTrend(activeOrders, GetNullableInt32(stats, "yesterdayOrdersCount"), "yesterday");
 
-                int? yestOrders = null;
-                if (stats.TryGetValue("yesterdayOrdersCount", out var yOrders) && yOrders != null && yOrders != DBNull.Value)
-                {
-                    yestOrders = Convert.ToInt32(yOrders);
-                }
-                litActiveOrdersTrend.Text = TrendHelper.RenderTrend(activeOrders, yestOrders, "yesterday");
-
-                decimal todayRev = 0;
-                if (stats.TryGetValue("todayRevenue", out var rev) && rev != null && rev != DBNull.Value)
-                {
-                    decimal.TryParse(Convert.ToString(rev), out todayRev);
-                }
+                decimal todayRev = GetDecimal(stats, "todayRevenue");
                 litTodayRevenue.Text = todayRev.ToString("N2");
-
-                decimal? yestRev = null;
-                if (stats.TryGetValue("yesterdayRevenue", out var yRev) && yRev != null && yRev != DBNull.Value)
-                {
-                    if (decimal.TryParse(Convert.ToString(yRev), out var parsedYRev))
-                    {
-                        yestRev = parsedYRev;
-                    }
-                }
-                litTodayRevenueTrend.Text = TrendHelper.RenderTrend(todayRev, yestRev, "yesterday", isCurrency: true);
+                litTodayRevenueTrend.Text = TrendHelper.RenderTrend(todayRev, GetNullableDecimal(stats, "yesterdayRevenue"), "yesterday", isCurrency: true);
 
                 // 2. Sales Trend (Past 7 Days)
                 DateTime now = DateTime.UtcNow;
@@ -112,21 +95,57 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             }
             catch (Exception)
             {
-                litOnHandStock.Text = "5,818";
-                litOnHandStockTrend.Text = TrendHelper.RenderSimpleBadge("up", "Optimal", "Warehouse inventory capacity healthy");
-                litAvailableStock.Text = "5,818";
-                litAvailableStockTrend.Text = TrendHelper.RenderSimpleBadge("up", "Available", "All stock units ready for fulfillment");
+                litOnHandStock.Text = "0";
+                litOnHandStockTrend.Text = string.Empty;
+                litAvailableStock.Text = "0";
+                litAvailableStockTrend.Text = string.Empty;
                 litLowStock.Text = "0";
-                litLowStockTrend.Text = TrendHelper.RenderSimpleBadge("neutral", "0 Alerts", "No variants below reorder threshold");
-                litActiveOrders.Text = "3";
-                litActiveOrdersTrend.Text = TrendHelper.RenderTrend(3, 2, "yesterday");
-                litTodayRevenue.Text = "75,400.00";
-                litTodayRevenueTrend.Text = TrendHelper.RenderTrend(75400m, 43000m, "yesterday", isCurrency: true);
-                SalesChartLabelsJson = "[\"Sep 22\", \"Sep 23\", \"Sep 24\", \"Sep 25\", \"Sep 26\", \"Sep 27\", \"Sep 28\"]";
-                SalesChartDataJson = "[0, 0, 0, 19800, 26500, 43000, 75400]";
-                BrandChartLabelsJson = "[\"AGV\", \"Gille\", \"HNJ\", \"Shoei\", \"Zebra\"]";
-                BrandChartDataJson = "[450, 1512, 2016, 688, 1152]";
+                litLowStockTrend.Text = string.Empty;
+                litActiveOrders.Text = "0";
+                litActiveOrdersTrend.Text = string.Empty;
+                litTodayRevenue.Text = "0.00";
+                litTodayRevenueTrend.Text = string.Empty;
+                SalesChartLabelsJson = "[]";
+                SalesChartDataJson = "[]";
+                BrandChartLabelsJson = "[]";
+                BrandChartDataJson = "[]";
+                rptRecentActivity.DataSource = Array.Empty<object>();
+                rptRecentActivity.DataBind();
             }
+        }
+
+        private static int GetInt32(IReadOnlyDictionary<string, object> values, string key)
+        {
+            return GetNullableInt32(values, key) ?? 0;
+        }
+
+        private static int? GetNullableInt32(IReadOnlyDictionary<string, object> values, string key)
+        {
+            return values.TryGetValue(key, out var value) && value != null && value != DBNull.Value
+                ? (int?)Convert.ToInt32(value)
+                : null;
+        }
+
+        private static decimal GetDecimal(IReadOnlyDictionary<string, object> values, string key)
+        {
+            return GetNullableDecimal(values, key) ?? 0m;
+        }
+
+        private static decimal? GetNullableDecimal(IReadOnlyDictionary<string, object> values, string key)
+        {
+            return values.TryGetValue(key, out var value) && value != null && value != DBNull.Value
+                ? (decimal?)Convert.ToDecimal(value)
+                : null;
+        }
+
+        protected object GetActivityValue(object dataItem, string key)
+        {
+            if (dataItem is IReadOnlyDictionary<string, object> values && values.TryGetValue(key, out var value))
+            {
+                return value;
+            }
+
+            return null;
         }
 
         protected string FormatActivityTime(object dateObj)

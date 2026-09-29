@@ -25,14 +25,14 @@ namespace HelmetCartelOrderingAndManagementSys.Infrastructure
 
         public JwtTokenProvider()
         {
-            _secret = Environment.GetEnvironmentVariable("HELMET_CARTEL_JWT_SECRET");
-            if (string.IsNullOrWhiteSpace(_secret)) _secret = ConfigurationManager.AppSettings["Jwt:Secret"];
+            _secret = Environment.GetEnvironmentVariable(AppConstants.JwtConfiguration.SecretEnvironmentVariable);
+            if (string.IsNullOrWhiteSpace(_secret)) _secret = ConfigurationManager.AppSettings[AppConstants.JwtConfiguration.SecretKey];
             if (string.IsNullOrWhiteSpace(_secret)) _secret = LoadOrCreateLocalSecret();
             if (_secret.Length < 32) throw new ConfigurationErrorsException("JWT secret must contain at least 32 characters.");
-            _issuer = ConfigurationManager.AppSettings["Jwt:Issuer"] ?? "HelmetCartelApi";
-            _audience = ConfigurationManager.AppSettings["Jwt:Audience"] ?? "HelmetCartelClients";
+            _issuer = ConfigurationManager.AppSettings[AppConstants.JwtConfiguration.IssuerKey] ?? "HelmetCartelApi";
+            _audience = ConfigurationManager.AppSettings[AppConstants.JwtConfiguration.AudienceKey] ?? "HelmetCartelClients";
 
-            var expiryStr = ConfigurationManager.AppSettings["Jwt:ExpiryMinutes"];
+            var expiryStr = ConfigurationManager.AppSettings[AppConstants.JwtConfiguration.ExpiryMinutesKey];
             if (!int.TryParse(expiryStr, out _expiryMinutes))
             {
                 _expiryMinutes = 120;
@@ -140,8 +140,11 @@ namespace HelmetCartelOrderingAndManagementSys.Infrastructure
 
         private static string LoadOrCreateLocalSecret()
         {
-            var folder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "App_Data");
-            var path = Path.Combine(folder, "jwt-secret.key");
+            var folder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, AppConstants.JwtConfiguration.LocalSecretFolder);
+            // An explicitly supplied local key takes precedence over the generated fallback.
+            var suppliedPath = Path.Combine(folder, AppConstants.JwtConfiguration.UserSecretFileName);
+            if (File.Exists(suppliedPath)) return File.ReadAllText(suppliedPath).Trim();
+            var path = Path.Combine(folder, AppConstants.JwtConfiguration.GeneratedSecretFileName);
             Directory.CreateDirectory(folder);
             if (File.Exists(path)) return File.ReadAllText(path).Trim();
             var bytes = new byte[48];

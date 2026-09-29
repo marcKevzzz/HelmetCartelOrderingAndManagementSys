@@ -1,5 +1,29 @@
 # AI Change Log & Architectural Evolution: Helmet Cartel
 
+## [2026-09-29] — Mobile Navigation, Inventory Drill-down, and POS Counter
+
+- Made the admin sidebar header close the mobile drawer and kept backdrop, Escape, navigation-link, ARIA, and desktop compact-state behavior in sync. Replaced the sidebar Brands List with a database-backed Inventory brand filter before Category.
+- Added expandable Analytics brand details with product images, categories, variant stock/status, and exact Inventory links. Migration 14 adds the detail procedure and exact product/variant filters.
+- Built the responsive POS counter with image-based variant search/filtering, live stock, a persisted current sale, optional customer details, Cash and approved external card-terminal checkout, mobile sale drawer, and printable receipt. POS uses authenticated C# APIs, the database effective-price function, locked inventory transactions, stock audit/payment records, and existing SignalR broadcasts.
+- Updated the small-database builder and generated installer to include migration 14. Verified the .NET build, the Analytics/Inventory/POS pages, and rolled-back Cash/Card sale transactions; an insufficient-cash sale left stock and orders unchanged.
+
+## [2026-09-29] — Catalog Wizard Layout, Image Ordering, and Product Preview
+
+- Removed the Catalog Add Stock action and added an eye-icon preview that opens the real storefront product-detail page in a scaled admin modal.
+- Reworked the Variants & Stock tab into clearly labeled color configuration sections, added automatic shade-based color names, changed size checkboxes into black/white toggle pills, and simplified matrix inputs to a bottom-border treatment.
+- Simplified the Images tab to upload and draggable image tiles. Drag order is synchronized back to the file input so the first tile is saved as the primary image; remove controls now use a transparent background and turn red on hover.
+- Replaced the Review summary header with a compact product-detail preview containing the primary image, storefront pricing, description, color swatches, size options, and disabled cart action.
+- Removed the stock-in helper sentence, pricing preview panel, image-format helper sentence, image-preview heading, and direct image URL fields from the visible workflow.
+
+## [2026-09-29] — Dynamic Admin Metrics, Activity Samples, and Stock Modal Repair
+
+- Replaced dashboard stock placeholders with stored-procedure metrics reconstructed from stock audit history. Total stock, available stock, and low-stock alerts now compare the current value with the previous-day snapshot.
+- Added selected-range inventory snapshots for Analytics so Total Warehouse Units and Active SKUs display the percentage change from the selected start date through the selected end date.
+- Updated trend badges to use trending-up, trending-down, and dash SVG icons, with semantic design tokens for their colors and spacing.
+- Repaired the Add Stock modal by removing conflicting inline display state and wiring open, close, backdrop, Escape, and live-preview behavior through reusable JavaScript handlers.
+- Corrected stock-in auditing to use the schema-supported `RESTOCK` change type and allow a nullable actor until admin identity is connected to Web Forms authentication.
+- Added an idempotent compact sample with three additional image-backed helmets, six SKUs, six orders/payments, and matching stock audit activity for the dashboard feed and charts.
+
 ## [2026-09-29] — Global Search Dropdown Visibility & Inventory Stock History Filter Isolation
 
 - **Global Search Dropdown List Display:**
@@ -587,3 +611,9 @@ This file maintains a historical ledger of major architectural decisions, direct
 - Added up to five recent search queries in local browser storage, shown in desktop and mobile search when the input is empty, with a Clear control.
 - Replaced the nonfunctional newsletter alert form and unsupported first-order discount message with catalog discovery links.
 - Updated the add-to-cart toast to use the exact cart path shown in the site navigation.
+
+## [2026-09-29] - Local JWT file and minimal fresh database installer
+
+- JWT configuration now recognizes the supplied App_Data/Jwt_Secret after environment/app-setting overrides and before the generated fallback. Centralized configuration keys and ignored the private file in Git.
+- Added a reproducible standalone SQLCMD installer built from the current schema and procedure migrations, guarded against existing databases, with only two products and four inventory rows. The compact catalog uses the existing AGV White Modular and Gille Adventure Peak seed context, including their local main and gallery images. No full inventory, transaction history, or shared login credentials are imported.
+- Existing database and connection string are unchanged; execution and connection instructions are in SETUP_GUIDE.md.

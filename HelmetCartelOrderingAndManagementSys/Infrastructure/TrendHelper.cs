@@ -17,12 +17,12 @@ namespace HelmetCartelOrderingAndManagementSys.Infrastructure
             if (dir == "up")
             {
                 trendClass = "admin-trend--up";
-                svgIcon = @"<svg class=""admin-trend-icon"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor""><polyline points=""18 15 12 9 6 15""></polyline></svg>";
+                svgIcon = @"<svg class=""admin-trend-icon"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor""><polyline points=""22 7 13.5 15.5 8.5 10.5 2 17""></polyline><polyline points=""16 7 22 7 22 13""></polyline></svg>";
             }
             else if (dir == "down")
             {
                 trendClass = "admin-trend--down";
-                svgIcon = @"<svg class=""admin-trend-icon"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor""><polyline points=""6 9 12 15 18 9""></polyline></svg>";
+                svgIcon = @"<svg class=""admin-trend-icon"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor""><polyline points=""22 17 13.5 8.5 8.5 13.5 2 7""></polyline><polyline points=""16 17 22 17 22 11""></polyline></svg>";
             }
 
             string textEscaped = HttpUtility.HtmlEncode(text ?? string.Empty);
@@ -81,8 +81,8 @@ namespace HelmetCartelOrderingAndManagementSys.Infrastructure
             string ariaEscaped = HttpUtility.HtmlAttributeEncode($"{sign}{pct:F1}%");
 
             string svgIcon = isPositive
-                ? @"<svg class=""admin-trend-icon"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor""><polyline points=""18 15 12 9 6 15""></polyline></svg>"
-                : @"<svg class=""admin-trend-icon"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor""><polyline points=""6 9 12 15 18 9""></polyline></svg>";
+                ? @"<svg class=""admin-trend-icon"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor""><polyline points=""22 7 13.5 15.5 8.5 10.5 2 17""></polyline><polyline points=""16 7 22 7 22 13""></polyline></svg>"
+                : @"<svg class=""admin-trend-icon"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor""><polyline points=""22 17 13.5 8.5 8.5 13.5 2 7""></polyline><polyline points=""16 17 22 17 22 11""></polyline></svg>";
 
             return $@"<span class=""admin-trend-badge {trendClass}"" title=""{titleEscaped}"" aria-label=""{ariaEscaped}"">
                 {svgIcon}

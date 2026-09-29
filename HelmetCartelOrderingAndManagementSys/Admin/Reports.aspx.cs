@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using HelmetCartelOrderingAndManagementSys.Infrastructure;
@@ -16,6 +17,8 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
     public partial class ReportsPage : Page
     {
         private readonly AdminDataRepository _adminRepo;
+        private Dictionary<string, List<AdminBrandInventoryDetailDto>> _brandDetails =
+            new Dictionary<string, List<AdminBrandInventoryDetailDto>>(StringComparer.OrdinalIgnoreCase);
 
         public string ActivePreset
         {
@@ -140,13 +143,24 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             {
                 // 1. Load brand inventory health report
                 var brandReport = await _adminRepo.GetInventoryReportAsync().ConfigureAwait(false);
+                var details = await _adminRepo.GetBrandInventoryDetailsAsync().ConfigureAwait(false);
+                _brandDetails = details.GroupBy(item => item.Brand, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.OrdinalIgnoreCase);
                 rptBrandReport.DataSource = brandReport;
                 rptBrandReport.DataBind();
 
-                litTotalUnits.Text = brandReport.Sum(b => b.OnHandStock).ToString("N0");
-                litTotalUnitsTrend.Text = TrendHelper.RenderSimpleBadge("up", "Stocked", "Physical stock across active brands");
-                litTotalVariants.Text = brandReport.Sum(b => b.VariantCount).ToString("N0");
-                litTotalVariantsTrend.Text = TrendHelper.RenderSimpleBadge("up", "Active SKUs", "Total variant combinations configured");
+                var inventoryTrend = await _adminRepo.GetInventoryTrendAsync(startDate, endDate).ConfigureAwait(false);
+                string inventoryComparisonLabel = $"{startDate:MMM dd, yyyy} to {endDate:MMM dd, yyyy}";
+                litTotalUnits.Text = inventoryTrend.EndTotalUnits.ToString("N0");
+                litTotalUnitsTrend.Text = TrendHelper.RenderTrend(
+                    inventoryTrend.EndTotalUnits,
+                    inventoryTrend.StartTotalUnits,
+                    inventoryComparisonLabel);
+                litTotalVariants.Text = inventoryTrend.EndActiveSkus.ToString("N0");
+                litTotalVariantsTrend.Text = TrendHelper.RenderTrend(
+                    inventoryTrend.EndActiveSkus,
+                    inventoryTrend.StartActiveSkus,
+                    inventoryComparisonLabel);
 
                 // 2. Load daily sales report for requested period
                 // Adding 1 day to endDate because SQL sp_AdminSalesDaily uses: PaidAt < @EndDate
@@ -246,13 +260,19 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             }
             catch (Exception)
             {
-                litTotalUnits.Text = "5,818";
-                litTotalUnitsTrend.Text = TrendHelper.RenderSimpleBadge("up", "Stocked", "Physical stock across active brands");
-                litTotalVariants.Text = "440";
-                litTotalVariantsTrend.Text = TrendHelper.RenderSimpleBadge("up", "Active SKUs", "Total variant combinations configured");
+                litTotalUnits.Text = "0";
+                litTotalUnitsTrend.Text = string.Empty;
+                litTotalVariants.Text = "0";
+                litTotalVariantsTrend.Text = string.Empty;
                 litTotalRevenue.Text = "0.00";
                 litTotalOrders.Text = "0";
                 litAverageOrderValue.Text = "0.00";
+                litTotalRevenueTrend.Text = string.Empty;
+                litTotalOrdersTrend.Text = string.Empty;
+                litAovTrend.Text = string.Empty;
+                ChartLabelsJson = "[]";
+                ChartRevenueJson = "[]";
+                ChartOrdersJson = "[]";
             }
         }
 
@@ -263,6 +283,56 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             btnPresetMonth.CssClass = ActivePreset == "month" ? "admin-tab-btn active" : "admin-tab-btn";
             btnPreset30Days.CssClass = ActivePreset == "30days" ? "admin-tab-btn active" : "admin-tab-btn";
             btnPresetCustom.CssClass = ActivePreset == "custom" ? "admin-tab-btn active" : "admin-tab-btn";
+        }
+
+        protected void rptBrandReport_ItemDataBound(object sender, RepeaterItemEventArgs e)
+        {
+            if (e.Item.ItemType != ListItemType.Item && e.Item.ItemType != ListItemType.AlternatingItem) return;
+            var report = e.Item.DataItem as AdminBrandReportDto;
+            var target = e.Item.FindControl("litBrandDetails") as Literal;
+            if (report == null || target == null) return;
+            if (!_brandDetails.TryGetValue(report.Brand, out var variants) || variants.Count == 0)
+            {
+                target.Text = "<div class=\"admin-brand-details-empty\">No inventory items found for this brand.</div>";
+                return;
+            }
+
+            var html = new StringBuilder();
+            html.Append("<div class=\"admin-brand-details\">");
+            foreach (var product in variants.GroupBy(item => item.ProductId))
+            {
+                var first = product.First();
+                var image = first.MainImageUrl;
+                if (string.IsNullOrWhiteSpace(image) ||
+                    (!image.StartsWith("/", StringComparison.Ordinal) && !image.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+                    image = "/Content/images/products/helmets/agv/images.jpg";
+                html.Append("<section class=\"admin-brand-product\"><div class=\"admin-brand-product-head\">")
+                    .Append("<img src=\"").Append(HttpUtility.HtmlAttributeEncode(image)).Append("\" alt=\"")
+                    .Append(HttpUtility.HtmlAttributeEncode(first.ProductName)).Append("\" loading=\"lazy\" />")
+                    .Append("<div><strong>").Append(HttpUtility.HtmlEncode(first.ProductName)).Append("</strong><span>")
+                    .Append(HttpUtility.HtmlEncode(first.CategoryName)).Append("</span></div></div>")
+                    .Append("<div class=\"admin-brand-variant-list\">");
+
+                foreach (var item in product)
+                {
+                    var status = item.AvailableStock <= 0 ? "Out of Stock" :
+                        item.AvailableStock <= item.ReorderPoint ? "Low Stock" : "In Stock";
+                    html.Append("<div class=\"admin-brand-variant\">")
+                        .Append("<div><strong>").Append(HttpUtility.HtmlEncode(item.Color)).Append(" / ")
+                        .Append(HttpUtility.HtmlEncode(item.Size)).Append("</strong><span>")
+                        .Append(HttpUtility.HtmlEncode(item.SKU)).Append("</span></div>")
+                        .Append("<span>On hand <strong>").Append(item.OnHandStock.ToString("N0"))
+                        .Append("</strong></span><span>Available <strong>").Append(item.AvailableStock.ToString("N0"))
+                        .Append("</strong></span><span>Reorder at <strong>").Append(item.ReorderPoint.ToString("N0"))
+                        .Append("</strong></span><span class=\"admin-brand-variant-status\">")
+                        .Append(status).Append("</span><a href=\"/Admin/Inventory.aspx?productId=")
+                        .Append(item.ProductId).Append("&amp;variantId=").Append(item.VariantId)
+                        .Append("\" class=\"admin-row-action-btn\">Open item &rarr;</a></div>");
+                }
+                html.Append("</div></section>");
+            }
+            html.Append("</div>");
+            target.Text = html.ToString();
         }
 
         protected void btnExportReport_Click(object sender, EventArgs e)

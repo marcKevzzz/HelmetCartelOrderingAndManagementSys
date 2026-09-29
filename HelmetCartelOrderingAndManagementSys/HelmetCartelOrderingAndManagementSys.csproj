@@ -115,11 +115,13 @@
     <Content Include="Admin\Reviews.aspx" />
     <Content Include="Admin\Payments.aspx" />
     <Content Include="Content\css\admin\admin.css" />
+    <Content Include="Content\css\admin\pos.css" />
     <Content Include="Scripts\admin\admin.js" />
     <Content Include="Scripts\admin\search-history.js" />
     <Content Include="Scripts\admin\catalog.js" />
     <Content Include="Scripts\admin\dashboard.js" />
     <Content Include="Scripts\admin\reports.js" />
+    <Content Include="Scripts\admin\pos.js" />
     <Content Include="Scripts\vendor\jquery-3.7.1.min.js" />
     <Content Include="Scripts\vendor\jquery.signalR-2.4.3.min.js" />
     <Content Include="Pages\Shop.aspx" />

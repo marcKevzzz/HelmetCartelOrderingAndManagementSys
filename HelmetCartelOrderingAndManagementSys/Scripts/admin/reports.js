@@ -3,6 +3,16 @@
  * Chart.js initialization & date range management
  */
 document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.js-brand-inventory-toggle').forEach(button => {
+    button.addEventListener('click', () => {
+      const details = document.getElementById(button.getAttribute('aria-controls'));
+      if (!details) return;
+      const open = button.getAttribute('aria-expanded') !== 'true';
+      button.setAttribute('aria-expanded', String(open));
+      button.querySelector('span').textContent = open ? 'Hide Inventory \u2191' : 'View Inventory \u2193';
+      details.hidden = !open;
+    });
+  });
   const chartCanvas = document.getElementById('analyticsRevenueChart');
   if (!chartCanvas || !window.Chart) return;
 

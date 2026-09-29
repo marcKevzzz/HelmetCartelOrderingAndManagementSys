@@ -111,3 +111,23 @@ Set `HELMET_CARTEL_JWT_SECRET` to a private value of at least 32 characters in p
   - Email: `juan@rider.com`
   - Password: `password` (local seed only; change before deployment)
   - Role: `Customer`
+
+### Small fresh database (same current schema)
+
+Open `database/setup/new_database_minimal.sql` in a normal SSMS query window and execute the complete file. SQLCMD Mode is not required. It creates `HelmetCartelMinimalDB` with the current tables, constraints, indexes, functions and stored procedures, including migrations through 14. It refuses to run if that database already exists; the existing `HelmetCartelDB` is untouched. If installation fails midway, use a different new database name after correcting the error.
+
+The compact sample contains three roles, three brands, four categories, five image-backed products, ten SKUs, 51 current warehouse units, twelve gallery images, and six orders spread across the previous week. Two of the original variants remain low-stock so the dashboard alert state is visible. The product details and image paths come from the existing project catalog. Users and reviews remain empty; register an account through the application because no shared demo password is installed.
+
+To use another database name or regenerate after schema changes, run from the repository root:
+
+```powershell
+powershell -File .\database\setup\Build-MinimalDatabase.ps1 -DatabaseName HelmetCartelMinimalDB
+```
+
+The builder only writes SQL. After executing the SQL, change `Initial Catalog=HelmetCartelDB` to `Initial Catalog=HelmetCartelMinimalDB` in `Web.config` to connect the application to it. Do not run the full catalog seed scripts on this small database.
+
+For an existing database already at migration 13, run `database/schema/14_pos_and_inventory_drilldown.sql` in that database before using POS. It adds exact Inventory links, Analytics brand item details, the filtered POS catalog, and server-priced cash validation. No extra sample data is added by this migration.
+
+### Local JWT secret file
+
+The app now reads your `HelmetCartelOrderingAndManagementSys/App_Data/Jwt_Secret` file when neither `HELMET_CARTEL_JWT_SECRET` nor `Jwt:Secret` is configured. Keep only the secret text in this file (at least 32 characters); surrounding whitespace is trimmed. It is excluded from Git. The original generated `App_Data/jwt-secret.key` remains the fallback only when `Jwt_Secret` is absent. Restart the app after changing the secret; tokens signed using the previous key will require a new login. Supply this private file separately when deploying, or use the environment variable.

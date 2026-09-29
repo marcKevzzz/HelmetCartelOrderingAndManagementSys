@@ -11,14 +11,63 @@ document.addEventListener('DOMContentLoaded', () => {
   const toggleBtn = document.getElementById('admin-sidebar-toggle-btn');
   const collapseKey = 'hc_admin_sidebar_collapsed';
 
+  const mobileBreakpoint = window.matchMedia('(max-width: 1024px)');
+  const mobileMenuBtn = document.getElementById('adminMobileMenuBtn');
+  const sidebarBackdrop = document.getElementById('adminSidebarBackdrop');
+  const closeMobileSidebar = () => {
+    if (!sidebar || !mobileBreakpoint.matches) return;
+    sidebar.classList.remove('is-mobile-open');
+    sidebarBackdrop?.classList.remove('active');
+    mobileMenuBtn?.setAttribute('aria-expanded', 'false');
+    toggleBtn?.setAttribute('aria-expanded', 'false');
+    toggleBtn?.setAttribute('aria-label', 'Close navigation');
+  };
+  const setMobileSidebarOpen = (open) => {
+    if (open) sidebar.classList.remove('is-collapsed');
+    sidebar.classList.toggle('is-mobile-open', open);
+    sidebarBackdrop?.classList.toggle('active', open);
+    mobileMenuBtn?.setAttribute('aria-expanded', String(open));
+    toggleBtn?.setAttribute('aria-expanded', String(open));
+    toggleBtn?.setAttribute('aria-label', 'Close navigation');
+    if (open) toggleBtn?.focus();
+    else mobileMenuBtn?.focus();
+  };
   if (sidebar && toggleBtn) {
     if (localStorage.getItem(collapseKey) === 'true') {
       sidebar.classList.add('is-collapsed');
     }
+    const updateDesktopToggle = () => {
+      if (mobileBreakpoint.matches) return;
+      const expanded = !sidebar.classList.contains('is-collapsed');
+      toggleBtn.setAttribute('aria-expanded', String(expanded));
+      toggleBtn.setAttribute('aria-label', expanded ? 'Collapse sidebar' : 'Expand sidebar');
+      toggleBtn.title = expanded ? 'Collapse sidebar' : 'Expand sidebar';
+    };
+    if (mobileBreakpoint.matches) {
+      sidebar.classList.remove('is-collapsed');
+      closeMobileSidebar();
+    }
+    updateDesktopToggle();
 
     toggleBtn.addEventListener('click', () => {
+      if (mobileBreakpoint.matches) {
+        setMobileSidebarOpen(false);
+        return;
+      }
       const isCollapsed = sidebar.classList.toggle('is-collapsed');
       localStorage.setItem(collapseKey, isCollapsed);
+      updateDesktopToggle();
+    });
+    mobileBreakpoint.addEventListener('change', () => {
+      if (mobileBreakpoint.matches) {
+        sidebar.classList.remove('is-collapsed');
+        closeMobileSidebar();
+      } else {
+        sidebar.classList.toggle('is-collapsed', localStorage.getItem(collapseKey) === 'true');
+        sidebar.classList.remove('is-mobile-open');
+        sidebarBackdrop?.classList.remove('active');
+      }
+      updateDesktopToggle();
     });
   }
 
@@ -197,20 +246,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 5. Mobile Sidebar Navigation Drawer
-  const mobileMenuBtn = document.getElementById('adminMobileMenuBtn');
-  const sidebarBackdrop = document.getElementById('adminSidebarBackdrop');
   if (mobileMenuBtn && sidebar) {
     mobileMenuBtn.addEventListener('click', () => {
-      sidebar.classList.toggle('is-mobile-open');
-      sidebarBackdrop?.classList.toggle('active');
+      setMobileSidebarOpen(!sidebar.classList.contains('is-mobile-open'));
     });
   }
   if (sidebarBackdrop && sidebar) {
-    sidebarBackdrop.addEventListener('click', () => {
-      sidebar.classList.remove('is-mobile-open');
-      sidebarBackdrop.classList.remove('active');
-    });
+    sidebarBackdrop.addEventListener('click', closeMobileSidebar);
   }
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && sidebar?.classList.contains('is-mobile-open')) closeMobileSidebar();
+  });
+  sidebar?.querySelectorAll('a[href]').forEach(link => link.addEventListener('click', closeMobileSidebar));
 
   // 6. Sign Out Modal
   window.openSignOutModal = () => {
@@ -349,14 +396,47 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCalculatedStock();
         txtDelta.oninput = updateCalculatedStock;
       }
-      modal.style.display = 'flex';
+      modal.classList.remove('is-hidden');
+      modal.removeAttribute('hidden');
+      txtDelta?.focus();
     }
   };
 
   window.closeStockAdjustModal = () => {
     const modal = document.getElementById('stockAdjustModal');
-    if (modal) modal.style.display = 'none';
+    if (!modal) return;
+    modal.classList.add('is-hidden');
+    modal.setAttribute('hidden', 'hidden');
   };
+
+  document.addEventListener('click', (event) => {
+    const openButton = event.target.closest('.js-open-stock-modal');
+    if (openButton) {
+      window.openStockAdjustModal(
+        openButton.dataset.variantId,
+        openButton.dataset.title,
+        openButton.dataset.currentStock
+      );
+      return;
+    }
+
+    if (event.target.closest('.js-close-stock-modal')) {
+      window.closeStockAdjustModal();
+      return;
+    }
+
+    const modal = document.getElementById('stockAdjustModal');
+    if (modal && event.target === modal) {
+      window.closeStockAdjustModal();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    const modal = document.getElementById('stockAdjustModal');
+    if (event.key === 'Escape' && modal && !modal.hasAttribute('hidden')) {
+      window.closeStockAdjustModal();
+    }
+  });
 
   // 9. Add / Edit Helmet Model Modal & Tabbed Wizard (Catalog page)
   window.activeColors = [
@@ -366,6 +446,55 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
 
   window.selectedFilesList = [];
+  let draggedImageIndex = null;
+
+  const namedHelmetColors = [
+    { name: 'Jet Black', hex: '#000000' },
+    { name: 'Matte Black', hex: '#18181B' },
+    { name: 'Graphite Gray', hex: '#52525B' },
+    { name: 'Silver Gray', hex: '#A1A1AA' },
+    { name: 'Pearl White', hex: '#FFFFFF' },
+    { name: 'Racing Red', hex: '#DC2626' },
+    { name: 'Burnt Orange', hex: '#EA580C' },
+    { name: 'Sunburst Yellow', hex: '#EAB308' },
+    { name: 'Lime Green', hex: '#65A30D' },
+    { name: 'Emerald Green', hex: '#059669' },
+    { name: 'Teal Blue', hex: '#0D9488' },
+    { name: 'Sky Blue', hex: '#38BDF8' },
+    { name: 'Racing Blue', hex: '#2563EB' },
+    { name: 'Deep Navy', hex: '#1E3A8A' },
+    { name: 'Royal Purple', hex: '#7E22CE' },
+    { name: 'Vivid Pink', hex: '#DB2777' },
+    { name: 'Rose Gold', hex: '#BE7C68' },
+    { name: 'Chocolate Brown', hex: '#78350F' }
+  ];
+
+  function hexToRgb(hex) {
+    const normalized = String(hex || '').replace('#', '');
+    if (!/^[0-9A-Fa-f]{6}$/.test(normalized)) return null;
+    return {
+      r: parseInt(normalized.substring(0, 2), 16),
+      g: parseInt(normalized.substring(2, 4), 16),
+      b: parseInt(normalized.substring(4, 6), 16)
+    };
+  }
+
+  function getNearestColorName(hex) {
+    const target = hexToRgb(hex);
+    if (!target) return 'Custom Color';
+    return namedHelmetColors.reduce((closest, candidate) => {
+      const rgb = hexToRgb(candidate.hex);
+      const distance = Math.pow(target.r - rgb.r, 2) + Math.pow(target.g - rgb.g, 2) + Math.pow(target.b - rgb.b, 2);
+      return distance < closest.distance ? { name: candidate.name, distance } : closest;
+    }, { name: 'Custom Color', distance: Number.POSITIVE_INFINITY }).name;
+  }
+
+  function setSuggestedColorName(name, force) {
+    const nameInput = document.getElementById('txtCustomColorName');
+    if (!nameInput || (!force && nameInput.dataset.customized === 'true')) return;
+    nameInput.value = name;
+    nameInput.dataset.customized = 'false';
+  }
 
   window.openAddProductModal = () => {
     const modal = document.getElementById('addProductModal');
@@ -396,7 +525,9 @@ document.addEventListener('DOMContentLoaded', () => {
       { name: 'Racing Red', type: 'solid', hex: '#DC2626' }
     ];
     window.selectedFilesList = [];
+    syncSelectedFilesToInput();
     renderImageTiles();
+    setSuggestedColorName('Matte Black', true);
 
     modal.classList.remove('is-hidden');
     modal.removeAttribute('hidden');
@@ -443,12 +574,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (discValInput) discValInput.value = discountVal || 0;
 
     const imgUrlInput = document.getElementById('MainContent_txtNewImageUrl') || document.getElementById('txtNewImageUrl');
-    if (imgUrlInput && imgUrl) imgUrl.value = imgUrl;
+    if (imgUrlInput && imgUrl) imgUrlInput.value = imgUrl;
 
     const descInput = document.getElementById('MainContent_txtNewDescription') || document.getElementById('txtNewDescription');
     if (descInput) descInput.value = desc || '';
 
     window.selectedFilesList = [];
+    syncSelectedFilesToInput();
     renderImageTiles();
 
     modal.classList.remove('is-hidden');
@@ -508,23 +640,32 @@ document.addEventListener('DOMContentLoaded', () => {
       btnGrad?.classList.add('active');
       solidBox?.classList.add('is-hidden');
       gradBox?.classList.remove('is-hidden');
+      const first = document.getElementById('pickerGrad1')?.value || '#DC2626';
+      const second = document.getElementById('pickerGrad2')?.value || '#18181B';
+      setSuggestedColorName(`${getNearestColorName(first)} / ${getNearestColorName(second)}`, true);
       updateGradientPreview();
     } else {
       btnSolid?.classList.add('active');
       btnGrad?.classList.remove('active');
       solidBox?.classList.remove('is-hidden');
       gradBox?.classList.add('is-hidden');
+      const solid = document.getElementById('pickerSolidColor')?.value || '#18181B';
+      setSuggestedColorName(getNearestColorName(solid), true);
     }
   };
 
   window.syncSolidHex = (val) => {
     const hexInput = document.getElementById('txtSolidHex');
-    if (hexInput) hexInput.value = val;
+    if (hexInput) hexInput.value = String(val || '').toUpperCase();
+    setSuggestedColorName(getNearestColorName(val), false);
   };
 
   window.syncSolidPicker = (val) => {
     const picker = document.getElementById('pickerSolidColor');
-    if (picker && /^#[0-9A-Fa-f]{6}$/.test(val)) picker.value = val;
+    if (picker && /^#[0-9A-Fa-f]{6}$/.test(val)) {
+      picker.value = val;
+      setSuggestedColorName(getNearestColorName(val), false);
+    }
   };
 
   window.updateGradientPreview = () => {
@@ -535,6 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (preview) {
       preview.style.background = `linear-gradient(${deg}deg, ${c1}, ${c2})`;
     }
+    setSuggestedColorName(`${getNearestColorName(c1)} / ${getNearestColorName(c2)}`, false);
   };
 
   window.addColorToPalette = () => {
@@ -558,7 +700,16 @@ document.addEventListener('DOMContentLoaded', () => {
       window.activeColors.push({ name: colorName, type: 'solid', hex });
     }
 
-    if (nameInput) nameInput.value = '';
+    if (nameInput) {
+      nameInput.dataset.customized = 'false';
+      if (isGrad) {
+        const c1 = document.getElementById('pickerGrad1')?.value || '#DC2626';
+        const c2 = document.getElementById('pickerGrad2')?.value || '#18181B';
+        nameInput.value = `${getNearestColorName(c1)} / ${getNearestColorName(c2)}`;
+      } else {
+        nameInput.value = getNearestColorName(document.getElementById('pickerSolidColor')?.value || '#18181B');
+      }
+    }
     renderColorChips();
   };
 
@@ -569,26 +720,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Multi-Image Upload & Preview Grid
-  window.handleMultipleImageSelection = (input) => {
-    if (!input.files || input.files.length === 0) return;
-    const validExts = ['.jpg', '.jpeg', '.png', '.webp'];
-    const maxBytes = 5 * 1024 * 1024; // 5MB
+  const customColorNameInput = document.getElementById('txtCustomColorName');
+  customColorNameInput?.addEventListener('input', () => {
+    customColorNameInput.dataset.customized = 'true';
+  });
 
-    Array.from(input.files).forEach(file => {
+  // Multi-Image Upload & Preview Grid
+  function syncSelectedFilesToInput() {
+    const input = document.getElementById('MainContent_fileUploadImages') || document.getElementById('fileUploadImages');
+    if (!input || typeof DataTransfer === 'undefined') return;
+    const transfer = new DataTransfer();
+    window.selectedFilesList.forEach(file => transfer.items.add(file));
+    input.files = transfer.files;
+  }
+
+  function addSelectedImageFiles(files) {
+    const validExts = ['.jpg', '.jpeg', '.png', '.webp'];
+    const maxBytes = 5 * 1024 * 1024;
+
+    Array.from(files || []).forEach(file => {
       const ext = '.' + file.name.split('.').pop().toLowerCase();
       if (!validExts.includes(ext)) {
-        window.showAdminToast(`File "${file.name}" is not a supported format (JPG, PNG, WEBP only).`, 'warning', 'Invalid File Type');
+        window.showAdminToast(`File "${file.name}" is not a supported image.`, 'warning', 'Invalid File Type');
         return;
       }
       if (file.size > maxBytes) {
-        window.showAdminToast(`File "${file.name}" exceeds the 5MB size limit.`, 'warning', 'File Too Large');
+        window.showAdminToast(`File "${file.name}" exceeds the upload limit.`, 'warning', 'File Too Large');
         return;
       }
-      window.selectedFilesList.push(file);
+      const duplicate = window.selectedFilesList.some(existing =>
+        existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified);
+      if (!duplicate) window.selectedFilesList.push(file);
     });
 
+    syncSelectedFilesToInput();
     renderImageTiles();
+  }
+
+  window.handleMultipleImageSelection = (input) => {
+    if (!input.files || input.files.length === 0) return;
+    addSelectedImageFiles(input.files);
   };
 
   window.renderImageTiles = () => {
@@ -605,10 +776,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const blobUrl = URL.createObjectURL(file);
       const isPrimary = idx === 0;
       html += `
-        <div class="admin-upload-tile" data-idx="${idx}">
+        <div class="admin-upload-tile" data-idx="${idx}" draggable="true" tabindex="0" aria-label="${escapeHtml(file.name)}, position ${idx + 1}. Drag to reorder.">
           <img src="${blobUrl}" alt="${escapeHtml(file.name)}" />
           <span class="admin-upload-tile-badge">${isPrimary ? 'Primary' : '#' + (idx + 1)}</span>
-          <button type="button" class="admin-upload-tile-remove" onclick="removeImageTile(${idx});" title="Remove image">&times;</button>
+          <button type="button" class="admin-upload-tile-remove" onclick="removeImageTile(${idx});" title="Remove image" aria-label="Remove ${escapeHtml(file.name)}">&times;</button>
         </div>
       `;
     });
@@ -625,9 +796,56 @@ document.addEventListener('DOMContentLoaded', () => {
   window.removeImageTile = (idx) => {
     if (window.selectedFilesList && idx >= 0 && idx < window.selectedFilesList.length) {
       window.selectedFilesList.splice(idx, 1);
+      syncSelectedFilesToInput();
       renderImageTiles();
     }
   };
+
+  const imageGrid = document.getElementById('imageUploadGrid');
+  imageGrid?.addEventListener('dragstart', event => {
+    const tile = event.target.closest('.admin-upload-tile');
+    if (!tile) return;
+    draggedImageIndex = parseInt(tile.dataset.idx, 10);
+    tile.classList.add('is-dragging');
+    event.dataTransfer.effectAllowed = 'move';
+  });
+  imageGrid?.addEventListener('dragover', event => {
+    const tile = event.target.closest('.admin-upload-tile');
+    if (!tile || draggedImageIndex === null) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    imageGrid.querySelectorAll('.admin-upload-tile').forEach(item => item.classList.remove('is-drop-target'));
+    tile.classList.add('is-drop-target');
+  });
+  imageGrid?.addEventListener('drop', event => {
+    const tile = event.target.closest('.admin-upload-tile');
+    if (!tile || draggedImageIndex === null) return;
+    event.preventDefault();
+    const dropIndex = parseInt(tile.dataset.idx, 10);
+    if (dropIndex !== draggedImageIndex) {
+      const moved = window.selectedFilesList.splice(draggedImageIndex, 1)[0];
+      window.selectedFilesList.splice(dropIndex, 0, moved);
+      syncSelectedFilesToInput();
+    }
+    draggedImageIndex = null;
+    renderImageTiles();
+  });
+  imageGrid?.addEventListener('dragend', () => {
+    draggedImageIndex = null;
+    imageGrid.querySelectorAll('.admin-upload-tile').forEach(item => item.classList.remove('is-dragging', 'is-drop-target'));
+  });
+
+  const imageDropzone = document.getElementById('imageDropzone');
+  imageDropzone?.addEventListener('dragover', event => {
+    event.preventDefault();
+    imageDropzone.classList.add('is-dragover');
+  });
+  imageDropzone?.addEventListener('dragleave', () => imageDropzone.classList.remove('is-dragover'));
+  imageDropzone?.addEventListener('drop', event => {
+    event.preventDefault();
+    imageDropzone.classList.remove('is-dragover');
+    addSelectedImageFiles(event.dataTransfer.files);
+  });
 
   // Wizard tab switching
   window.switchWizardTab = (stepNumber) => {
@@ -741,6 +959,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const discountTypeDdl = document.getElementById('MainContent_ddlNewDiscountType') || document.getElementById('ddlNewDiscountType');
     const discountValInput = document.getElementById('MainContent_txtNewDiscountValue') || document.getElementById('txtNewDiscountValue');
     const imgUrlInput = document.getElementById('MainContent_txtNewImageUrl') || document.getElementById('txtNewImageUrl');
+    const descriptionInput = document.getElementById('MainContent_txtNewDescription') || document.getElementById('txtNewDescription');
 
     const brandName = brandInput?.options[brandInput.selectedIndex]?.text || 'Shoei';
     const catName = catInput?.options[catInput.selectedIndex]?.text || 'Full Face';
@@ -795,6 +1014,26 @@ document.addEventListener('DOMContentLoaded', () => {
     setReviewVal('reviewSummaryEffective', `₱${effectivePrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
     setReviewVal('reviewSummaryVariantsCount', `${rows.length} SKUs`);
     setReviewVal('reviewSummaryStockTotal', `${totalInitialStock.toLocaleString()} Units`);
+    setReviewVal('reviewSummaryDescription', descriptionInput?.value?.trim() || 'Product description will appear here.');
+
+    const basePriceLabel = document.getElementById('reviewSummaryBasePrice');
+    const discountLabel = document.getElementById('reviewSummaryDiscount');
+    basePriceLabel?.classList.toggle('is-hidden', dVal <= 0);
+    discountLabel?.classList.toggle('is-hidden', dVal <= 0);
+
+    const colorSwatches = document.getElementById('reviewColorSwatches');
+    if (colorSwatches) {
+      colorSwatches.innerHTML = (window.activeColors || []).map(color => {
+        const swatchStyle = color.type === 'gradient' ? `background:${color.hex};` : `background-color:${color.hex};`;
+        return `<span class="admin-product-detail-mini__swatch" style="${swatchStyle}" title="${escapeHtml(color.name)}" aria-label="${escapeHtml(color.name)}"></span>`;
+      }).join('');
+    }
+
+    const sizeOptions = document.getElementById('reviewSizeOptions');
+    if (sizeOptions) {
+      const selectedSizes = Array.from(document.querySelectorAll('.chk-new-size:checked')).map(input => input.value);
+      sizeOptions.innerHTML = selectedSizes.map(size => `<span>${escapeHtml(size)}</span>`).join('');
+    }
 
     // Image preview in review
     const thumbImg = document.getElementById('reviewSummaryThumb');
@@ -808,7 +1047,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    const imagesCount = (window.selectedFilesList?.length || 0) + (imgUrlInput?.value.trim() ? 1 : 0);
+    const uploadedCount = window.selectedFilesList?.length || 0;
+    const imagesCount = uploadedCount > 0 ? uploadedCount : (imgUrlInput?.value.trim() ? 1 : 0);
     setReviewVal('reviewSummaryImagesCount', `${Math.max(1, imagesCount)} Image${Math.max(1, imagesCount) === 1 ? '' : 's'}`);
 
     const breakdownBox = document.getElementById('reviewVariantsBreakdown');

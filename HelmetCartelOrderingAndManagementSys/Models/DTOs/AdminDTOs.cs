@@ -246,6 +246,31 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public int LowStockCount { get; set; }
     }
 
+    public sealed class AdminBrandInventoryDetailDto
+    {
+        public string Brand { get; set; }
+        public int ProductId { get; set; }
+        public int VariantId { get; set; }
+        public string ProductName { get; set; }
+        public string CategoryName { get; set; }
+        public string MainImageUrl { get; set; }
+        public string Color { get; set; }
+        public string Size { get; set; }
+        public string SKU { get; set; }
+        public int OnHandStock { get; set; }
+        public int AvailableStock { get; set; }
+        public int ReorderPoint { get; set; }
+        public string StockStatus { get; set; }
+    }
+
+    public sealed class AdminInventoryTrendDto
+    {
+        public int StartTotalUnits { get; set; }
+        public int EndTotalUnits { get; set; }
+        public int StartActiveSkus { get; set; }
+        public int EndActiveSkus { get; set; }
+    }
+
     public sealed class AdminDailySaleDto
     {
         public System.DateTime SalesDate { get; set; }

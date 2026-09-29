@@ -119,17 +119,18 @@
                     <ItemTemplate>
                         <li class="admin-activity-item">
                             <div class="admin-activity-meta">
-                                <span class="admin-activity-ref"><%# Server.HtmlEncode(Convert.ToString(Eval("Reference"))) %></span>
-                                <span class="admin-activity-detail"><%# Server.HtmlEncode(Convert.ToString(Eval("Detail"))) %></span>
+                                <span class="admin-activity-ref"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "reference"))) %></span>
+                                <span class="admin-activity-detail"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "detail"))) %></span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: var(--space-3);">
-                                <span class="admin-badge admin-badge--low-stock"><%# Server.HtmlEncode(Convert.ToString(Eval("Actor"))) %></span>
-                                <span class="admin-activity-time"><%# FormatActivityTime(Eval("CreatedAt")) %></span>
+                            <div class="admin-activity-side">
+                                <span class="admin-badge admin-badge--low-stock"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "activityType"))) %></span>
+                                <span class="admin-activity-actor"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "actor"))) %></span>
+                                <span class="admin-activity-time"><%# FormatActivityTime(GetActivityValue(Container.DataItem, "createdAt")) %></span>
                             </div>
                         </li>
                     </ItemTemplate>
                     <FooterTemplate>
-                        <%# rptRecentActivity.Items.Count == 0 ? "<li class='admin-empty-state' style='padding: var(--space-4);'>No recent operations logged yet.</li>" : "" %>
+                        <%# rptRecentActivity.Items.Count == 0 ? "<li class='admin-empty-state admin-activity-empty'>No recent operations logged yet.</li>" : "" %>
                     </FooterTemplate>
                 </asp:Repeater>
             </ul>

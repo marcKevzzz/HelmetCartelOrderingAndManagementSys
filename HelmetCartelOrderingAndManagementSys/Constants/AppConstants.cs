@@ -93,6 +93,18 @@ namespace HelmetCartelOrderingAndManagementSys.Constants
             public const string ProductionUrl = "https://api.hit-pay.com/v1/";
         }
 
+        public static class JwtConfiguration
+        {
+            public const string SecretEnvironmentVariable = "HELMET_CARTEL_JWT_SECRET";
+            public const string SecretKey = "Jwt:Secret";
+            public const string IssuerKey = "Jwt:Issuer";
+            public const string AudienceKey = "Jwt:Audience";
+            public const string ExpiryMinutesKey = "Jwt:ExpiryMinutes";
+            public const string LocalSecretFolder = "App_Data";
+            public const string UserSecretFileName = "Jwt_Secret";
+            public const string GeneratedSecretFileName = "jwt-secret.key";
+        }
+
         public static class JwtClaims
         {
             public const string UserId = "uid";

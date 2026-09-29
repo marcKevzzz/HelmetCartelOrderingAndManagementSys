@@ -18,6 +18,40 @@
     const delModalSummary = document.getElementById('delModalVariantsSummary');
     const hfDeleteProductId = document.getElementById('hfDeleteProductId');
     const btnCancelDelete = document.getElementById('btnCancelDelete');
+    const previewModal = document.getElementById('adminProductPreviewModal');
+    const previewFrame = document.getElementById('productPreviewFrame');
+    const previewTitle = document.getElementById('productPreviewTitle');
+
+    const closeProductPreview = () => {
+      if (!previewModal) return;
+      previewModal.classList.add('is-hidden');
+      previewModal.setAttribute('hidden', 'hidden');
+      if (previewFrame) previewFrame.src = 'about:blank';
+    };
+
+    document.addEventListener('click', (e) => {
+      const previewBtn = e.target.closest('.btn-preview-product');
+      if (previewBtn) {
+        e.preventDefault();
+        if (previewTitle) previewTitle.textContent = `Preview: ${previewBtn.dataset.name || 'Product Detail'}`;
+        if (previewFrame) previewFrame.src = previewBtn.dataset.previewUrl || 'about:blank';
+        if (previewModal) {
+          previewModal.classList.remove('is-hidden');
+          previewModal.removeAttribute('hidden');
+        }
+        return;
+      }
+
+      if (e.target.closest('.js-close-product-preview') || e.target === previewModal) {
+        closeProductPreview();
+      }
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && previewModal && !previewModal.hasAttribute('hidden')) {
+        closeProductPreview();
+      }
+    });
 
     // Event delegation for delete buttons
     document.addEventListener('click', (e) => {

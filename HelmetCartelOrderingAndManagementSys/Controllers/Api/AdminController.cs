@@ -65,8 +65,8 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
         }
 
         [HttpGet, Route("sellable-variants")]
-        public Task<IHttpActionResult> SellableVariants(string search = null) =>
-            Rows("dbo.sp_AdminSellableVariants", P("@Search", search));
+        public Task<IHttpActionResult> SellableVariants(string search = null, string brand = null, string category = null) =>
+            Rows("dbo.sp_AdminSellableVariants", P("@Search", search), P("@Brand", brand), P("@Category", category));
 
         [HttpGet, Route("orders")]
         public Task<IHttpActionResult> Orders(string search = null, string status = null, string source = null) =>

@@ -38,6 +38,18 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             set => ViewState["CurrentBrand"] = value;
         }
 
+        public int? CurrentProductId
+        {
+            get => ViewState["CurrentProductId"] as int?;
+            set => ViewState["CurrentProductId"] = value;
+        }
+
+        public int? CurrentVariantId
+        {
+            get => ViewState["CurrentVariantId"] as int?;
+            set => ViewState["CurrentVariantId"] = value;
+        }
+
         public string CurrentSearch
         {
             get => (ViewState["CurrentSearch"] as string) ?? "";
@@ -88,6 +100,10 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 {
                     CurrentBrand = Request.QueryString["brand"];
                 }
+                if (int.TryParse(Request.QueryString["productId"], out int productId) && productId > 0)
+                    CurrentProductId = productId;
+                if (int.TryParse(Request.QueryString["variantId"], out int variantId) && variantId > 0)
+                    CurrentVariantId = variantId;
 
                 if (!string.IsNullOrEmpty(Request.QueryString["status"]))
                 {
@@ -105,8 +121,32 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
 
         private async Task InitializeFiltersAndDataAsync()
         {
+            await PopulateBrandsAsync().ConfigureAwait(false);
             await PopulateCategoriesAsync().ConfigureAwait(false);
             await LoadInventoryDataAsync().ConfigureAwait(false);
+        }
+
+        private async Task PopulateBrandsAsync()
+        {
+            ddlBrandFilter.Items.Clear();
+            ddlAuditBrandFilter.Items.Clear();
+            ddlBrandFilter.Items.Add(new ListItem("All Brands", "all"));
+            ddlAuditBrandFilter.Items.Add(new ListItem("All Brands", "all"));
+            try
+            {
+                var brands = await _productRepo.GetBrandsAsync().ConfigureAwait(false);
+                foreach (var item in brands)
+                {
+                    ddlBrandFilter.Items.Add(new ListItem(item.Name, item.Name));
+                    ddlAuditBrandFilter.Items.Add(new ListItem(item.Name, item.Name));
+                }
+                var selected = ddlBrandFilter.Items.FindByValue(CurrentBrand);
+                if (selected != null) ddlBrandFilter.SelectedValue = selected.Value;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceWarning("Inventory brand filters failed to load: " + ex.Message);
+            }
         }
 
         private async Task PopulateCategoriesAsync()
@@ -187,9 +227,11 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
 
             string querySearch = string.IsNullOrWhiteSpace(CurrentSearch) ? null : CurrentSearch;
             string category = ddlCategoryFilter.SelectedValue == "all" ? null : ddlCategoryFilter.SelectedValue;
+            CurrentBrand = ddlBrandFilter.SelectedValue;
             string brand = string.IsNullOrWhiteSpace(CurrentBrand) || CurrentBrand == "all" ? null : CurrentBrand;
 
-            var allItems = await _adminRepo.GetInventoryVariantsAsync(querySearch, brand, category, CurrentStatus).ConfigureAwait(false);
+            var allItems = await _adminRepo.GetInventoryVariantsAsync(querySearch, brand, category, CurrentStatus,
+                CurrentProductId, CurrentVariantId).ConfigureAwait(false);
 
             int totalCount = allItems.Count;
             int totalPages = (int)Math.Ceiling((double)totalCount / PageSize);
@@ -249,6 +291,8 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         {
             if (sender is LinkButton btn)
             {
+                CurrentProductId = null;
+                CurrentVariantId = null;
                 CurrentStatus = btn.CommandArgument;
                 CurrentPageNumber = 1;
                 RegisterAsyncTask(new PageAsyncTask(LoadInventoryDataAsync));
@@ -257,6 +301,9 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
 
         protected void FilterDropdown_Changed(object sender, EventArgs e)
         {
+            CurrentProductId = null;
+            CurrentVariantId = null;
+            CurrentBrand = ddlBrandFilter.SelectedValue;
             CurrentPageNumber = 1;
             RegisterAsyncTask(new PageAsyncTask(LoadInventoryDataAsync));
         }
@@ -303,7 +350,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             {
                 try
                 {
-                    int newStock = await _adminRepo.AdjustStockAsync(variantId, delta, 1, reference, notes).ConfigureAwait(false);
+                    int newStock = await _adminRepo.AdjustStockAsync(variantId, delta, null, reference, notes).ConfigureAwait(false);
                     try
                     {
                         var hubContext = Microsoft.AspNet.SignalR.GlobalHost.ConnectionManager.GetHubContext<HelmetCartelOrderingAndManagementSys.Hubs.InventoryHub>();

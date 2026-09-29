@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/Content/css/variables.css" />
     <link rel="stylesheet" href="/Content/css/reset.css" />
     <link rel="stylesheet" href="/Content/css/components.css" />
-    <link rel="stylesheet" href="/Content/css/admin/admin.css?v=5" />
+    <link rel="stylesheet" href="/Content/css/admin/admin.css?v=7" />
     <asp:ContentPlaceHolder ID="HeadContent" runat="server" />
 </head>
 <body class="admin-body">
@@ -22,7 +22,6 @@
             bool isPOS = currentPath.IndexOf("POS", StringComparison.OrdinalIgnoreCase) >= 0;
             bool isReports = currentPath.IndexOf("Reports", StringComparison.OrdinalIgnoreCase) >= 0;
             bool isUsers = currentPath.IndexOf("Users", StringComparison.OrdinalIgnoreCase) >= 0;
-            string selectedBrand = Request.QueryString["brand"] ?? "";
         %>
         <div class="admin-app">
             <!-- Sidebar -->
@@ -33,7 +32,7 @@
                         <a href="/Admin/Inventory.aspx" class="admin-brand" title="Helmet Cartel Operations">
                             <span class="admin-brand-title">Helmet Cartel</span>
                         </a>
-                        <button type="button" class="admin-sidebar-toggle-btn" id="admin-sidebar-toggle-btn" aria-label="Toggle Sidebar" title="Collapse sidebar">
+                        <button type="button" class="admin-sidebar-toggle-btn" id="admin-sidebar-toggle-btn" aria-label="Collapse sidebar" aria-controls="admin-sidebar" aria-expanded="true" title="Collapse sidebar">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                 <line x1="9" y1="3" x2="9" y2="21"></line>
@@ -121,20 +120,6 @@
                         </ul>
                     </div>
 
-                    <!-- Brands List Section -->
-                    <div class="admin-nav-group">
-                        <div class="admin-nav-group-header">
-                            <span class="admin-nav-group-title">Brands List</span>
-                            <span class="admin-nav-group-title">&mdash;</span>
-                        </div>
-                        <ul class="admin-sub-list">
-                            <li><a href="/Admin/Inventory.aspx?brand=Shoei" class="admin-sub-link <%= string.Equals(selectedBrand, "Shoei", StringComparison.OrdinalIgnoreCase) ? "active" : "" %>">Shoei</a></li>
-                            <li><a href="/Admin/Inventory.aspx?brand=AGV" class="admin-sub-link <%= string.Equals(selectedBrand, "AGV", StringComparison.OrdinalIgnoreCase) ? "active" : "" %>">AGV</a></li>
-                            <li><a href="/Admin/Inventory.aspx?brand=HNJ" class="admin-sub-link <%= string.Equals(selectedBrand, "HNJ", StringComparison.OrdinalIgnoreCase) ? "active" : "" %>">HNJ</a></li>
-                            <li><a href="/Admin/Inventory.aspx?brand=Gille" class="admin-sub-link <%= string.Equals(selectedBrand, "Gille", StringComparison.OrdinalIgnoreCase) ? "active" : "" %>">Gille</a></li>
-                            <li><a href="/Admin/Inventory.aspx?brand=Zebra" class="admin-sub-link <%= string.Equals(selectedBrand, "Zebra", StringComparison.OrdinalIgnoreCase) ? "active" : "" %>">Zebra</a></li>
-                        </ul>
-                    </div>
                 </div>
 
                 <!-- Sidebar Footer -->
@@ -166,7 +151,7 @@
                 <!-- Topbar Header -->
                 <header class="admin-topbar">
                     <div class="admin-topbar-left">
-                        <button type="button" class="admin-mobile-hamburger" id="adminMobileMenuBtn" aria-label="Toggle Mobile Navigation" title="Open Menu">
+                        <button type="button" class="admin-mobile-hamburger" id="adminMobileMenuBtn" aria-label="Open navigation" aria-controls="admin-sidebar" aria-expanded="false" title="Open Menu">
                             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="3" y1="12" x2="21" y2="12"></line>
                                 <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -227,7 +212,7 @@
             </div>
         </div>
     </form>
-    <script src="/Scripts/admin/admin.js?v=6"></script>
+    <script src="/Scripts/admin/admin.js?v=8"></script>
     <script src="/Scripts/admin/search-history.js?v=1"></script>
 </body>
 </html>

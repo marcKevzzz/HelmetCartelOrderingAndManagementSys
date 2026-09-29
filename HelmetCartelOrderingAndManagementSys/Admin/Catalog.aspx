@@ -120,12 +120,16 @@
                                 </td>
                                 <td class="admin-table-align-right">
                                     <div class="admin-actions-cell admin-actions-cell--right">
-                                        <a href='/Admin/Inventory.aspx?q=<%# Server.UrlEncode(Convert.ToString(Eval("Name"))) %>' class="btn-pill-sm btn-pill--outline" title="Add Stock for this model in Inventory">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-plus" viewBox="0 0 16 16">
-                                                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
+                                        <button type="button" class="btn-pill-sm btn-pill--outline btn-preview-product"
+                                            data-preview-url='/Pages/ProductDetail.aspx?id=<%# Eval("Id") %>'
+                                            data-name='<%# System.Web.HttpUtility.HtmlAttributeEncode(Convert.ToString(Eval("Name"))) %>'
+                                            title="Preview Product Detail">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path>
+                                                <circle cx="12" cy="12" r="3"></circle>
                                             </svg>
-                                            <span>Add Stock</span>
-                                        </a>
+                                            <span>Preview</span>
+                                        </button>
                                         <button type="button" class="btn-pill-sm btn-pill--outline btn-edit-product" 
                                             data-id='<%# Eval("Id") %>'
                                             data-name='<%# Server.HtmlEncode(Convert.ToString(Eval("Name"))) %>'
@@ -199,6 +203,21 @@
                 </asp:LinkButton>
             </div>
         </asp:Panel>
+    </div>
+
+    <div id="adminProductPreviewModal" class="admin-modal-backdrop is-hidden" hidden>
+        <div class="admin-modal admin-modal--product-preview">
+            <div class="admin-modal-header">
+                <div>
+                    <h3 id="productPreviewTitle" class="admin-modal-title">Product Detail Preview</h3>
+                    <p class="admin-modal-desc-subtle">Scaled storefront preview</p>
+                </div>
+                <button type="button" class="admin-modal-close-btn js-close-product-preview" aria-label="Close product preview">&times;</button>
+            </div>
+            <div class="admin-product-preview-frame-shell">
+                <iframe id="productPreviewFrame" class="admin-product-preview-frame" title="Product detail preview"></iframe>
+            </div>
+        </div>
     </div>
 
     <!-- Concise Delete Confirmation Modal Preview (Requirement 2) -->
@@ -329,64 +348,88 @@
                 <div class="admin-form-group">
                     <label class="admin-form-label">Color Palette &amp; Finishes <span class="admin-required-star">*</span></label>
                     <div class="admin-color-manager">
-                        <!-- Active Chips Container -->
-                        <div id="colorChipsContainer" class="admin-palette-chips">
-                            <!-- Populated dynamically by admin.js -->
-                        </div>
+                        <section class="admin-color-section" aria-labelledby="configuredColorsLabel">
+                            <div class="admin-color-section-heading">
+                                <span id="configuredColorsLabel" class="admin-color-section-title">Configured colors</span>
+                                <span class="admin-color-section-hint">Each color creates a row for every selected size.</span>
+                            </div>
+                            <div id="colorChipsContainer" class="admin-palette-chips"></div>
+                        </section>
 
-                        <!-- Color Creator Tool -->
-                        <div class="admin-color-creator-card">
-                            <div class="admin-color-creator-row">
-                                <div class="admin-segmented-tabs">
-                                    <button type="button" id="btnColorModeSolid" class="admin-tab-btn active" onclick="setColorMode('solid');">Solid Color</button>
-                                    <button type="button" id="btnColorModeGradient" class="admin-tab-btn" onclick="setColorMode('gradient');">Linear Gradient</button>
+                        <section class="admin-color-creator-card" aria-labelledby="createFinishLabel">
+                            <div class="admin-color-section-heading">
+                                <span id="createFinishLabel" class="admin-color-section-title">Create a color or finish</span>
+                                <span class="admin-color-section-hint">Choose a mode, adjust the shade, then add it to the palette.</span>
+                            </div>
+                            <div class="admin-color-mode-row">
+                                <span class="admin-control-label">Finish type</span>
+                                <div class="admin-segmented-tabs admin-color-mode-tabs">
+                                    <button type="button" id="btnColorModeSolid" class="admin-tab-btn active" onclick="setColorMode('solid');">Solid</button>
+                                    <button type="button" id="btnColorModeGradient" class="admin-tab-btn" onclick="setColorMode('gradient');">Gradient</button>
                                 </div>
-                                <input type="text" id="txtCustomColorName" class="admin-form-input admin-input-flex-1" placeholder="Color Name (e.g. Matte Black, Red Fade)" />
                             </div>
 
-                            <!-- Solid Color Controls -->
-                            <div id="solidColorControls" class="admin-color-creator-row">
-                                <input type="color" id="pickerSolidColor" value="#18181B" class="admin-color-picker-input" oninput="syncSolidHex(this.value);" />
-                                <input type="text" id="txtSolidHex" class="admin-form-input admin-input-hex" value="#18181B" maxlength="7" oninput="syncSolidPicker(this.value);" />
-                                <button type="button" class="btn-pill btn-pill--outline" onclick="addColorToPalette();">+ Add Color</button>
+                            <div class="admin-color-name-field">
+                                <label for="txtCustomColorName" class="admin-control-label">Display name</label>
+                                <input type="text" id="txtCustomColorName" class="admin-form-input" value="Matte Black" placeholder="Color name" />
                             </div>
 
-                            <!-- Gradient Controls -->
-                            <div id="gradientColorControls" class="admin-color-creator-row is-hidden">
-                                <span class="admin-label-inline">Stop 1:</span>
-                                <input type="color" id="pickerGrad1" value="#DC2626" class="admin-color-picker-input" oninput="updateGradientPreview();" />
-                                <span class="admin-label-inline">Stop 2:</span>
-                                <input type="color" id="pickerGrad2" value="#18181B" class="admin-color-picker-input" oninput="updateGradientPreview();" />
-                                <span class="admin-label-inline">Angle (&deg;):</span>
-                                <input type="number" id="numGradAngle" class="admin-form-input admin-input-angle" value="135" min="0" max="360" step="15" oninput="updateGradientPreview();" />
-                                <div id="gradPreviewBox" class="admin-gradient-preview"></div>
-                                <button type="button" class="btn-pill btn-pill--outline" onclick="addColorToPalette();">+ Add Gradient</button>
+                            <div id="solidColorControls" class="admin-color-control-grid admin-color-control-grid--solid">
+                                <label class="admin-control-stack" for="pickerSolidColor">
+                                    <span class="admin-control-label">Shade</span>
+                                    <input type="color" id="pickerSolidColor" value="#18181B" class="admin-color-picker-input" oninput="syncSolidHex(this.value);" />
+                                </label>
+                                <label class="admin-control-stack" for="txtSolidHex">
+                                    <span class="admin-control-label">Hex value</span>
+                                    <input type="text" id="txtSolidHex" class="admin-form-input admin-input-hex" value="#18181B" maxlength="7" oninput="syncSolidPicker(this.value);" />
+                                </label>
+                                <button type="button" class="btn-pill btn-pill--primary admin-color-add-btn" onclick="addColorToPalette();">Add Solid Color</button>
                             </div>
-                        </div>
+
+                            <div id="gradientColorControls" class="admin-color-control-grid admin-color-control-grid--gradient is-hidden">
+                                <label class="admin-control-stack" for="pickerGrad1">
+                                    <span class="admin-control-label">First shade</span>
+                                    <input type="color" id="pickerGrad1" value="#DC2626" class="admin-color-picker-input" oninput="updateGradientPreview();" />
+                                </label>
+                                <label class="admin-control-stack" for="pickerGrad2">
+                                    <span class="admin-control-label">Second shade</span>
+                                    <input type="color" id="pickerGrad2" value="#18181B" class="admin-color-picker-input" oninput="updateGradientPreview();" />
+                                </label>
+                                <label class="admin-control-stack" for="numGradAngle">
+                                    <span class="admin-control-label">Angle</span>
+                                    <input type="number" id="numGradAngle" class="admin-form-input admin-input-angle" value="135" min="0" max="360" step="15" oninput="updateGradientPreview();" />
+                                </label>
+                                <div class="admin-control-stack">
+                                    <span class="admin-control-label">Preview</span>
+                                    <div id="gradPreviewBox" class="admin-gradient-preview"></div>
+                                </div>
+                                <button type="button" class="btn-pill btn-pill--primary admin-color-add-btn" onclick="addColorToPalette();">Add Gradient</button>
+                            </div>
+                        </section>
                     </div>
                     <input type="hidden" id="txtNewColors" value="Matte Black:#18181B, Pearl White:#FFFFFF, Racing Red:#DC2626" />
                 </div>
 
                 <div class="admin-form-group">
                     <label class="admin-form-label">Select Available Sizes</label>
-                    <div class="admin-palette-chips">
-                        <label class="admin-palette-chip">
+                    <div class="admin-size-toggle-group">
+                        <label class="admin-size-toggle">
                             <input type="checkbox" class="chk-new-size" value="S" onchange="renderVariantMatrix();" />
                             <span>S</span>
                         </label>
-                        <label class="admin-palette-chip">
+                        <label class="admin-size-toggle">
                             <input type="checkbox" class="chk-new-size" value="M" checked="checked" onchange="renderVariantMatrix();" />
                             <span>M</span>
                         </label>
-                        <label class="admin-palette-chip">
+                        <label class="admin-size-toggle">
                             <input type="checkbox" class="chk-new-size" value="L" checked="checked" onchange="renderVariantMatrix();" />
                             <span>L</span>
                         </label>
-                        <label class="admin-palette-chip">
+                        <label class="admin-size-toggle">
                             <input type="checkbox" class="chk-new-size" value="XL" checked="checked" onchange="renderVariantMatrix();" />
                             <span>XL</span>
                         </label>
-                        <label class="admin-palette-chip">
+                        <label class="admin-size-toggle">
                             <input type="checkbox" class="chk-new-size" value="2XL" onchange="renderVariantMatrix();" />
                             <span>2XL</span>
                         </label>
@@ -465,14 +508,6 @@
                     </div>
                 </div>
 
-                <!-- Live Price Calculation Preview Box -->
-                <div class="admin-effective-preview-box">
-                    <div class="admin-effective-preview-label">Effective Customer Price Preview</div>
-                    <div id="pricingEffectivePreview" class="admin-effective-preview-val">
-                        Effective Price: <strong>&#8369;34,000.00</strong> (No discount applied)
-                    </div>
-                </div>
-
                 <div class="admin-wizard-footer">
                     <button type="button" class="btn-pill btn-pill--outline" onclick="switchWizardTab(2);">&larr; Back: Variants</button>
                     <button type="button" class="btn-pill btn-pill--primary" onclick="switchWizardTab(4);">Next: Images &rarr;</button>
@@ -490,28 +525,13 @@
                             <polyline points="21 15 16 10 5 21"></polyline>
                         </svg>
                         <span class="admin-wizard-section-title">Click to upload product images or drag &amp; drop</span>
-                        <span class="admin-cell-mono-muted">Supports JPG, PNG, WEBP up to 5MB each. First image becomes primary display.</span>
                     </div>
                     <asp:FileUpload ID="fileUploadImages" runat="server" AllowMultiple="true" accept=".jpg,.jpeg,.png,.webp" CssClass="admin-hidden-file-input" onchange="handleMultipleImageSelection(this);" />
                 </div>
 
-                <!-- Preview Tiles Grid (allow removing & reordering) -->
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Selected Images Preview &amp; Order</label>
-                    <div id="imageUploadGrid" class="admin-upload-grid">
-                        <!-- Populated by JS when files are chosen -->
-                    </div>
-                </div>
-
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Storefront Main Image URL (Fallback or Direct Path)</label>
-                    <input type="text" id="txtNewImageUrl" runat="server" class="admin-form-input" value="/Content/images/products/helmets/agv/images.jpg" oninput="updateImagePreview();" />
-                </div>
-
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Additional Gallery URLs (Optional, comma-separated)</label>
-                    <textarea id="txtNewGalleryUrls" runat="server" class="admin-form-textarea" rows="2" placeholder="/Content/images/products/helmets/shoei/rf1400-angle.jpg, /Content/images/products/helmets/shoei/rf1400-back.jpg"></textarea>
-                </div>
+                <div id="imageUploadGrid" class="admin-upload-grid" aria-label="Uploaded images. Drag images to change their storefront order."></div>
+                <input type="text" id="txtNewImageUrl" runat="server" value="/Content/images/products/helmets/agv/images.jpg" hidden />
+                <textarea id="txtNewGalleryUrls" runat="server" hidden></textarea>
 
                 <div class="admin-wizard-footer">
                     <button type="button" class="btn-pill btn-pill--outline" onclick="switchWizardTab(3);">&larr; Back: Pricing</button>
@@ -521,22 +541,39 @@
 
             <!-- Tab 5: Review & Confirm -->
             <div class="admin-wizard-pane" data-pane="5">
-                <div class="admin-review-card">
-                    <div class="admin-review-header">
-                        <img id="reviewSummaryThumb" src="/Content/images/products/helmets/agv/images.jpg" alt="Helmet Preview" class="admin-review-thumb" />
-                        <div class="admin-review-header-info">
-                            <div class="admin-review-tags">
-                                <span class="admin-badge admin-badge--active" id="reviewSummaryBrand">Shoei</span>
-                                <span class="admin-badge admin-badge--role-staff" id="reviewSummaryCategory">Full Face</span>
-                                <span class="admin-cell-mono-muted" id="reviewSummaryStyle">Sport/Street</span>
+                <div class="admin-review-card admin-product-detail-mini">
+                    <div class="admin-product-detail-mini__media">
+                        <img id="reviewSummaryThumb" src="/Content/images/products/helmets/agv/images.jpg" alt="Helmet Preview" class="admin-product-detail-mini__image" />
+                        <span class="admin-product-detail-mini__image-label">Primary image</span>
+                    </div>
+                    <div class="admin-product-detail-mini__content">
+                        <div class="admin-review-tags">
+                            <span class="admin-badge admin-badge--active" id="reviewSummaryBrand">Shoei</span>
+                            <span class="admin-badge admin-badge--role-staff" id="reviewSummaryCategory">Full Face</span>
+                            <span class="admin-cell-mono-muted" id="reviewSummaryStyle">Sport/Street</span>
+                        </div>
+                        <h4 class="admin-product-detail-mini__title" id="reviewSummaryName">Shoei RF-1400 Dedicated</h4>
+                        <div class="admin-product-detail-mini__rating" aria-label="Product rating preview">
+                            <span aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+                            <span>New product preview</span>
+                        </div>
+                        <div class="admin-review-pricing-row">
+                            <strong class="admin-product-detail-mini__price" id="reviewSummaryEffective">&#8369;34,000.00</strong>
+                            <span class="admin-review-base-price" id="reviewSummaryBasePrice">&#8369;34,000.00</span>
+                            <span class="admin-review-discount-tag" id="reviewSummaryDiscount">No Discount</span>
+                        </div>
+                        <p id="reviewSummaryDescription" class="admin-product-detail-mini__description">Product description will appear here.</p>
+                        <div class="admin-product-detail-mini__options">
+                            <div>
+                                <span class="admin-product-detail-mini__option-label">Colors</span>
+                                <div id="reviewColorSwatches" class="admin-product-detail-mini__swatches"></div>
                             </div>
-                            <h4 class="admin-review-title" id="reviewSummaryName">Shoei RF-1400 Dedicated</h4>
-                            <div class="admin-review-pricing-row">
-                                <span class="admin-review-base-price">Base: <span id="reviewSummaryBasePrice">&#8369;34,000.00</span></span>
-                                <span class="admin-review-discount-tag" id="reviewSummaryDiscount">No Discount</span>
-                                <span class="admin-review-effective-price">Effective: <strong class="admin-stock-highlight" id="reviewSummaryEffective">&#8369;34,000.00</strong></span>
+                            <div>
+                                <span class="admin-product-detail-mini__option-label">Sizes</span>
+                                <div id="reviewSizeOptions" class="admin-product-detail-mini__sizes"></div>
                             </div>
                         </div>
+                        <button type="button" class="btn-pill btn-pill--primary admin-product-detail-mini__cart" disabled>Add to Cart</button>
                     </div>
 
                     <div class="admin-review-body">
@@ -574,5 +611,5 @@
             </div>
         </div>
     </div>
-    <script src="/Scripts/admin/catalog.js?v=2"></script>
+    <script src="/Scripts/admin/catalog.js?v=3"></script>
 </asp:Content>

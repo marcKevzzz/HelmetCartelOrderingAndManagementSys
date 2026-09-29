@@ -9,6 +9,8 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string CustomerEmail { get; set; }
         public string CustomerPhone { get; set; }
         public string PaymentMethod { get; set; } // "HitPay", "Cash", "Card_POS"
+        public decimal? CashTendered { get; set; }
+        public bool CardTerminalApproved { get; set; }
         public string Notes { get; set; }
         public List<OrderItemRequestDto> Items { get; set; } = new List<OrderItemRequestDto>();
     }
