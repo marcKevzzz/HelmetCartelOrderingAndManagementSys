@@ -1,0 +1,520 @@
+<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="Site.Master.cs" Inherits="HelmetCartelOrderingAndManagementSys.SiteMaster" %>
+
+<!DOCTYPE html>
+<html lang="en">
+<head runat="server">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%: Page.Title %> &mdash; Helmet Cartel</title>
+    <meta name="description" content="Helmet Cartel &mdash; Premium Motorcycle Helmets &amp; Riding Gear with Real-Time Stock Management." />
+
+    <!-- Design System Tokens & Modular Stylesheets -->
+    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/css/variables.css?v=4") %>" />
+    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/css/reset.css?v=3") %>" />
+    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/css/layout.css?v=6") %>" />
+    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/css/components.css?v=4") %>" />
+    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/css/storefront.css?v=11") %>" />
+
+    <asp:ContentPlaceHolder ID="HeadContent" runat="server">
+    </asp:ContentPlaceHolder>
+</head>
+<body>
+    <form runat="server">
+        <!-- 1. Top Announcement Bar -->
+        <div class="top-bar">
+            <div class="top-bar__content">
+                <span>Find a helmet ready for your next ride.</span>
+                <a href="<%= ResolveUrl("~/Pages/Shop.aspx") %>" class="top-bar__link">Shop Helmets</a>
+            </div>
+            <button type="button" class="top-bar__close" aria-label="Close Announcement">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <!-- 2. Header Navigation (Monochrome, Fitted Vector Icons) -->
+        <header class="main-header">
+            <div class="container main-header__inner">
+                <div class="main-header__left">
+                    <!-- Mobile Navigation Hamburger Toggle -->
+                    <button type="button" class="nav-mobile-toggle" id="mobile-nav-toggle" aria-label="Open mobile navigation">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+
+                    <a href="<%= ResolveUrl("~/Default.aspx") %>" class="brand-logo">HELMET CARTEL</a>
+                </div>
+
+                <nav class="nav-menu">
+                    <div class="nav-item--has-mega">
+                        <a href="<%= ResolveUrl("~/Pages/Shop.aspx") %>" class="nav-menu__link nav-menu__link--shop" id="shop-mega-trigger">
+                            <span>Shop</span>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </a>
+                    </div>
+                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?onSale=1") %>" class="nav-menu__link">On Sale</a>
+                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?sortBy=newest") %>" class="nav-menu__link">New Arrivals</a>
+                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx#filter-brands-container") %>" class="nav-menu__link">Brands</a>
+                </nav>
+
+                <!-- Search Capsule with Live Auto-Suggestions -->
+                <div class="nav-search" id="nav-search-container">
+                    <span class="nav-search__icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </span>
+                    <input type="text" class="nav-search__input" id="nav-search-input" placeholder="Search for helmets, visors, gear..." autocomplete="off" />
+                    <button type="button" class="nav-search__clear" id="nav-search-clear" aria-label="Clear search query">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                    <!-- Live Search Suggestions Container -->
+                    <div class="nav-search-dropdown" id="nav-search-dropdown"></div>
+                </div>
+
+                <div class="nav-actions">
+                    <!-- Wishlist & Favorites Icon -->
+                    <a href="<%= ResolveUrl("~/Pages/Favorites.aspx") %>" id="nav-fav-btn" class="nav-action-btn" aria-label="Saved Favorites" title="View Wishlist">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                        </svg>
+                        <span class="nav-badge nav-badge--favorites nav-badge--hidden">0</span>
+                    </a>
+
+                    <!-- Shopping Cart Icon (Triggers Sliding Cart Drawer) -->
+                    <a href="<%= ResolveUrl("~/Pages/Cart.aspx") %>" id="nav-cart-btn" class="nav-action-btn" aria-label="Shopping Cart" title="View Cart">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="9" cy="21" r="1"></circle>
+                            <circle cx="20" cy="21" r="1"></circle>
+                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                        </svg>
+                        <span class="nav-badge nav-badge--hidden">0</span>
+                    </a>
+
+                    <!-- User Authentication & Account Icon -->
+                    <a href="<%= ResolveUrl("~/Pages/Auth.aspx") %>" id="nav-user-btn" class="nav-action-btn" aria-label="Account Authentication" title="Sign In or Join the Cartel">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Full-Width Mega Menu for Shop (Spans 100% viewport width) -->
+            <div class="mega-menu" id="shop-mega-menu" aria-label="Shop Catalog Mega Menu">
+                <div class="container mega-menu__container">
+                    <div class="mega-menu__grid">
+                        <!-- Column 1: Helmet Types -->
+                        <div class="mega-menu__col">
+                            <h3 class="mega-menu__col-title">CATEGORIES</h3>
+                            <ul class="mega-menu__list">
+                                <li>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?category=full-face") %>" class="mega-menu__link">
+                                        <span>Full Face Helmets</span>
+                                        <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                                            <polyline points="7 7 17 7 17 17"></polyline>
+                                        </svg>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?category=Modular") %>" class="mega-menu__link">
+                                        <span>Modular &amp; Flip-Up</span>
+                                        <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                                            <polyline points="7 7 17 7 17 17"></polyline>
+                                        </svg>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?category=open-face-urban") %>" class="mega-menu__link">
+                                        <span>Open Face / Retro</span>
+                                        <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                                            <polyline points="7 7 17 7 17 17"></polyline>
+                                        </svg>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?category=off-road-motocross") %>" class="mega-menu__link">
+                                        <span>Off-Road &amp; Motocross</span>
+                                        <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                                            <polyline points="7 7 17 7 17 17"></polyline>
+                                        </svg>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?category=dual-sport-adventure") %>" class="mega-menu__link">
+                                        <span>Dual Sport Adventure</span>
+                                        <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                                            <polyline points="7 7 17 7 17 17"></polyline>
+                                        </svg>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Column 2: Brands -->
+                        <div class="mega-menu__col">
+                            <h3 class="mega-menu__col-title">TOP BRANDS</h3>
+                            <ul class="mega-menu__list">
+                                <li>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?brand=Zebra") %>" class="mega-menu__link">
+                                        <span>Zebra Helmets</span>
+                                        <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                                            <polyline points="7 7 17 7 17 17"></polyline>
+                                        </svg>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?brand=Gille") %>" class="mega-menu__link">
+                                        <span>Gille Helmets</span>
+                                        <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                                            <polyline points="7 7 17 7 17 17"></polyline>
+                                        </svg>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?brand=HNJ") %>" class="mega-menu__link">
+                                        <span>HNJ Helmets</span>
+                                        <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                                            <polyline points="7 7 17 7 17 17"></polyline>
+                                        </svg>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?brand=Shoei") %>" class="mega-menu__link">
+                                        <span>Shoei Philippines</span>
+                                        <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                                            <polyline points="7 7 17 7 17 17"></polyline>
+                                        </svg>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?brand=AGV") %>" class="mega-menu__link">
+                                        <span>AGV Racing</span>
+                                        <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                                            <polyline points="7 7 17 7 17 17"></polyline>
+                                        </svg>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Column 3: Riding Style -->
+                        <div class="mega-menu__col">
+                            <h3 class="mega-menu__col-title">RIDING STYLES</h3>
+                            <ul class="mega-menu__list">
+                                <li>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Casual%2FUrban") %>" class="mega-menu__link">
+                                        <span>Casual &amp; Urban</span>
+                                        <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                                            <polyline points="7 7 17 7 17 17"></polyline>
+                                        </svg>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Sport%2FTrack") %>" class="mega-menu__link">
+                                        <span>Sport &amp; Track Day</span>
+                                        <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                                            <polyline points="7 7 17 7 17 17"></polyline>
+                                        </svg>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Touring%2FAdventure") %>" class="mega-menu__link">
+                                        <span>Touring &amp; Adventure</span>
+                                        <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                                            <polyline points="7 7 17 7 17 17"></polyline>
+                                        </svg>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Motocross%2FOff-Road") %>" class="mega-menu__link">
+                                        <span>Motocross &amp; Dirt Trail</span>
+                                        <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                                            <polyline points="7 7 17 7 17 17"></polyline>
+                                        </svg>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Column 4: Featured Spotlight -->
+                        <div class="mega-menu__col mega-menu__col--featured">
+                            <h3 class="mega-menu__col-title">SPOTLIGHT</h3>
+                            <a href="<%= ResolveUrl("~/Pages/ProductDetail.aspx?id=1") %>" class="mega-featured-card">
+                                <div class="mega-featured-card__media">
+                                    <img src="https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=500&auto=format&fit=crop&q=80" alt="Shoei RF-1400 Dedicated" class="mega-featured-card__img" />
+                                    <span class="mega-featured-card__badge">NEW DROP</span>
+                                </div>
+                                <div class="mega-featured-card__body">
+                                    <h4 class="mega-featured-card__title">SHOEI RF-1400 DEDICATED</h4>
+                                    <div class="mega-featured-card__price">&#8369;34,500</div>
+                                    <div class="mega-featured-card__cta">
+                                        <span>Explore Model</span>
+                                        <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                                            <polyline points="7 7 17 7 17 17"></polyline>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Bar of Mega Menu 
+                       <!-- <div class="mega-menu__bottom">
+                        <div class="mega-menu__bottom-links">
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx") %>" class="mega-menu__bottom-link">
+                                <span>Browse Complete Helmets Catalog</span>
+                                <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="7" y1="17" x2="17" y2="7"></line>
+                                    <polyline points="7 7 17 7 17 17"></polyline>
+                                </svg>
+                            </a>
+                            <a href="<%= ResolveUrl("~/Default.aspx#top-selling") %>" class="mega-menu__bottom-link">
+                                <span>View Top Selling Helmets</span>
+                                <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="7" y1="17" x2="17" y2="7"></line>
+                                    <polyline points="7 7 17 7 17 17"></polyline>
+                                </svg>
+                            </a>
+                        </div>
+                    </div>-->
+                </div>
+            </div>
+        </header>
+
+        <!-- 3. Dynamic Page Content -->
+        <main>
+            <asp:ContentPlaceHolder ID="MainContent" runat="server">
+            </asp:ContentPlaceHolder>
+
+            <!-- Catalog discovery banner -->
+            <div class="container" id="shop-cta">
+                <div class="newsletter-banner">
+                    <div class="newsletter-banner__content">
+                        <h2 class="newsletter-banner__heading">FIND A HELMET FOR YOUR NEXT RIDE</h2>
+                        <p class="newsletter-banner__copy">Browse by riding style, brand, color, and size. Check the catalog for the fit and look you want.</p>
+                    </div>
+                    <div class="newsletter-banner__actions">
+                        <a href="<%= ResolveUrl("~/Pages/Shop.aspx") %>" class="btn btn--white">Browse Helmets</a>
+                        <a href="<%= ResolveUrl("~/Default.aspx#riding-styles") %>" class="newsletter-banner__secondary-link">Explore Riding Styles</a>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 4. Global Footer -->
+        <footer class="main-footer">
+            <div class="container">
+                <div class="footer-top">
+                    <div class="footer-brand">
+                        <div class="brand-logo footer-brand-title">HELMET CARTEL</div>
+                        <p class="footer-brand__desc">
+                            Premium motorcycle helmets and certified riding gear. Real-time inventory tracking for online and in-store riders.
+                        </p>
+                        <div class="footer-socials">
+                            <a href="#" class="social-icon-btn" aria-label="Twitter">
+                                <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                            </a>
+                            <a href="#" class="social-icon-btn" aria-label="Facebook">
+                                <svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                            </a>
+                            <a href="#" class="social-icon-btn" aria-label="Instagram">
+                                <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="footer-col">
+                        <div class="footer-col__title">COMPANY</div>
+                        <div class="footer-links">
+                            <a href="#" class="footer-link">About Us</a>
+                            <a href="#" class="footer-link">Features</a>
+                            <a href="#" class="footer-link">Works</a>
+                            <a href="#" class="footer-link">Careers</a>
+                        </div>
+                    </div>
+
+                    <div class="footer-col">
+                        <div class="footer-col__title">HELP</div>
+                        <div class="footer-links">
+                            <a href="#" class="footer-link">Customer Support</a>
+                            <a href="#" class="footer-link">Delivery Details</a>
+                            <a href="#" class="footer-link">Terms & Conditions</a>
+                            <a href="#" class="footer-link">Privacy Policy</a>
+                        </div>
+                    </div>
+
+                    <div class="footer-col">
+                        <div class="footer-col__title">FAQ</div>
+                        <div class="footer-links">
+                            <a href="#" class="footer-link">Account</a>
+                            <a href="#" class="footer-link">Manage Deliveries</a>
+                            <a href="<%= ResolveUrl("~/Pages/Cart.aspx") %>" class="footer-link">Orders</a>
+                            <a href="#" class="footer-link">Payments</a>
+                        </div>
+                    </div>
+
+                    <div class="footer-col">
+                        <div class="footer-col__title">RESOURCES</div>
+                        <div class="footer-links">
+                            <a href="<%= ResolveUrl("~/Admin/Dashboard.aspx") %>" class="footer-link">Staff Dashboard</a>
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx") %>" class="footer-link">Catalog Filter</a>
+                            <a href="#" class="footer-link">HitPay Integration</a>
+                            <a href="#" class="footer-link">SignalR Sync</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="footer-bottom">
+                    <div>Helmet Cartel © 2026. All Rights Reserved.</div>
+                    <div class="payment-badges">
+                        <span class="payment-badge">HitPay</span>
+                        <span class="payment-badge">GCash</span>
+                        <span class="payment-badge">Maya</span>
+                        <span class="payment-badge">VISA</span>
+                        <span class="payment-badge">Mastercard</span>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+        <div class="toast-container"></div>
+
+        <!-- Mobile Navigation Slide-Out Drawer -->
+        <div class="mobile-nav-overlay" id="mobile-nav-overlay"></div>
+        <aside class="mobile-nav-drawer" id="mobile-nav-drawer" aria-label="Mobile Navigation Drawer" aria-hidden="true">
+            <div class="mobile-nav-drawer__header">
+                <a href="<%= ResolveUrl("~/Default.aspx") %>" class="brand-logo">HELMET CARTEL</a>
+                <button type="button" class="mobile-nav-drawer__close" id="mobile-nav-close" aria-label="Close navigation">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="mobile-nav-drawer__body">
+                <!-- Mobile Search Input -->
+                <div class="mobile-nav-search">
+                    <input type="text" id="mobile-search-input" placeholder="Search helmets..." />
+                    <button type="button" id="mobile-search-btn" aria-label="Submit search">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="mobile-search-results" id="mobile-search-results" aria-live="polite"></div>
+                <div class="mobile-nav-links">
+                    <div class="mobile-nav-item mobile-nav-item--accordion">
+                        <button type="button" class="mobile-nav-accordion-trigger" id="mobile-shop-accordion-btn">
+                            <span>Shop Categories</span>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        <div class="mobile-nav-accordion-panel" id="mobile-shop-accordion-panel">
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx") %>" class="mobile-sublink">View All Helmets</a>
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?category=full-face") %>" class="mobile-sublink">Full Face Helmets</a>
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?category=Modular") %>" class="mobile-sublink">Modular &amp; Flip-Up</a>
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?category=open-face-urban") %>" class="mobile-sublink">Open Face / Retro</a>
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?category=off-road-motocross") %>" class="mobile-sublink">Off-Road &amp; Motocross</a>
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?category=dual-sport-adventure") %>" class="mobile-sublink">Dual Sport Adventure</a>
+                            <span class="mobile-nav-subheading">Riding Styles</span>
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Casual%2FUrban") %>" class="mobile-sublink">Casual &amp; Urban</a>
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Sport%2FTrack") %>" class="mobile-sublink">Sport &amp; Track Day</a>
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Touring%2FAdventure") %>" class="mobile-sublink">Touring &amp; Adventure</a>
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Motocross%2FOff-Road") %>" class="mobile-sublink">Motocross &amp; Dirt Trail</a>
+                        </div>
+                    </div>
+                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?onSale=1") %>" class="mobile-nav-link">On Sale</a>
+                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?sortBy=newest") %>" class="mobile-nav-link">New Arrivals</a>
+                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx#filter-brands-container") %>" class="mobile-nav-link">Brands</a>
+                    <hr class="mobile-nav-divider" />
+                    <a href="<%= ResolveUrl("~/Pages/Favorites.aspx") %>" class="mobile-nav-link mobile-nav-link--fav">
+                        <span>Wishlist &amp; Favorites</span>
+                        <span class="nav-badge nav-badge--favorites nav-badge--hidden">0</span>
+                    </a>
+                    <a href="<%= ResolveUrl("~/Pages/Cart.aspx") %>" class="mobile-nav-link mobile-nav-link--cart" id="mobile-nav-cart-link">
+                        <span>Shopping Cart</span>
+                        <span class="nav-badge nav-badge--hidden">0</span>
+                    </a>
+                    <a href="<%= ResolveUrl("~/Pages/Auth.aspx") %>" class="mobile-nav-link">Sign In / Register</a>
+                    <a href="<%= ResolveUrl("~/Admin/Dashboard.aspx") %>" class="mobile-nav-link">Staff Dashboard</a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Universal Sliding Shopping Cart Drawer -->
+        <div class="cart-drawer-overlay" id="cart-drawer-overlay"></div>
+        <aside class="cart-drawer" id="cart-drawer" aria-label="Quick Shopping Cart" aria-hidden="true">
+            <div class="cart-drawer__header">
+                <div class="cart-drawer__title-wrap">
+                    <h2 class="cart-drawer__title">SHOPPING CART</h2>
+                    <span class="cart-drawer__count" id="drawer-cart-count">(0 items)</span>
+                </div>
+                <button type="button" class="cart-drawer__close" id="cart-drawer-close" aria-label="Close cart drawer">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Scrollable Items Body -->
+            <div class="cart-drawer__body" id="drawer-cart-body"></div>
+
+            <!-- Cart Drawer Footer -->
+            <div class="cart-drawer__footer" id="drawer-cart-footer">
+                <div class="cart-drawer__subtotal-row">
+                    <span>Subtotal</span>
+                    <span class="cart-drawer__price" id="drawer-subtotal">&#8369;0</span>
+                </div>
+                <div class="cart-drawer__actions">
+                    <a href="<%= ResolveUrl("~/Pages/Checkout.aspx") %>" class="btn btn--primary btn--block">
+                        <span>Checkout Now</span>
+                        <svg class="btn-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                            <polyline points="7 7 17 7 17 17"></polyline>
+                        </svg>
+                    </a>
+                    <button type="button" class="cart-drawer__view-cart-btn" id="drawer-view-cart">
+                        View Cart
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Global Site Script (Mega Menu, Drawer, Badges) -->
+        <script src="<%= ResolveUrl("~/Scripts/vendor/jquery-3.7.1.min.js") %>"></script>
+        <script src="<%= ResolveUrl("~/Scripts/vendor/jquery.signalR-2.4.3.min.js") %>"></script>
+        <script type="module" src="<%= ResolveUrl("~/Scripts/site.js?v=6") %>"></script>
+    </form>
+</body>
+</html>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Type="http://schemas.microsoft.com/packaging/2010/07/manifest" Target="/Microsoft.AspNet.SignalR.SystemWeb.nuspec" Id="Ra9ed8e874f6b4223" />
+  <Relationship Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="/package/services/metadata/core-properties/a8a41fbca4c7410bbc27d7097b5ec3bb.psmdcp" Id="R798f4710834c4e5b" />
+</Relationships>
