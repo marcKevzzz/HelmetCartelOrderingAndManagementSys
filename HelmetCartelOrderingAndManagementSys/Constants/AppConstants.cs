@@ -95,6 +95,9 @@ namespace HelmetCartelOrderingAndManagementSys.Constants
 
         public static class JwtConfiguration
         {
+            public const int SessionExpiryMinutes = 60;
+            public const int RememberMeExpiryMinutes = 14 * 24 * 60;
+            public const string AuthCookieName = "hc_auth_token";
             public const string SecretEnvironmentVariable = "HELMET_CARTEL_JWT_SECRET";
             public const string SecretKey = "Jwt:Secret";
             public const string IssuerKey = "Jwt:Issuer";

@@ -413,6 +413,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             var report = e.Item.DataItem as AdminBrandReportDto;
             var target = e.Item.FindControl("litBrandDetails") as Literal;
             if (report == null || target == null) return;
+            if (report.LowStockCount <= 0) return;
             if (!_brandDetails.TryGetValue(report.Brand, out var variants) || variants.Count == 0)
             {
                 target.Text = "<div class=\"admin-brand-details-empty\">No inventory items found for this brand.</div>";
@@ -421,7 +422,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
 
             var html = new StringBuilder();
             html.Append("<div class=\"admin-brand-details\">");
-            foreach (var product in variants.GroupBy(item => item.ProductId))
+            foreach (var product in variants.Where(item => item.AvailableStock <= item.ReorderPoint).GroupBy(item => item.ProductId))
             {
                 var first = product.First();
                 var image = first.MainImageUrl;

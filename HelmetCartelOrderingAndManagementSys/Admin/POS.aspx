@@ -83,5 +83,5 @@
     </div>
     <script src="/Scripts/vendor/jquery-3.7.1.min.js"></script>
     <script src="/Scripts/vendor/jquery.signalR-2.4.3.min.js"></script>
-    <script type="module" src="/Scripts/admin/pos.js?v=6"></script>
+    <script type="module" src="/Scripts/admin/pos.js?v=7"></script>
 </asp:Content>

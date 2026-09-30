@@ -36,6 +36,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
         [Route("login")]
         public async Task<IHttpActionResult> Login([FromBody] LoginRequestDto request)
         {
+            var httpContext = System.Web.HttpContext.Current;
             if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
             {
                 return Ok(ApiResponse<AuthResponseDto>.Fail("Email and password are required.", AppConstants.ErrorCodes.UnauthorizedAccess));
@@ -49,6 +50,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                     return Ok(ApiResponse<AuthResponseDto>.Fail("Invalid email or password.", AppConstants.ErrorCodes.UnauthorizedAccess));
                 }
 
+                SetAuthenticationCookie(authResult, httpContext);
                 return Ok(ApiResponse<AuthResponseDto>.Ok(authResult, "Login successful."));
             }
             catch (Exception ex)
@@ -61,6 +63,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
         [Route("register")]
         public async Task<IHttpActionResult> Register([FromBody] RegisterRequestDto request)
         {
+            var httpContext = System.Web.HttpContext.Current;
             if (request == null)
             {
                 return Ok(ApiResponse<AuthResponseDto>.Fail("Invalid registration data.", "INVALID_INPUT"));
@@ -69,6 +72,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
             try
             {
                 var authResult = await _authService.RegisterCustomerAsync(request).ConfigureAwait(false);
+                SetAuthenticationCookie(authResult, httpContext);
                 return Ok(ApiResponse<AuthResponseDto>.Ok(authResult, "Registration successful. Welcome to Helmet Cartel!"));
             }
             catch (ArgumentException aex)
@@ -83,6 +87,20 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
             {
                 return Ok(ApiResponse<AuthResponseDto>.Fail(ex.Message, "INTERNAL_ERROR"));
             }
+        }
+
+        [HttpPost]
+        [Route("logout")]
+        public IHttpActionResult Logout()
+        {
+            var context = System.Web.HttpContext.Current;
+            if (context != null)
+                context.Response.Cookies.Add(new System.Web.HttpCookie(AppConstants.JwtConfiguration.AuthCookieName, "")
+                {
+                    HttpOnly = true, Secure = context.Request.IsSecureConnection,
+                    SameSite = System.Web.SameSiteMode.Lax, Path = "/", Expires = DateTime.UtcNow.AddDays(-1)
+                });
+            return Ok();
         }
 
         [HttpGet]
@@ -116,6 +134,19 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
 
             var orders = await _authService.GetUserOrdersAsync(user.Id).ConfigureAwait(false);
             return Ok(ApiResponse<List<UserOrderSummaryDto>>.Ok(orders));
+        }
+
+        private static void SetAuthenticationCookie(AuthResponseDto result, System.Web.HttpContext context)
+        {
+            if (context == null) return;
+            context.Response.Cookies.Add(new System.Web.HttpCookie(AppConstants.JwtConfiguration.AuthCookieName, result.Token)
+            {
+                HttpOnly = true,
+                Secure = context.Request.IsSecureConnection,
+                SameSite = System.Web.SameSiteMode.Lax,
+                Path = "/",
+                Expires = DateTime.UtcNow.AddSeconds(result.ExpiresIn)
+            });
         }
 
         private UserProfileDto GetAuthenticatedUser()

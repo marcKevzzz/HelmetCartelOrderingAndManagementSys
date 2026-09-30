@@ -240,12 +240,14 @@
                                         <span class="admin-cell-stock admin-cell-bold"><%# Convert.ToInt32(Eval("AvailableStock")).ToString("N0") %></span>
                                     </td>
                                     <td>
-                                        <%# Convert.ToInt32(Eval("LowStockCount")) > 0 ? "<span class=\"admin-badge admin-badge--low-stock\">" + Eval("LowStockCount") + " Low</span>" : "<span class=\"admin-badge admin-badge--in-stock\">Healthy (0)</span>" %>
+                                        <%# Convert.ToInt32(Eval("LowStockCount")) > 0 ? "<span class=\"admin-badge admin-badge--low-stock\">" + Eval("LowStockCount") + " Low</span>" : "<span class=\"admin-badge admin-badge--in-stock\">Healthy</span>" %>
                                     </td>
                                     <td class="admin-table-align-right">
-                                        <button type="button" class="admin-row-action-btn js-brand-inventory-toggle" aria-expanded="false" aria-controls='brand-details-<%# Container.ItemIndex %>'>
-                                            <span>View Inventory &darr;</span>
-                                        </button>
+                                        <asp:PlaceHolder runat="server" Visible='<%# Convert.ToInt32(Eval("LowStockCount")) > 0 %>'>
+                                            <button type="button" class="admin-row-action-btn js-brand-inventory-toggle" aria-label="Show low-stock items" aria-expanded="false" aria-controls='brand-details-<%# Container.ItemIndex %>'>
+                                                <svg class="admin-brand-stock-caret" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                            </button>
+                                        </asp:PlaceHolder>
                                     </td>
                                 </tr>
                                 <tr id='brand-details-<%# Container.ItemIndex %>' class="admin-brand-detail-row" hidden>
@@ -283,5 +285,5 @@
     </div>
 
     <!-- External Reports Scripts (Zero Inline JavaScript) -->
-    <script src="/Scripts/admin/reports.js?v=2"></script>
+    <script src="/Scripts/admin/reports.js?v=3"></script>
 </asp:Content>

@@ -111,11 +111,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedIndex = -1;
 
     const performSearch = async (query) => {
+      const trimmed = query.trim();
       if (document.getElementById('posCounter')) {
+        if (typeof window.posSearchHandler === 'function') {
+          window.posSearchHandler(trimmed);
+          return;
+        }
         searchDropdown.style.display = 'none';
         return;
       }
-      const trimmed = query.trim();
       if (trimmed.length === 0) {
         searchDropdown.style.display = 'none';
         searchDropdown.innerHTML = '';
@@ -149,12 +153,14 @@ document.addEventListener('DOMContentLoaded', () => {
           html += `<div class="admin-search-group">
             <div class="admin-search-group-title">${escapeHtml(cat)}</div>`;
           groups[cat].forEach(it => {
+            const isPos = it.category === 'Point of Sale';
+            const badgeClass = isPos ? 'admin-search-badge is-pos' : 'admin-search-badge';
             html += `<a href="${escapeHtml(it.url)}" class="admin-search-item" data-url="${escapeHtml(it.url)}">
               <div class="admin-search-item-info">
                 <span class="admin-search-item-title">${escapeHtml(it.title)}</span>
                 <span class="admin-search-item-sub">${escapeHtml(it.subtitle)}</span>
               </div>
-              <span class="admin-search-badge">${escapeHtml(it.badge || '')}</span>
+              <span class="${badgeClass}">${escapeHtml(it.badge || '')}</span>
             </a>`;
           });
           html += `</div>`;
@@ -176,7 +182,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     searchInput.addEventListener('focus', () => {
-      if (document.getElementById('posCounter')) return;
+      if (document.getElementById('posCounter')) {
+        if (typeof window.posSearchHandler === 'function' && searchInput.value.trim().length > 0) {
+          window.posSearchHandler(searchInput.value.trim());
+        }
+        return;
+      }
       if (searchInput.value.trim().length > 0 && searchDropdown.children.length > 0) {
         searchDropdown.classList.remove('is-hidden');
         searchDropdown.removeAttribute('hidden');
@@ -186,7 +197,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     searchInput.addEventListener('keydown', (e) => {
       if (document.getElementById('posCounter')) {
-        if (e.key === 'Enter') e.preventDefault();
+        if (typeof window.posKeydownHandler === 'function') {
+          window.posKeydownHandler(e);
+        }
         return;
       }
       const visibleItems = searchDropdown.querySelectorAll('.admin-search-item');
@@ -299,17 +312,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  window.confirmSignOut = () => {
+  window.confirmSignOut = async () => {
+    try {
+      const response = await fetch('/api/v1/auth/logout', { method: 'POST' });
+      if (!response.ok) throw new Error('Sign out failed.');
+    } catch (error) {
+      window.showAdminToast('Unable to sign out. Please try again.', 'error');
+      return;
+    }
     window.showAdminToast('Signed out successfully. Redirecting...', 'success', 'Session Ended');
     try {
       localStorage.removeItem('jwt_token');
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user_role');
+      localStorage.removeItem('hc_auth_token');
+      localStorage.removeItem('hc_user_profile');
       sessionStorage.clear();
       document.cookie = 'jwt_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
     } catch (e) {}
     setTimeout(() => {
-      window.location.href = '/Pages/Login.aspx?logout=1';
+      window.location.href = '/Pages/Auth.aspx?logout=1';
     }, 500);
   };
 
@@ -340,24 +362,43 @@ document.addEventListener('DOMContentLoaded', () => {
     pendingAdminAction = null;
   };
 
-  const openAdminActionModal = (trigger) => {
-    if (!actionConfirmModal || !trigger) return;
-    actionConfirmTitle.textContent = trigger.dataset.confirmTitle || 'Confirm action';
-    actionConfirmMessage.textContent = trigger.dataset.confirmMessage || 'Are you sure you want to continue?';
-    pendingAdminAction = trigger;
+  const showAdminActionModal = (title, message, action) => {
+    if (!actionConfirmModal) return;
+    actionConfirmTitle.textContent = title || 'Confirm action';
+    actionConfirmMessage.textContent = message || 'Are you sure you want to continue?';
+    pendingAdminAction = action;
     actionConfirmModal.classList.remove('is-hidden');
     actionConfirmModal.removeAttribute('hidden');
     btnConfirmAdminAction?.focus();
   };
 
+  const openAdminActionModal = (trigger) => {
+    if (!trigger) return;
+    showAdminActionModal(
+      trigger.dataset.confirmTitle,
+      trigger.dataset.confirmMessage,
+      trigger
+    );
+  };
+
+  window.requestAdminConfirmation = (title, message, onConfirm) => {
+    if (typeof onConfirm !== 'function') return;
+    showAdminActionModal(title, message, onConfirm);
+  };
+
   btnCancelAdminAction?.addEventListener('click', closeAdminActionModal);
   btnConfirmAdminAction?.addEventListener('click', () => {
-    const trigger = pendingAdminAction;
+    const action = pendingAdminAction;
     closeAdminActionModal();
-    if (!trigger) return;
-    trigger.dataset.confirmed = 'true';
-    trigger.click();
-    delete trigger.dataset.confirmed;
+    if (typeof action === 'function') {
+      action();
+      return;
+    }
+    if (action) {
+      action.dataset.confirmed = 'true';
+      action.click();
+      delete action.dataset.confirmed;
+    }
   });
   actionConfirmModal?.addEventListener('click', (event) => {
     if (event.target === actionConfirmModal) closeAdminActionModal();
@@ -380,58 +421,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('adminToastContainer');
     if (!container) return;
 
+    const toastType = type === 'error' ? 'error' :
+      type === 'warning' || type === 'alert' ? 'warning' :
+      type === 'success' ? 'success' : 'info';
     const toast = document.createElement('div');
-    toast.className = `admin-toast admin-toast--${type}`;
+    toast.className = `toast toast--${toastType}`;
+    toast.setAttribute('role', toastType === 'error' ? 'alert' : 'status');
+    if (title) toast.setAttribute('aria-label', `${title}: ${message}`);
 
     let iconSvg = '';
-    let defaultTitle = 'Notice';
-    if (type === 'success') {
-      defaultTitle = 'Success';
-      iconSvg = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-    } else if (type === 'error') {
-      defaultTitle = 'Error';
-      iconSvg = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
-    } else if (type === 'warning') {
-      defaultTitle = 'Warning';
-      iconSvg = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+    if (toastType === 'success') {
+      iconSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+    } else if (toastType === 'error') {
+      iconSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+    } else if (toastType === 'warning') {
+      iconSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
     } else {
-      defaultTitle = 'Information';
-      iconSvg = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+      iconSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
     }
 
-    toast.innerHTML = `
-      <div class="admin-toast-icon">${iconSvg}</div>
-      <div class="admin-toast-content">
-        <div class="admin-toast-title">${escapeHtml(title || defaultTitle)}</div>
-        <div class="admin-toast-message">${escapeHtml(message)}</div>
-      </div>
-      <button type="button" class="admin-toast-close" aria-label="Dismiss toast">&times;</button>
-    `;
-
-    toast.querySelector('.admin-toast-close').addEventListener('click', () => {
-      dismissToast(toast);
-    });
+    const icon = document.createElement('span');
+    icon.className = 'toast__icon';
+    icon.innerHTML = iconSvg;
+    const messageNode = document.createElement('span');
+    messageNode.className = 'toast__message';
+    messageNode.textContent = String(message ?? '');
+    toast.append(icon, messageNode);
 
     container.appendChild(toast);
 
     if (duration > 0) {
       setTimeout(() => {
-        dismissToast(toast);
+        toast.remove();
       }, duration);
     }
   };
 
   window.showToast = window.showAdminToast;
   queuedToasts.forEach(args => window.showAdminToast(...args));
-
-  function dismissToast(toast) {
-    if (!toast || !toast.parentNode) return;
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(-10px) scale(0.95)';
-    setTimeout(() => {
-      if (toast.parentNode) toast.parentNode.removeChild(toast);
-    }, 220);
-  }
 
   // Handle URL query feedback toasts on initial page load
   const urlParams = new URLSearchParams(window.location.search);
@@ -442,6 +469,37 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 8. Stock In Modal Handling (Inventory page - Stock In ONLY, with live preview)
+  let stockModalDirty = false;
+  let stockModalSnapshot = '';
+
+  const getStockModalSnapshot = () => {
+    const modal = document.getElementById('stockAdjustModal');
+    if (!modal) return '';
+    return Array.from(modal.querySelectorAll('input, select, textarea'))
+      .map(field => `${field.id}:${field.value}`)
+      .join('|');
+  };
+
+  const resetStockModalFields = () => {
+    const modal = document.getElementById('stockAdjustModal');
+    if (!modal) return;
+    const txtDelta = document.getElementById('MainContent_txtAdjustQuantity') || document.getElementById('txtAdjustQuantity');
+    const reason = document.getElementById('MainContent_ddlAdjustReason') || document.getElementById('ddlAdjustReason');
+    const reference = document.getElementById('MainContent_txtAdjustReference') || document.getElementById('txtAdjustReference');
+    if (txtDelta) txtDelta.value = '5';
+    if (reason) reason.selectedIndex = 0;
+    if (reference) reference.value = '';
+  };
+
+  const hideStockAdjustModal = () => {
+    const modal = document.getElementById('stockAdjustModal');
+    if (!modal) return;
+    stockModalDirty = false;
+    modal.classList.add('is-hidden');
+    modal.setAttribute('hidden', 'hidden');
+    resetStockModalFields();
+  };
+
   window.openStockAdjustModal = (variantId, title, currentStock) => {
     const modal = document.getElementById('stockAdjustModal');
     const hdnVariantId = document.getElementById('MainContent_hdnAdjustVariantId') || document.getElementById('hdnAdjustVariantId');
@@ -451,6 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const txtDelta = document.getElementById('MainContent_txtAdjustQuantity') || document.getElementById('txtAdjustQuantity');
 
     if (modal && hdnVariantId) {
+      resetStockModalFields();
       hdnVariantId.value = variantId;
       if (lblTitle) lblTitle.textContent = title;
       const num = parseInt(currentStock, 10) || 0;
@@ -470,6 +529,8 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCalculatedStock();
         txtDelta.oninput = updateCalculatedStock;
       }
+      stockModalSnapshot = getStockModalSnapshot();
+      stockModalDirty = false;
       modal.classList.remove('is-hidden');
       modal.removeAttribute('hidden');
       txtDelta?.focus();
@@ -479,9 +540,27 @@ document.addEventListener('DOMContentLoaded', () => {
   window.closeStockAdjustModal = () => {
     const modal = document.getElementById('stockAdjustModal');
     if (!modal) return;
-    modal.classList.add('is-hidden');
-    modal.setAttribute('hidden', 'hidden');
+    if (stockModalDirty && typeof window.requestAdminConfirmation === 'function') {
+      window.requestAdminConfirmation(
+        'Discard stock changes?',
+        'Your entered quantity, reason, and reference will be lost.',
+        hideStockAdjustModal
+      );
+      return;
+    }
+    hideStockAdjustModal();
   };
+
+  document.addEventListener('input', (event) => {
+    if (event.target.closest('#stockAdjustModal')) {
+      stockModalDirty = getStockModalSnapshot() !== stockModalSnapshot;
+    }
+  });
+  document.addEventListener('change', (event) => {
+    if (event.target.closest('#stockAdjustModal')) {
+      stockModalDirty = getStockModalSnapshot() !== stockModalSnapshot;
+    }
+  });
 
   document.addEventListener('click', (event) => {
     const openButton = event.target.closest('.js-open-stock-modal');

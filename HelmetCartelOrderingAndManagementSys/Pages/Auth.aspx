@@ -5,11 +5,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Authentication &mdash; Helmet Cartel</title>
+    <link rel="icon" type="image/svg+xml" href="<%= ResolveUrl("~/Content/images/favicon.svg") %>" />
     
     <!-- Design System CSS Tokens & Styles -->
     <link rel="stylesheet" href="<%= ResolveUrl("~/Content/css/variables.css?v=4") %>" />
     <link rel="stylesheet" href="<%= ResolveUrl("~/Content/css/reset.css?v=4") %>" />
-    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/css/auth.css?v=4") %>" />
+    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/css/auth.css?v=5") %>" />
 </head>
 <body>
     <div class="auth-viewport">
@@ -231,6 +232,6 @@
     </div>
 
     <!-- Modular Script -->
-    <script type="module" src="<%= ResolveUrl("~/Scripts/auth.js?v=5") %>"></script>
+    <script type="module" src="<%= ResolveUrl("~/Scripts/auth.js?v=7") %>"></script>
 </body>
 </html>

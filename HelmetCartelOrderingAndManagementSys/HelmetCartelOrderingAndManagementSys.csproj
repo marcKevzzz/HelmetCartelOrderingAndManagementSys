@@ -119,6 +119,8 @@
     <Content Include="Content\css\admin\admin.css" />
     <Content Include="Content\css\admin\pos.css" />
     <Content Include="Scripts\admin\admin.js" />
+    <Content Include="Scripts\admin\session.js" />
+    <Content Include="Content\images\favicon.svg" />
     <Content Include="Scripts\admin\search-history.js" />
     <Content Include="Scripts\admin\catalog.js" />
     <Content Include="Scripts\admin\dashboard.js" />

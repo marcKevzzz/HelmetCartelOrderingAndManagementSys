@@ -1,6 +1,29 @@
 # AI Change Log & Architectural Evolution: Helmet Cartel
 
+## [2026-09-30] — Login cookie async-context fix
+
+- Capture the HTTP context before asynchronous login/registration and pass it explicitly when issuing the authentication cookie, preventing an absent ambient context from silently skipping the cookie required by admin access.
+- Corrected the authentication background to the existing hero.webp asset and added an explicit SVG favicon. Session lifetimes and server-side expiry validation are unchanged.
+
+## [2026-09-30] — Login lifetime and admin session expiry
+
+- Login now sends RememberMe to C#: signed tokens and authentication cookies last 14 days when selected, otherwise one hour (registration defaults to one hour). Lifetimes are centralized in AppConstants.
+- Added a server-side guard for all admin ASPX requests, including postbacks, and a shared client expiry timer with focus/tab restoration and API 401 checks. Expired sessions return to Auth.aspx with an expiry message and return URL.
+- Added an HttpOnly, SameSite=Lax authentication cookie and a server logout endpoint; admin sign-out clears it and the client token/profile.
+
+## [2026-09-30] — Active-only catalog and inventory visibility
+
+- Added migration 17 with shared active-only read views and 27 updated stored procedures covering catalog, inventory, POS, global/storefront search, product details, reviews, stock activity/history, dashboard totals, and inventory analytics. Draft products and inactive variants remain stored but cannot contribute to these operational lists or totals.
+- Preserved historical order/payment records and revenue reporting. No product, variant, stock, or transaction rows were deleted.
+- Included the migration in the database setup bundle; added reproducible migration generation and rollback-only visibility regression checks. Applied to local HelmetCartelDB and verified draft/inactive exclusion and dashboard stock totals.
+
 ## [2026-09-30] — Full-Page Catalog Editor, Technical Specifications, Dynamic Taxonomies & UI Polish
+
+- **POS Search Dropdown, Storefront Search UI Alignment & Currency Symbol Encoding Fix:**
+  - **POS Search Results in Dropdown:** Connected `#adminGlobalSearch` on `/Admin/POS.aspx` to render matching sellable variants into `#adminSearchDropdown` with product thumbnail, title, color • size • SKU subtitle, in-stock badge, effective price, and quick-add button. Clicking an item or pressing Enter immediately adds the variant to the POS sale cart with toast confirmation and updates the totals.
+  - **Add Button Style (`Add →`):** Updated the quick-add action in the POS search dropdown to use the light subtle pill button (`.pos-quick-add-btn`) with text `Add &rarr;` matching the user's reference design, with subtle borders, hover background transitions, and active scale animations.
+  - **Peso Sign (`₱`) Encoding Resolution:** Fixed corrupted `?` characters appearing in place of the Philippine Peso sign (`₱`) in search results by migrating `dbo.sp_AdminGlobalSearch` in [16_pos_global_search.sql](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/database/schema/16_pos_global_search.sql) to use `NCHAR(8369)` and `NCHAR(8226)` for bullet dots, completely eliminating Windows-1252 codepage truncation. Added sanitization in [AdminDataRepository.cs](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Repositories/AdminDataRepository.cs) to ensure `\u20B1` is strictly preserved.
+  - **Storefront Search List Design Alignment:** Redesigned the public storefront search suggestions in [Scripts/site.js](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Scripts/site.js) and [Content/css/layout.css](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Content/css/layout.css) to match the admin search dropdown design language, featuring uppercase bold group headers (`MATCHING HELMETS`), rounded thumbnails (`.search-thumb`), semibold product titles, muted brand/category subtitles, pill price badges (`.search-badge`), and clean view-all footer.
 
 - **Request Size Limit Resolution, Server-Side Image Persistence & Empty Preview Integrity:**
   - **Resolved `Maximum request length exceeded` Error:** Configured [Web.config](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Web.config) with `maxRequestLength="51200"` (50MB) and `executionTimeout="300"` under `<httpRuntime>`, and added `<requestLimits maxAllowedContentLength="52428800" />` under `<system.webServer><security><requestFiltering>`, eliminating runtime request length exceptions during image uploads.

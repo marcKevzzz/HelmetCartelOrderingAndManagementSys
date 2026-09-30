@@ -27,6 +27,9 @@ $files = @(
     'schema/12_update_search_and_variants.sql',
     'schema/13_dynamic_admin_metrics.sql',
     'schema/14_pos_and_inventory_drilldown.sql',
+    'schema/15_catalog_enhancements.sql',
+    'schema/16_pos_global_search.sql',
+    'schema/17_active_catalog_visibility.sql',
     'setup/minimal_seed.sql',
     'setup/dashboard_sample_data.sql'
 )

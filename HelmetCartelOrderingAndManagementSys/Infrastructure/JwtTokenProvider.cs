@@ -12,7 +12,7 @@ namespace HelmetCartelOrderingAndManagementSys.Infrastructure
 {
     public interface IJwtTokenProvider
     {
-        string GenerateToken(UserProfileDto user);
+        string GenerateToken(UserProfileDto user, bool rememberMe = false);
         UserProfileDto ValidateToken(string token);
     }
 
@@ -21,7 +21,6 @@ namespace HelmetCartelOrderingAndManagementSys.Infrastructure
         private readonly string _secret;
         private readonly string _issuer;
         private readonly string _audience;
-        private readonly int _expiryMinutes;
 
         public JwtTokenProvider()
         {
@@ -32,14 +31,9 @@ namespace HelmetCartelOrderingAndManagementSys.Infrastructure
             _issuer = ConfigurationManager.AppSettings[AppConstants.JwtConfiguration.IssuerKey] ?? "HelmetCartelApi";
             _audience = ConfigurationManager.AppSettings[AppConstants.JwtConfiguration.AudienceKey] ?? "HelmetCartelClients";
 
-            var expiryStr = ConfigurationManager.AppSettings[AppConstants.JwtConfiguration.ExpiryMinutesKey];
-            if (!int.TryParse(expiryStr, out _expiryMinutes))
-            {
-                _expiryMinutes = 120;
-            }
         }
 
-        public string GenerateToken(UserProfileDto user)
+        public string GenerateToken(UserProfileDto user, bool rememberMe = false)
         {
             if (user == null) throw new ArgumentNullException(nameof(user));
 
@@ -50,7 +44,8 @@ namespace HelmetCartelOrderingAndManagementSys.Infrastructure
             };
 
             var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            var exp = (long)(DateTime.UtcNow.AddMinutes(_expiryMinutes) - epoch).TotalSeconds;
+            var expiryMinutes = rememberMe ? AppConstants.JwtConfiguration.RememberMeExpiryMinutes : AppConstants.JwtConfiguration.SessionExpiryMinutes;
+            var exp = (long)(DateTime.UtcNow.AddMinutes(expiryMinutes) - epoch).TotalSeconds;
 
             var payload = new Dictionary<string, object>
             {

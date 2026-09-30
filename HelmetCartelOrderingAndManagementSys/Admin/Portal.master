@@ -5,11 +5,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Helmet Cartel Operations</title>
+    <script src="/Scripts/admin/admin-toast-bootstrap.js?v=1"></script>
     <script src="/Scripts/admin/sidebar-state.js?v=1"></script>
+    <script type="module" src="/Scripts/admin/session.js?v=2"></script>
     <link rel="stylesheet" href="/Content/css/variables.css" />
     <link rel="stylesheet" href="/Content/css/reset.css" />
-    <link rel="stylesheet" href="/Content/css/components.css" />
-    <link rel="stylesheet" href="/Content/css/admin/admin.css?v=14" />
+    <link rel="stylesheet" href="/Content/css/components.css?v=2" />
+    <link rel="stylesheet" href="/Content/css/admin/admin.css?v=15" />
     <asp:ContentPlaceHolder ID="HeadContent" runat="server" />
 </head>
 <body class="admin-body">
@@ -190,7 +192,7 @@
         </div>
 
         <!-- Global Toast Container -->
-        <div id="adminToastContainer" class="admin-toast-container" aria-live="polite" aria-atomic="true"></div>
+        <div id="adminToastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
         <!-- Sign Out Confirmation Modal -->
         <div id="adminSignOutModal" class="admin-modal-backdrop is-hidden" hidden>
@@ -232,7 +234,7 @@
             </div>
         </div>
     </form>
-    <script src="/Scripts/admin/admin.js?v=15"></script>
+    <script src="/Scripts/admin/admin.js?v=17"></script>
     <script src="/Scripts/admin/search-history.js?v=1"></script>
     <asp:ContentPlaceHolder ID="ScriptsContent" runat="server" />
 </body>

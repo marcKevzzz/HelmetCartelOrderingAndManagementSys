@@ -383,41 +383,215 @@ if (root) {
     ui.mobileCart.focus();
   }
 
+  function addToCart(variantId) {
+    const id = Number(variantId);
+    const item = itemFor(id);
+    if (!item) {
+      showError('Product variant could not be found.');
+      return false;
+    }
+    const currentQty = state.cart.get(id) || 0;
+    const available = Number(item.availableStock || 0);
+    if (available <= 0) {
+      showError(`${item.productName} is currently out of stock.`);
+      showToast(`${item.productName} is out of stock.`, 'warning', 'Out of Stock');
+      return false;
+    }
+    if (currentQty + 1 > available) {
+      showError(`Cannot add more. Only ${available} units available in stock.`);
+      showToast(`Cannot add more. Only ${available} available.`, 'warning', 'Stock Limit');
+      return false;
+    }
+    state.cart.set(id, currentQty + 1);
+    showError('');
+    saveSale();
+    renderCart();
+    showToast(`${item.brand} ${item.productName} (${item.color} / ${item.size}) x1 added to Current Sale.`, 'success', 'Added to Sale');
+    return true;
+  }
+
+  let posSelectedIndex = -1;
+  const searchDropdown = document.getElementById('adminSearchDropdown');
+
+  function renderPosSearchDropdown(query) {
+    if (!searchDropdown) return;
+    const q = (query || '').trim().toLowerCase();
+    if (!q) {
+      searchDropdown.style.display = 'none';
+      searchDropdown.innerHTML = '';
+      posSelectedIndex = -1;
+      return;
+    }
+
+    const allVariants = Array.from(state.allById.values());
+    const matches = allVariants.filter(item => {
+      const fullText = `${item.brand || ''} ${item.productName || ''} ${item.color || ''} ${item.size || ''} ${item.sku || ''} ${item.category || ''}`.toLowerCase();
+      return fullText.includes(q);
+    }).slice(0, 10);
+
+    if (matches.length === 0) {
+      searchDropdown.innerHTML = `<div class="admin-search-empty">No sellable POS products found matching "${escapeHtml(query.trim())}"</div>`;
+      searchDropdown.classList.remove('is-hidden');
+      searchDropdown.removeAttribute('hidden');
+      searchDropdown.style.display = 'block';
+      posSelectedIndex = -1;
+      return;
+    }
+
+    let html = `<div class="admin-search-group">
+      <div class="admin-search-group-title">POINT OF SALE PRODUCTS (${matches.length})</div>`;
+
+    matches.forEach((item, idx) => {
+      const available = Math.max(0, Number(item.availableStock || 0));
+      const isOut = available <= 0;
+      const stockBadge = isOut
+        ? `<span class="admin-search-badge is-out-of-stock">Out of stock</span>`
+        : `<span class="admin-search-badge is-in-stock">${available} in stock</span>`;
+
+      html += `
+        <div class="admin-search-item pos-search-item" data-variant-id="${Number(item.variantId)}" data-index="${idx}" tabindex="-1" role="button" aria-disabled="${isOut}">
+          <img class="admin-search-thumb" src="${escapeHtml(safeImage(item.mainImageUrl))}" alt="${escapeHtml(item.productName)}" loading="lazy" />
+          <div class="admin-search-item-info">
+            <span class="admin-search-item-title">${escapeHtml(item.brand)} ${escapeHtml(item.productName)}</span>
+            <span class="admin-search-item-sub">${escapeHtml(item.color)} &bull; Size ${escapeHtml(item.size)} &bull; SKU: ${escapeHtml(item.sku)}</span>
+          </div>
+          <div class="admin-search-meta">
+            ${stockBadge}
+            <span class="admin-search-price">${money(item.unitPrice)}</span>
+            <button type="button" class="pos-quick-add-btn" data-variant-id="${Number(item.variantId)}" ${isOut ? 'disabled' : ''} title="Add to current sale">Add &rarr;</button>
+          </div>
+        </div>`;
+    });
+
+    html += `</div>`;
+    searchDropdown.innerHTML = html;
+    searchDropdown.classList.remove('is-hidden');
+    searchDropdown.removeAttribute('hidden');
+    searchDropdown.style.display = 'block';
+    posSelectedIndex = -1;
+  }
+
+  function updateHighlight(items) {
+    items.forEach((item, idx) => {
+      if (idx === posSelectedIndex) {
+        item.classList.add('is-selected');
+        item.scrollIntoView({ block: 'nearest' });
+      } else {
+        item.classList.remove('is-selected');
+      }
+    });
+  }
+
+  window.posSearchHandler = function(query) {
+    renderPosSearchDropdown(query);
+  };
+
+  window.posKeydownHandler = function(event) {
+    if (!searchDropdown || searchDropdown.style.display === 'none') {
+      if (event.key === 'Enter') event.preventDefault();
+      return;
+    }
+
+    const items = searchDropdown.querySelectorAll('.pos-search-item');
+    if (!items.length) {
+      if (event.key === 'Enter') event.preventDefault();
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      posSelectedIndex = (posSelectedIndex + 1) % items.length;
+      updateHighlight(items);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      posSelectedIndex = (posSelectedIndex - 1 + items.length) % items.length;
+      updateHighlight(items);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      const targetIndex = posSelectedIndex >= 0 ? posSelectedIndex : 0;
+      const targetItem = items[targetIndex];
+      if (targetItem) {
+        const variantId = Number(targetItem.dataset.variantId);
+        if (variantId) {
+          const added = addToCart(variantId);
+          if (added) {
+            searchDropdown.style.display = 'none';
+            posSelectedIndex = -1;
+          }
+        }
+      }
+    } else if (event.key === 'Escape') {
+      searchDropdown.style.display = 'none';
+      posSelectedIndex = -1;
+    }
+  };
+
+  if (searchDropdown) {
+    searchDropdown.addEventListener('click', event => {
+      const itemRow = event.target.closest('.pos-search-item');
+      if (!itemRow) return;
+      const variantId = Number(itemRow.dataset.variantId);
+      if (variantId) {
+        const added = addToCart(variantId);
+        if (added) {
+          searchDropdown.style.display = 'none';
+          posSelectedIndex = -1;
+          if (ui.search) ui.search.focus();
+        }
+      }
+    });
+  }
+
   ui.grid.addEventListener('click', event => {
     const card = event.target.closest('[data-add-id]');
     if (!card || card.disabled) return;
     const id = Number(card.dataset.addId);
-    const item = itemFor(id);
-    const next = (state.cart.get(id) || 0) + 1;
-    if (!item || next > Number(item.availableStock)) { showError('No more units are available.'); return; }
-    state.cart.set(id, next);
-    showError('');
-    saveSale();
-    renderCart();
+    addToCart(id);
   });
   ui.cart.addEventListener('click', event => {
     const remove = event.target.closest('[data-remove-id]');
     const qty = event.target.closest('[data-qty-id]');
-    if (remove) state.cart.delete(Number(remove.dataset.removeId));
+    let removedItem;
+    if (remove) {
+      const id = Number(remove.dataset.removeId);
+      removedItem = itemFor(id);
+      if (!state.cart.delete(id)) return;
+    }
     else if (qty) {
       const id = Number(qty.dataset.qtyId);
       const next = (state.cart.get(id) || 0) + Number(qty.dataset.delta);
-      if (next <= 0) state.cart.delete(id);
+      if (next <= 0) {
+        removedItem = itemFor(id);
+        state.cart.delete(id);
+      }
       else if (next <= Number(itemFor(id)?.availableStock || 0)) state.cart.set(id, next);
     } else return;
     showError('');
     saveSale();
     renderCart();
+    if (remove || removedItem) {
+      const label = removedItem
+        ? `${removedItem.brand} ${removedItem.productName} (${removedItem.color} / ${removedItem.size})`
+        : 'Unavailable item';
+      showToast(`${label} removed from Current Sale.`, 'info', 'Item Removed');
+    }
   });
   if (ui.search) {
-    ui.search.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(loadCatalog, 200); });
+    ui.search.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        loadCatalog();
+        renderPosSearchDropdown(ui.search.value);
+      }, 200);
+    });
     ui.search.addEventListener('keydown', event => {
       if (event.key === 'Escape') {
         ui.search.value = '';
+        if (searchDropdown) {
+          searchDropdown.style.display = 'none';
+          searchDropdown.innerHTML = '';
+        }
         loadCatalog();
-      }
-      if (event.key === 'Enter') {
-        event.preventDefault();
       }
     });
   }
@@ -471,7 +645,14 @@ if (root) {
 
   restoreSale();
   renderCart();
-  refreshAll().then(items => { state.catalog = items; renderCatalog(); renderCart(); })
+  refreshAll().then(items => {
+    state.catalog = items;
+    renderCatalog();
+    renderCart();
+    if (initialSearch) {
+      renderPosSearchDropdown(initialSearch);
+    }
+  })
     .catch(error => { ui.message.hidden = false; ui.message.textContent = error.status === 401 ? 'Sign in as staff to use the POS counter.' : 'Products could not be loaded. Try again.'; });
 
   if (window.jQuery?.hubConnection) {

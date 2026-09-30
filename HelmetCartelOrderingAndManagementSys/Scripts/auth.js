@@ -4,6 +4,8 @@
  * and seamless redirection without floating card modals.
  */
 
+import { APP_CONSTANTS } from './constants.js';
+
 document.addEventListener('DOMContentLoaded', () => {
   // Elements
   const tabSignin = document.getElementById('tab-signin');
@@ -77,6 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (urlParams.get('logout') === '1') {
     showAlert('You have been signed out successfully.', 'success');
   } else if (urlParams.get('sessionExpired') === '1') {
+    localStorage.removeItem('hc_auth_token');
+    localStorage.removeItem('hc_user_profile');
     showAlert('Your session has expired. Please sign in again to continue.', 'error');
   }
 
@@ -197,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ email, password, rememberMe: document.getElementById('signin-remember')?.checked === true })
         });
 
         const result = await response.json();
@@ -210,6 +214,11 @@ document.addEventListener('DOMContentLoaded', () => {
           const user = data.user || data.User;
           if (token) localStorage.setItem('hc_auth_token', token);
           if (user) localStorage.setItem('hc_user_profile', JSON.stringify(user));
+
+          const loginRole = user ? (user.role || user.Role) : null;
+          if (loginRole === APP_CONSTANTS.ROLES.ADMIN || loginRole === APP_CONSTANTS.ROLES.STAFF) {
+            sessionStorage.setItem(APP_CONSTANTS.STORAGE_KEYS.ADMIN_LOGIN_SUCCESS, '1');
+          }
 
           showAlert('Authentication verified. Redirecting...', 'success');
 

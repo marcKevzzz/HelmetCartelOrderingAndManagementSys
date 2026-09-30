@@ -58,6 +58,7 @@ export const APP_CONSTANTS = Object.freeze({
   },
 
   STORAGE_KEYS: {
+    ADMIN_LOGIN_SUCCESS: 'hc_admin_login_success',
     AUTH_TOKEN: 'hc_auth_token',
     USER_PROFILE: 'hc_user_profile',
     CART_ITEMS: 'hc_cart_items',

@@ -161,7 +161,15 @@ export const SiteController = {
       if (!mobileSearchResults) return;
       const history = this.getSearchHistory();
       mobileSearchResults.innerHTML = history.length ? `
-        <div class="search-history-header"><span>Recent searches</span><button type="button" class="search-history-clear">Clear</button></div>
+        <div class="search-history-header">
+        <span class="admin-search-history-title">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            Recent Searches
+          </span>
+           <button type="button" class="search-history-clear">Clear All</button></div>
         ${history.map(query => `<div class="search-history-entry">
           <a href="/Pages/Shop.aspx?q=${encodeURIComponent(query)}" class="mobile-search-result search-history-item" data-search-query="${this.escapeHtml(query)}">${this.escapeHtml(query)}</a>
           <button type="button" class="search-history-remove" data-search-query="${this.escapeHtml(query)}" aria-label="Remove ${this.escapeHtml(query)} from search history" title="Remove search"><span aria-hidden="true">&times;</span></button>
@@ -270,46 +278,72 @@ export const SiteController = {
           return;
         }
         dropdown.innerHTML = `
-          <div class="search-history-header"><span>Recent searches</span><button type="button" class="search-history-clear">Clear</button></div>
-          <div class="search-history-list">
-            ${history.map(item => `<div class="search-history-entry">
-              <a href="${shopUrl(item)}" class="search-history-item" data-search-query="${this.escapeHtml(item)}">${this.escapeHtml(item)}</a>
-              <button type="button" class="search-history-remove" data-search-query="${this.escapeHtml(item)}" aria-label="Remove ${this.escapeHtml(item)} from search history" title="Remove search"><span aria-hidden="true">&times;</span></button>
-            </div>`).join('')}
+          <div class="search-group">
+            <div class="search-group-title">
+            <span class="search-group-history">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            Recent Searches
+          </span>
+              <button type="button" class="search-history-clear">Clear All</button>
+            </div>
+            ${history.map(item => `
+              <div class="search-item search-history-entry">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="admin-search-history-icon" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+                <a href="${shopUrl(item)}" class="search-item-info search-history-item" data-search-query="${this.escapeHtml(item)}">
+                  <span class="search-item-title">${this.escapeHtml(item)}</span>
+                </a>
+                <button type="button" class="search-history-remove" data-search-query="${this.escapeHtml(item)}" aria-label="Remove ${this.escapeHtml(item)}" title="Remove">&times;</button>
+              </div>`).join('')}
           </div>`;
       } else {
-        dropdown.innerHTML = '<div class="search-suggestions-header">Searching...</div>';
+        dropdown.innerHTML = `
+          <div class="search-group">
+            <div class="search-group-title">SEARCHING...</div>
+          </div>`;
         try {
-          const result = await ApiClient.getProducts({ search: q, page: 1, pageSize: 5 });
+          const result = await ApiClient.getProducts({ search: q, page: 1, pageSize: 6 });
           if (thisRequest !== requestId) return;
           const matches = result?.items || [];
           if (matches.length === 0) {
-            dropdown.innerHTML = `<div class="search-no-results">
-              <p>No helmets matching "<strong>${this.escapeHtml(q)}</strong>"</p>
-              <a href="${shopUrl(q)}" class="search-view-all-btn">View all results</a>
-            </div>`;
+            dropdown.innerHTML = `
+              <div class="search-empty">
+                <p>No helmets found matching "<strong>${this.escapeHtml(q)}</strong>"</p>
+                <a href="${shopUrl(q)}" class="search-view-all-pill">Browse all in shop &rarr;</a>
+              </div>`;
           } else {
             dropdown.innerHTML = `
-              <div class="search-suggestions-header">MATCHING HELMETS (${result.totalCount || matches.length})</div>
-              <div class="search-results-list">
-                ${matches.map((item, index) => `
-                  <a href="/Pages/ProductDetail.aspx?id=${Number(item.id)}" class="search-result-row" data-index="${index}">
-                    <img src="${this.escapeHtml(item.mainImageUrl || '')}" alt="${this.escapeHtml(item.name)}" class="search-result-thumb" />
-                    <div class="search-result-info">
-                      <span class="search-result-brand">${this.escapeHtml(item.brand)} &bull; ${this.escapeHtml(item.category)}</span>
-                      <h5 class="search-result-title">${this.highlightMatch(item.name, q)}</h5>
-                    </div>
-                    <span class="search-result-price">&#8369;${Number(item.effectivePrice ?? item.basePrice ?? 0).toLocaleString()}</span>
-                  </a>`).join('')}
+              <div class="search-group">
+                <div class="search-group-title">MATCHING HELMETS (${result.totalCount || matches.length})</div>
+                <div class="search-results-list">
+                  ${matches.map((item, index) => `
+                    <a href="/Pages/ProductDetail.aspx?id=${Number(item.id)}" class="search-item search-result-row" data-index="${index}">
+                      <img src="${this.escapeHtml(item.mainImageUrl || '/Content/images/placeholder-helmet.png')}" alt="${this.escapeHtml(item.name)}" class="search-thumb search-result-thumb" onerror="this.src='/Content/images/placeholder-helmet.png'" />
+                      <div class="search-item-info search-result-info">
+                        <span class="search-item-title search-result-title">${this.highlightMatch(item.name, q)}</span>
+                        <span class="search-item-sub search-result-brand">${this.escapeHtml(item.brand)} &bull; ${this.escapeHtml(item.category || item.ridingStyle || 'Helmet')}</span>
+                      </div>
+                      <span class="search-badge search-result-price">&#8369;${Number(item.effectivePrice ?? item.basePrice ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </a>`).join('')}
+                </div>
               </div>
-              <div class="search-dropdown-footer">
-                <a href="${shopUrl(q)}" class="search-view-all-btn">View all results for "${this.escapeHtml(q)}"</a>
-              </div>`;
+              <a href="${shopUrl(q)}" class="search-view-all">
+                <span>View all results for "<strong>${this.escapeHtml(q)}</strong>"</span>
+                <span class="search-badge">&rarr;</span>
+              </a>`;
           }
         } catch (error) {
           if (thisRequest !== requestId) return;
-          dropdown.innerHTML = `<div class="search-no-results"><p>Search is unavailable right now.</p>
-            <a href="${shopUrl(q)}" class="search-view-all-btn">Open shop results</a></div>`;
+          dropdown.innerHTML = `
+            <div class="search-empty">
+              <p>Search is unavailable right now.</p>
+              <a href="${shopUrl(q)}" class="search-view-all-pill">Open shop &rarr;</a>
+            </div>`;
         }
       }
       dropdown.classList.add('is-open');

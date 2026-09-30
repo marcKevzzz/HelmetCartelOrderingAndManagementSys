@@ -449,6 +449,14 @@ a:hover > .btn-arrow-icon {
   color: var(--color-accent-amber);
 }
 
+.toast--warning .toast__icon {
+  color: var(--color-accent-amber);
+}
+
+.toast--error .toast__icon {
+  color: #DC2626;
+}
+
 .toast--info .toast__icon {
   color: #171717;
 }

@@ -518,11 +518,18 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                 {
                     while (await reader.ReadAsync().ConfigureAwait(false))
                     {
+                        var subtitle = reader.GetString(reader.GetOrdinal("Subtitle"));
+                        if (!string.IsNullOrEmpty(subtitle))
+                        {
+                            subtitle = System.Text.RegularExpressions.Regex.Replace(subtitle, @"(?<=(?:Base:\s*|^|\s))\?(\d)", "\u20B1$1");
+                            subtitle = subtitle.Replace("\uFFFD", "•");
+                        }
+
                         list.Add(new AdminGlobalSearchResultDto
                         {
                             Category = reader.GetString(reader.GetOrdinal("Category")),
                             Title = reader.GetString(reader.GetOrdinal("Title")),
-                            Subtitle = reader.GetString(reader.GetOrdinal("Subtitle")),
+                            Subtitle = subtitle,
                             Url = reader.GetString(reader.GetOrdinal("Url")),
                             Badge = reader.GetString(reader.GetOrdinal("Badge"))
                         });

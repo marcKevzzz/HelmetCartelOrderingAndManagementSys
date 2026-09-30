@@ -15,18 +15,12 @@ namespace HelmetCartelOrderingAndManagementSys.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly IJwtTokenProvider _jwtTokenProvider;
-        private readonly int _expiryMinutes;
 
         public AuthService(IUserRepository userRepository, IJwtTokenProvider jwtTokenProvider)
         {
             _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
             _jwtTokenProvider = jwtTokenProvider ?? throw new ArgumentNullException(nameof(jwtTokenProvider));
 
-            var expStr = ConfigurationManager.AppSettings["Jwt:ExpiryMinutes"];
-            if (!int.TryParse(expStr, out _expiryMinutes))
-            {
-                _expiryMinutes = 120;
-            }
         }
 
         public async Task<AuthResponseDto> AuthenticateAsync(LoginRequestDto request)
@@ -60,12 +54,12 @@ namespace HelmetCartelOrderingAndManagementSys.Services
                 Role = user.RoleName
             };
 
-            var token = _jwtTokenProvider.GenerateToken(profile);
+            var token = _jwtTokenProvider.GenerateToken(profile, request.RememberMe);
 
             return new AuthResponseDto
             {
                 Token = token,
-                ExpiresIn = _expiryMinutes * 60,
+                ExpiresIn = (request.RememberMe ? AppConstants.JwtConfiguration.RememberMeExpiryMinutes : AppConstants.JwtConfiguration.SessionExpiryMinutes) * 60,
                 User = profile
             };
         }
@@ -116,7 +110,7 @@ namespace HelmetCartelOrderingAndManagementSys.Services
             return new AuthResponseDto
             {
                 Token = token,
-                ExpiresIn = _expiryMinutes * 60,
+                ExpiresIn = AppConstants.JwtConfiguration.SessionExpiryMinutes * 60,
                 User = profile
             };
         }

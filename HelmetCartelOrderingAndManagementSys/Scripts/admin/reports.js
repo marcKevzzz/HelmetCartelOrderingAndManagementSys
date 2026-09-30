@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!details) return;
       const open = button.getAttribute('aria-expanded') !== 'true';
       button.setAttribute('aria-expanded', String(open));
-      button.querySelector('span').textContent = open ? 'Hide Inventory \u2191' : 'View Inventory \u2193';
+      button.setAttribute('aria-label', open ? 'Hide low-stock items' : 'Show low-stock items');
       details.hidden = !open;
     });
   });
