@@ -11,13 +11,13 @@
                 <h1 class="admin-page-title">Product Catalog</h1>
             </div>
             <div class="admin-header-actions">
-                <button type="button" class="btn-pill btn-pill--primary" id="btnOpenAddHelmetModal">
+                <a href="/Admin/CatalogItem.aspx" class="btn-pill btn-pill--primary">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                     <span>Add Helmet Model</span>
-                </button>
+                </a>
             </div>
         </div>
 
@@ -47,13 +47,10 @@
             <table class="admin-table admin-table-catalog">
                 <colgroup>
                     <col class="col-thumb" />
-                    <col class="col-model" />
+                    <col class="col-model catalog" />
                     <col class="col-brand" />
-                    <col class="col-category" />
-                    <col class="col-category" />
-                    <col class="col-price" />
-                    <col class="col-brand" />
-                    <col class="col-price" />
+                    <col class="col-category-style" />
+                    <col class="col-pricing" />
                     <col class="col-status" />
                     <col class="col-status" />
                     <col class="col-actions catalog" />
@@ -64,10 +61,7 @@
                         <th>Helmet Model</th>
                         <th>Brand</th>
                         <th>Category</th>
-                        <th>Riding Style</th>
-                        <th>Base Price</th>
-                        <th>Discount</th>
-                        <th>Effective</th>
+                        <th>Pricing</th>
                         <th>Variants</th>
                         <th>Status</th>
                         <th class="admin-table-align-right">Actions</th>
@@ -98,19 +92,16 @@
                                     <span class="admin-cell-brand"><%# Server.HtmlEncode(Convert.ToString(Eval("Brand"))) %></span>
                                 </td>
                                 <td>
-                                    <span class="admin-cell-category"><%# Server.HtmlEncode(Convert.ToString(Eval("Category"))) %></span>
+                                    <span class="admin-cell-category" title='<%# Server.HtmlEncode(Convert.ToString(Eval("Category"))) %>'><%# Server.HtmlEncode(Convert.ToString(Eval("Category"))) %></span>
                                 </td>
                                 <td>
-                                    <span class="admin-cell-mono-muted"><%# Server.HtmlEncode(Convert.ToString(Eval("RidingStyle"))) %></span>
-                                </td>
-                                <td>
-                                    <span class="admin-cell-price">&#8369;<%# Convert.ToDecimal(Eval("BasePrice")).ToString("N2") %></span>
-                                </td>
-                                <td>
-                                    <%# (bool)Eval("HasActiveDiscount") || Convert.ToInt32(Eval("DiscountPercentage")) > 0 ? "<span class=\"admin-badge admin-badge--low-stock\">" + Eval("DiscountBadgeText") + "</span>" : "<span class=\"admin-cell-mono-muted\">0%</span>" %>
-                                </td>
-                                <td>
-                                    <span class="admin-cell-price admin-stock-highlight">&#8369;<%# Convert.ToDecimal(Eval("EffectivePrice")).ToString("N2") %></span>
+                                    <div class="admin-catalog-pricing-card">
+                                        <span class="admin-catalog-effective-price">&#8369;<%# Convert.ToDecimal(Eval("EffectivePrice")).ToString("N2") %></span>
+                                        <div class="admin-catalog-price-meta">
+                                            <span class='<%# (bool)Eval("HasActiveDiscount") || Convert.ToInt32(Eval("DiscountPercentage")) > 0 ? "admin-catalog-original-price" : "admin-catalog-original-price is-regular" %>'>&#8369;<%# Convert.ToDecimal(Eval("BasePrice")).ToString("N2") %></span>
+                                            <%# (bool)Eval("HasActiveDiscount") || Convert.ToInt32(Eval("DiscountPercentage")) > 0 ? "<span class=\"admin-catalog-discount\">" + Eval("DiscountBadgeText") + "</span>" : "<span class=\"admin-catalog-no-discount\">&mdash;</span>" %>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td>
                                     <span class="admin-size-badge" title="Variant SKUs"><%# Eval("VariantCount") %></span>
@@ -130,24 +121,13 @@
                                             </svg>
                                             <span>Preview</span>
                                         </button>
-                                        <button type="button" class="btn-pill-sm btn-pill--outline btn-edit-product" 
-                                            data-id='<%# Eval("Id") %>'
-                                            data-name='<%# Server.HtmlEncode(Convert.ToString(Eval("Name"))) %>'
-                                            data-brandid='<%# Eval("BrandId") %>'
-                                            data-catid='<%# Eval("CategoryId") %>'
-                                            data-style='<%# Convert.ToString(Eval("RidingStyle")) %>'
-                                            data-price='<%# Eval("BasePrice") %>'
-                                            data-distype='<%# Eval("DiscountType") %>'
-                                            data-disamt='<%# Eval("DiscountAmount") %>'
-                                            data-img='<%# Eval("MainImageUrl") %>'
-                                            data-desc='<%# Server.HtmlEncode(Convert.ToString(Eval("Description"))) %>'
-                                            title="Edit Helmet Model">
+                                        <a href='/Admin/CatalogItem.aspx?id=<%# Eval("Id") %>' class="btn-pill-sm btn-pill--outline" title="Edit Helmet Model">
                                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                             </svg>
                                             <span>Edit</span>
-                                        </button>
+                                        </a>
                                         <button type="button" class="btn-pill-sm btn-pill--outline btn-pill--danger btn-delete-product"
                                             data-id='<%# Eval("Id") %>'
                                             data-name='<%# Server.HtmlEncode(Convert.ToString(Eval("Name"))) %>'
@@ -168,7 +148,7 @@
                             </tr>
                         </ItemTemplate>
                         <FooterTemplate>
-                            <%# rptCatalog.Items.Count == 0 ? "<tr><td colspan='11'><div class='admin-empty-state'><div class='admin-empty-title'>No Products Found</div><p>No helmet models match the current filter.</p></div></td></tr>" : "" %>
+                            <%# rptCatalog.Items.Count == 0 ? "<tr><td colspan='8'><div class='admin-empty-state'><div class='admin-empty-title'>No Products Found</div><p>No helmet models match the current filter.</p></div></td></tr>" : "" %>
                         </FooterTemplate>
                     </asp:Repeater>
                 </tbody>
@@ -258,358 +238,6 @@
         </div>
     </div>
 
-    <!-- Add / Edit Helmet Model & Dynamic Variant Matrix Modal (5-Tab Spacious Wizard) -->
-    <div id="addProductModal" class="admin-modal-backdrop is-hidden">
-        <div class="admin-modal admin-modal--wizard">
-            <div class="admin-modal-header">
-                <div>
-                    <h3 id="modalProductTitle" class="admin-modal-title">Add Helmet Model</h3>
-                </div>
-                <button type="button" class="admin-modal-close-btn" onclick="closeAddProductModal();" aria-label="Close modal">&times;</button>
-            </div>
 
-            <!-- Wizard Step Tab Navigation -->
-            <div class="admin-wizard-tabs">
-                <button type="button" class="admin-wizard-tab-btn active" data-step="1" onclick="switchWizardTab(1);">
-                    <span class="tab-step-num">1</span>
-                    <span>Basic Info</span>
-                </button>
-                <button type="button" class="admin-wizard-tab-btn" data-step="2" onclick="switchWizardTab(2);">
-                    <span class="tab-step-num">2</span>
-                    <span>Variants &amp; Stock</span>
-                </button>
-                <button type="button" class="admin-wizard-tab-btn" data-step="3" onclick="switchWizardTab(3);">
-                    <span class="tab-step-num">3</span>
-                    <span>Pricing &amp; Discount</span>
-                </button>
-                <button type="button" class="admin-wizard-tab-btn" data-step="4" onclick="switchWizardTab(4);">
-                    <span class="tab-step-num">4</span>
-                    <span>Images &amp; Upload</span>
-                </button>
-                <button type="button" class="admin-wizard-tab-btn" data-step="5" onclick="switchWizardTab(5);">
-                    <span class="tab-step-num">5</span>
-                    <span>Review</span>
-                </button>
-            </div>
-
-            <asp:HiddenField ID="hdnVariantsJson" runat="server" />
-            <input type="hidden" id="hdnEditProductId" runat="server" value="0" />
-
-            <!-- Tab 1: Basic Information -->
-            <div class="admin-wizard-pane active" data-pane="1">
-                <div class="admin-form-grid-2">
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Manufacturer / Brand <span class="admin-required-star">*</span></label>
-                        <asp:DropDownList ID="ddlNewBrand" runat="server" CssClass="admin-form-select" onchange="renderVariantMatrix();">
-                        </asp:DropDownList>
-                    </div>
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Category <span class="admin-required-star">*</span></label>
-                        <asp:DropDownList ID="ddlNewCategory" runat="server" CssClass="admin-form-select">
-                        </asp:DropDownList>
-                    </div>
-                </div>
-
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Helmet Model Name <span class="admin-required-star">*</span></label>
-                    <input type="text" id="txtNewName" runat="server" class="admin-form-input" placeholder="e.g. Shoei RF-1400 Dedicated" oninput="renderVariantMatrix(); validateWizardStep(1);" required="required" />
-                    <span id="errNewName" class="inline-error-msg">Helmet model name is required.</span>
-                </div>
-
-                <div class="admin-form-grid-2">
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Riding Style</label>
-                        <asp:DropDownList ID="ddlNewStyle" runat="server" CssClass="admin-form-select">
-                            <asp:ListItem Value="Sport/Street">Sport / Street</asp:ListItem>
-                            <asp:ListItem Value="Touring">Touring</asp:ListItem>
-                            <asp:ListItem Value="Adventure/Offroad">Adventure / Dual Sport</asp:ListItem>
-                            <asp:ListItem Value="Urban/Classic">Urban / Classic</asp:ListItem>
-                        </asp:DropDownList>
-                    </div>
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Certification Standards</label>
-                        <input type="text" class="admin-form-input" placeholder="e.g. ECE 22.06, DOT FMVSS 218, Snell M2020D" value="ECE 22.06, DOT Certified" />
-                    </div>
-                </div>
-
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Description &amp; Overview</label>
-                    <textarea id="txtNewDescription" runat="server" class="admin-form-textarea" rows="3" placeholder="Full face composite helmet with Pinlock EVO, emergency quick release, optimal wind noise isolation..."></textarea>
-                </div>
-
-                <div class="admin-wizard-footer">
-                    <button type="button" class="btn-pill btn-pill--outline" onclick="closeAddProductModal();">Cancel</button>
-                    <button type="button" class="btn-pill btn-pill--primary" onclick="switchWizardTab(2);">Next: Variants &amp; Stock &rarr;</button>
-                </div>
-            </div>
-
-            <!-- Tab 2: Variants & Stock (Interactive Color Picker & Gradient Support) -->
-            <div class="admin-wizard-pane" data-pane="2">
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Color Palette &amp; Finishes <span class="admin-required-star">*</span></label>
-                    <div class="admin-color-manager">
-                        <section class="admin-color-section" aria-labelledby="configuredColorsLabel">
-                            <div class="admin-color-section-heading">
-                                <span id="configuredColorsLabel" class="admin-color-section-title">Configured colors</span>
-                                <span class="admin-color-section-hint">Each color creates a row for every selected size.</span>
-                            </div>
-                            <div id="colorChipsContainer" class="admin-palette-chips"></div>
-                        </section>
-
-                        <section class="admin-color-creator-card" aria-labelledby="createFinishLabel">
-                            <div class="admin-color-section-heading">
-                                <span id="createFinishLabel" class="admin-color-section-title">Create a color or finish</span>
-                                <span class="admin-color-section-hint">Choose a mode, adjust the shade, then add it to the palette.</span>
-                            </div>
-                            <div class="admin-color-mode-row">
-                                <span class="admin-control-label">Finish type</span>
-                                <div class="admin-segmented-tabs admin-color-mode-tabs">
-                                    <button type="button" id="btnColorModeSolid" class="admin-tab-btn active" onclick="setColorMode('solid');">Solid</button>
-                                    <button type="button" id="btnColorModeGradient" class="admin-tab-btn" onclick="setColorMode('gradient');">Gradient</button>
-                                </div>
-                            </div>
-
-                            <div class="admin-color-name-field">
-                                <label for="txtCustomColorName" class="admin-control-label">Display name</label>
-                                <input type="text" id="txtCustomColorName" class="admin-form-input" value="Matte Black" placeholder="Color name" />
-                            </div>
-
-                            <div id="solidColorControls" class="admin-color-control-grid admin-color-control-grid--solid">
-                                <label class="admin-control-stack" for="pickerSolidColor">
-                                    <span class="admin-control-label">Shade</span>
-                                    <input type="color" id="pickerSolidColor" value="#18181B" class="admin-color-picker-input" oninput="syncSolidHex(this.value);" />
-                                </label>
-                                <label class="admin-control-stack" for="txtSolidHex">
-                                    <span class="admin-control-label">Hex value</span>
-                                    <input type="text" id="txtSolidHex" class="admin-form-input admin-input-hex" value="#18181B" maxlength="7" oninput="syncSolidPicker(this.value);" />
-                                </label>
-                                <button type="button" class="btn-pill btn-pill--primary admin-color-add-btn" onclick="addColorToPalette();">Add Solid Color</button>
-                            </div>
-
-                            <div id="gradientColorControls" class="admin-color-control-grid admin-color-control-grid--gradient is-hidden">
-                                <label class="admin-control-stack" for="pickerGrad1">
-                                    <span class="admin-control-label">First shade</span>
-                                    <input type="color" id="pickerGrad1" value="#DC2626" class="admin-color-picker-input" oninput="updateGradientPreview();" />
-                                </label>
-                                <label class="admin-control-stack" for="pickerGrad2">
-                                    <span class="admin-control-label">Second shade</span>
-                                    <input type="color" id="pickerGrad2" value="#18181B" class="admin-color-picker-input" oninput="updateGradientPreview();" />
-                                </label>
-                                <label class="admin-control-stack" for="numGradAngle">
-                                    <span class="admin-control-label">Angle</span>
-                                    <input type="number" id="numGradAngle" class="admin-form-input admin-input-angle" value="135" min="0" max="360" step="15" oninput="updateGradientPreview();" />
-                                </label>
-                                <div class="admin-control-stack">
-                                    <span class="admin-control-label">Preview</span>
-                                    <div id="gradPreviewBox" class="admin-gradient-preview"></div>
-                                </div>
-                                <button type="button" class="btn-pill btn-pill--primary admin-color-add-btn" onclick="addColorToPalette();">Add Gradient</button>
-                            </div>
-                        </section>
-                    </div>
-                    <input type="hidden" id="txtNewColors" value="Matte Black:#18181B, Pearl White:#FFFFFF, Racing Red:#DC2626" />
-                </div>
-
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Select Available Sizes</label>
-                    <div class="admin-size-toggle-group">
-                        <label class="admin-size-toggle">
-                            <input type="checkbox" class="chk-new-size" value="S" onchange="renderVariantMatrix();" />
-                            <span>S</span>
-                        </label>
-                        <label class="admin-size-toggle">
-                            <input type="checkbox" class="chk-new-size" value="M" checked="checked" onchange="renderVariantMatrix();" />
-                            <span>M</span>
-                        </label>
-                        <label class="admin-size-toggle">
-                            <input type="checkbox" class="chk-new-size" value="L" checked="checked" onchange="renderVariantMatrix();" />
-                            <span>L</span>
-                        </label>
-                        <label class="admin-size-toggle">
-                            <input type="checkbox" class="chk-new-size" value="XL" checked="checked" onchange="renderVariantMatrix();" />
-                            <span>XL</span>
-                        </label>
-                        <label class="admin-size-toggle">
-                            <input type="checkbox" class="chk-new-size" value="2XL" onchange="renderVariantMatrix();" />
-                            <span>2XL</span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Generated Variant Matrix &amp; Initial Stock (Auto-generated SKU)</label>
-                    <div class="admin-matrix-table-wrap">
-                        <table class="admin-matrix-table">
-                            <thead>
-                                <tr>
-                                    <th>Color</th>
-                                    <th>Size</th>
-                                    <th>SKU</th>
-                                    <th>Price Adj (&#8369;)</th>
-                                    <th>Initial Stock</th>
-                                    <th>Reorder Point</th>
-                                </tr>
-                            </thead>
-                            <tbody id="matrixTableBody">
-                                <!-- Populated dynamically by admin.js renderVariantMatrix() -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="admin-wizard-footer">
-                    <button type="button" class="btn-pill btn-pill--outline" onclick="switchWizardTab(1);">&larr; Back: Basic Info</button>
-                    <button type="button" class="btn-pill btn-pill--primary" onclick="switchWizardTab(3);">Next: Pricing &amp; Discount &rarr;</button>
-                </div>
-            </div>
-
-            <!-- Tab 3: Pricing & Discount -->
-            <div class="admin-wizard-pane" data-pane="3">
-                <div class="admin-form-grid-2">
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Base Retail Price (&#8369;) <span class="admin-required-star">*</span></label>
-                        <input type="number" id="txtNewBasePrice" runat="server" class="admin-form-input" placeholder="34000.00" step="50" min="100" value="34000.00" oninput="updatePricingPreview(); validateWizardStep(3);" required="required" />
-                        <span id="errNewPrice" class="inline-error-msg">Valid positive retail price is required.</span>
-                    </div>
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Discount Scheme</label>
-                        <asp:DropDownList ID="ddlNewDiscountType" runat="server" CssClass="admin-form-select" onchange="updatePricingPreview();">
-                            <asp:ListItem Value="Percentage">Percentage Discount (%)</asp:ListItem>
-                            <asp:ListItem Value="FixedAmount">Fixed Amount Discount (&#8369;)</asp:ListItem>
-                        </asp:DropDownList>
-                    </div>
-                </div>
-
-                <div class="admin-form-grid-2">
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Discount Value</label>
-                        <input type="number" id="txtNewDiscountValue" runat="server" class="admin-form-input" min="0" max="90000" value="0" step="1" oninput="updatePricingPreview();" />
-                        <span class="admin-form-hint">
-                            Enter % (e.g. 15 for 15% off) or fixed amount in Pesos (e.g. 2000 for &#8369;2,000 off).
-                        </span>
-                    </div>
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Discount Status</label>
-                        <div class="admin-checkbox-card">
-                            <input type="checkbox" id="chkNewDiscountActive" runat="server" checked="checked" />
-                            <label for="MainContent_chkNewDiscountActive" class="admin-checkbox-label">Enable Discount Campaign</label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="admin-form-grid-2">
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Schedule Start Date (Optional)</label>
-                        <input type="date" id="txtNewDiscountStartDate" runat="server" class="admin-form-input" />
-                    </div>
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Schedule End Date (Optional)</label>
-                        <input type="date" id="txtNewDiscountEndDate" runat="server" class="admin-form-input" />
-                    </div>
-                </div>
-
-                <div class="admin-wizard-footer">
-                    <button type="button" class="btn-pill btn-pill--outline" onclick="switchWizardTab(2);">&larr; Back: Variants</button>
-                    <button type="button" class="btn-pill btn-pill--primary" onclick="switchWizardTab(4);">Next: Images &rarr;</button>
-                </div>
-            </div>
-
-            <!-- Tab 4: Images & Media (Multi-image upload with brand folder organization) -->
-            <div class="admin-wizard-pane" data-pane="4">
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Upload Product Images (Organized by Brand)</label>
-                    <div class="admin-dropzone" onclick="document.getElementById('MainContent_fileUploadImages').click();" id="imageDropzone">
-                        <svg class="admin-dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                            <polyline points="21 15 16 10 5 21"></polyline>
-                        </svg>
-                        <span class="admin-wizard-section-title">Click to upload product images or drag &amp; drop</span>
-                    </div>
-                    <asp:FileUpload ID="fileUploadImages" runat="server" AllowMultiple="true" accept=".jpg,.jpeg,.png,.webp" CssClass="admin-hidden-file-input" onchange="handleMultipleImageSelection(this);" />
-                </div>
-
-                <div id="imageUploadGrid" class="admin-upload-grid" aria-label="Uploaded images. Drag images to change their storefront order."></div>
-                <input type="text" id="txtNewImageUrl" runat="server" value="/Content/images/products/helmets/agv/images.jpg" hidden />
-                <textarea id="txtNewGalleryUrls" runat="server" hidden></textarea>
-
-                <div class="admin-wizard-footer">
-                    <button type="button" class="btn-pill btn-pill--outline" onclick="switchWizardTab(3);">&larr; Back: Pricing</button>
-                    <button type="button" class="btn-pill btn-pill--primary" onclick="switchWizardTab(5);">Next: Review &amp; Confirm &rarr;</button>
-                </div>
-            </div>
-
-            <!-- Tab 5: Review & Confirm -->
-            <div class="admin-wizard-pane" data-pane="5">
-                <div class="admin-review-card admin-product-detail-mini">
-                    <div class="admin-product-detail-mini__media">
-                        <img id="reviewSummaryThumb" src="/Content/images/products/helmets/agv/images.jpg" alt="Helmet Preview" class="admin-product-detail-mini__image" />
-                        <span class="admin-product-detail-mini__image-label">Primary image</span>
-                    </div>
-                    <div class="admin-product-detail-mini__content">
-                        <div class="admin-review-tags">
-                            <span class="admin-badge admin-badge--active" id="reviewSummaryBrand">Shoei</span>
-                            <span class="admin-badge admin-badge--role-staff" id="reviewSummaryCategory">Full Face</span>
-                            <span class="admin-cell-mono-muted" id="reviewSummaryStyle">Sport/Street</span>
-                        </div>
-                        <h4 class="admin-product-detail-mini__title" id="reviewSummaryName">Shoei RF-1400 Dedicated</h4>
-                        <div class="admin-product-detail-mini__rating" aria-label="Product rating preview">
-                            <span aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
-                            <span>New product preview</span>
-                        </div>
-                        <div class="admin-review-pricing-row">
-                            <strong class="admin-product-detail-mini__price" id="reviewSummaryEffective">&#8369;34,000.00</strong>
-                            <span class="admin-review-base-price" id="reviewSummaryBasePrice">&#8369;34,000.00</span>
-                            <span class="admin-review-discount-tag" id="reviewSummaryDiscount">No Discount</span>
-                        </div>
-                        <p id="reviewSummaryDescription" class="admin-product-detail-mini__description">Product description will appear here.</p>
-                        <div class="admin-product-detail-mini__options">
-                            <div>
-                                <span class="admin-product-detail-mini__option-label">Colors</span>
-                                <div id="reviewColorSwatches" class="admin-product-detail-mini__swatches"></div>
-                            </div>
-                            <div>
-                                <span class="admin-product-detail-mini__option-label">Sizes</span>
-                                <div id="reviewSizeOptions" class="admin-product-detail-mini__sizes"></div>
-                            </div>
-                        </div>
-                        <button type="button" class="btn-pill btn-pill--primary admin-product-detail-mini__cart" disabled>Add to Cart</button>
-                    </div>
-
-                    <div class="admin-review-body">
-                        <div class="admin-review-stat-grid">
-                            <div class="admin-review-stat-item">
-                                <span class="admin-review-stat-label">Configured Variants</span>
-                                <span class="admin-review-stat-value" id="reviewSummaryVariantsCount">0 SKUs</span>
-                            </div>
-                            <div class="admin-review-stat-item">
-                                <span class="admin-review-stat-label">Total Warehouse Units</span>
-                                <span class="admin-review-stat-value admin-stock-highlight" id="reviewSummaryStockTotal">0 Units</span>
-                            </div>
-                            <div class="admin-review-stat-item">
-                                <span class="admin-review-stat-label">Product Images</span>
-                                <span class="admin-review-stat-value" id="reviewSummaryImagesCount">1 Image</span>
-                            </div>
-                        </div>
-
-                        <div class="admin-review-variants-preview">
-                            <div class="admin-review-variants-title">Variant SKU &amp; Stock Breakdown</div>
-                            <div id="reviewVariantsBreakdown" class="admin-review-variants-chips">
-                                <!-- Populated dynamically by renderReviewSummary() in admin.js -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="admin-wizard-footer">
-                    <button type="button" class="btn-pill btn-pill--outline" onclick="switchWizardTab(4);">&larr; Back: Images</button>
-                    <asp:Button ID="btnSubmitNewProduct" runat="server" CssClass="btn-pill btn-pill--primary" 
-                        Text="Save Helmet Model" 
-                        OnClientClick="return prepareVariantMatrixSubmission();" 
-                        OnClick="btnSubmitNewProduct_Click" />
-                </div>
-            </div>
-        </div>
-    </div>
-    <script src="/Scripts/admin/catalog.js?v=3"></script>
+    <script src="/Scripts/admin/catalog.js?v=4"></script>
 </asp:Content>

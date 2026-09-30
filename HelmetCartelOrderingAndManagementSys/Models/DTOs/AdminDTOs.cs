@@ -70,6 +70,9 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public decimal PriceAdjustment { get; set; }
         public int ReorderPoint { get; set; }
         public bool IsActive { get; set; } = true;
+        public int CurrentStock { get; set; }
+        public string Color { get; set; }
+        public string ColorHex { get; set; }
     }
 
     public sealed class AdminGalleryDto
@@ -305,6 +308,42 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string Notes { get; set; }
         public System.DateTime CreatedAt { get; set; }
         public string PerformedBy { get; set; }
+    }
+
+    public sealed class AdminSpecificationItemDto
+    {
+        public string SpecificationKey { get; set; }
+        public string DisplayName { get; set; }
+        public string SpecificationValue { get; set; }
+        public int DisplayOrder { get; set; }
+    }
+
+    public sealed class AdminProductCompleteDto
+    {
+        public int Id { get; set; }
+        public int CategoryId { get; set; }
+        public int BrandId { get; set; }
+        public string Name { get; set; }
+        public string Slug { get; set; }
+        public string Description { get; set; }
+        public string RidingStyle { get; set; }
+        public decimal BasePrice { get; set; }
+        public int DiscountPercentage { get; set; }
+        public string DiscountType { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public System.DateTime? DiscountStartDate { get; set; }
+        public System.DateTime? DiscountEndDate { get; set; }
+        public bool DiscountIsActive { get; set; }
+        public string MainImageUrl { get; set; }
+        public bool IsFeatured { get; set; }
+        public bool IsActive { get; set; }
+        public string BrandName { get; set; }
+        public string CategoryName { get; set; }
+
+        public List<AdminSpecificationItemDto> Specifications { get; set; } = new List<AdminSpecificationItemDto>();
+        public List<AdminColorDto> Colors { get; set; } = new List<AdminColorDto>();
+        public List<AdminVariantDto> Variants { get; set; } = new List<AdminVariantDto>();
+        public List<AdminGalleryDto> GalleryImages { get; set; } = new List<AdminGalleryDto>();
     }
 }
 

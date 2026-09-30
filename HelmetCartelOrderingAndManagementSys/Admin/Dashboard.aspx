@@ -118,14 +118,23 @@
                 <asp:Repeater ID="rptRecentActivity" runat="server">
                     <ItemTemplate>
                         <li class="admin-activity-item">
-                            <div class="admin-activity-meta">
-                                <span class="admin-activity-ref"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "reference"))) %></span>
-                                <span class="admin-activity-detail"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "detail"))) %></span>
+                            <div class="admin-activity-rail" aria-hidden="true">
+                                <span class="admin-activity-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <%# GetActivityIconMarkup(GetActivityValue(Container.DataItem, "activityType")) %>
+                                    </svg>
+                                </span>
                             </div>
-                            <div class="admin-activity-side">
-                                <span class="admin-badge admin-badge--low-stock"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "activityType"))) %></span>
-                                <span class="admin-activity-actor"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "actor"))) %></span>
-                                <span class="admin-activity-time"><%# FormatActivityTime(GetActivityValue(Container.DataItem, "createdAt")) %></span>
+                            <div class="admin-activity-content">
+                                <div class="admin-activity-heading">
+                                    <span class="admin-activity-actor"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "actor"))) %></span>
+                                    <span class="admin-activity-type"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "activityType"))) %></span>
+                                    <span class="admin-activity-time"><%# FormatActivityTime(GetActivityValue(Container.DataItem, "createdAt")) %></span>
+                                </div>
+                                <div class="admin-activity-detail-card">
+                                    <span class="admin-activity-ref"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "reference"))) %></span>
+                                    <span class="admin-activity-detail"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "detail"))) %></span>
+                                </div>
                             </div>
                         </li>
                     </ItemTemplate>

@@ -21,6 +21,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin {
         protected global::System.Web.UI.WebControls.Repeater rptInventory;
         protected global::System.Web.UI.WebControls.Literal litShowingRange;
         protected global::System.Web.UI.WebControls.Literal litTotalCount;
+        protected global::System.Web.UI.WebControls.Panel pnlInventoryPagination;
         protected global::System.Web.UI.WebControls.LinkButton btnPrevPage;
         protected global::System.Web.UI.WebControls.Repeater rptPaginationPages;
         protected global::System.Web.UI.WebControls.LinkButton btnNextPage;
@@ -32,6 +33,26 @@ namespace HelmetCartelOrderingAndManagementSys.Admin {
         protected global::System.Web.UI.WebControls.Literal litAuditCount;
         protected global::System.Web.UI.WebControls.Literal litAuditUnitsAdded;
         protected global::System.Web.UI.WebControls.Repeater rptAuditHistory;
+
+        /// <summary>
+        /// pnlAuditPagination control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Panel pnlAuditPagination;
+
+        /// <summary>
+        /// btnAuditPrevPage control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.LinkButton btnAuditPrevPage;
+
+        /// <summary>
+        /// rptAuditPaginationPages control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Repeater rptAuditPaginationPages;
+
+        /// <summary>
+        /// btnAuditNextPage control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.LinkButton btnAuditNextPage;
         protected global::System.Web.UI.WebControls.HiddenField hdnAdjustVariantId;
         protected global::System.Web.UI.HtmlControls.HtmlInputGenericControl txtAdjustQuantity;
         protected global::System.Web.UI.WebControls.DropDownList ddlAdjustReason;

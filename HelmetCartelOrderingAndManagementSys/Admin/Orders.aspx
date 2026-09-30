@@ -32,6 +32,11 @@
                     <asp:LinkButton ID="btnTabCompleted" runat="server" CssClass="admin-tab-btn" CommandArgument="Completed" OnClick="FilterTab_Click">Completed</asp:LinkButton>
                     <asp:LinkButton ID="btnTabPending" runat="server" CssClass="admin-tab-btn" CommandArgument="PendingPayment" OnClick="FilterTab_Click">Pending Payment</asp:LinkButton>
                 </div>
+
+                <div class="admin-orders-date-filter">
+                    <asp:TextBox ID="txtOrderDate" runat="server" TextMode="Date" CssClass="admin-date-input" aria-label="Filter orders by date" />
+                    <asp:Button ID="btnApplyDateFilter" runat="server" Text="Apply Filter" CssClass="btn-pill btn-pill--primary admin-orders-date-filter__button" OnClick="ApplyDateFilter_Click" />
+                </div>
             </div>
 
             <!-- Table Top Metadata (Replaces Status Count Tag) -->

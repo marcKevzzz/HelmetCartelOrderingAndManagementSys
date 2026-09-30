@@ -134,14 +134,50 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
         [HttpGet, Route("catalog/{id:int}/specifications"), StaffAuthorize(adminOnly: true)]
         public Task<IHttpActionResult> Specifications(int id) => Rows("dbo.sp_AdminSpecifications", P("@ProductId", id));
 
+        [HttpGet, Route("catalog/{id:int}/complete"), StaffAuthorize(adminOnly: true)]
+        public async Task<IHttpActionResult> GetProductComplete(int id)
+        {
+            var p = await _data.GetProductCompleteAsync(id).ConfigureAwait(false);
+            if (p == null) return NotFound();
+            return Ok(ApiResponse<AdminProductCompleteDto>.Ok(p));
+        }
+
+        [HttpPost, Route("catalog/{id:int}/specifications-batch"), StaffAuthorize(adminOnly: true)]
+        public async Task<IHttpActionResult> SaveSpecificationsBatch(int id, [FromBody] Newtonsoft.Json.Linq.JToken payload)
+        {
+            try
+            {
+                string json = payload != null ? payload.ToString() : "[]";
+                await _data.SaveProductSpecificationsAsync(id, json).ConfigureAwait(false);
+                return Ok(ApiResponse<object>.Ok(new { success = true }));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpPost, Route("catalog/products"), StaffAuthorize(adminOnly: true)]
         public Task<IHttpActionResult> SaveProduct(AdminProductDto d)
         {
             if (d == null) return Task.FromResult<IHttpActionResult>(BadRequest("Product is required."));
-            return Rows("dbo.sp_AdminSaveProduct", P("@Id", d.Id), P("@CategoryId", d.CategoryId), P("@BrandId", d.BrandId),
-                P("@Name", d.Name), P("@Slug", d.Slug), P("@Description", d.Description), P("@RidingStyle", d.RidingStyle),
-                P("@BasePrice", d.BasePrice), P("@DiscountPercentage", d.DiscountPercentage),
-                P("@MainImageUrl", d.MainImageUrl), P("@IsFeatured", d.IsFeatured), P("@IsActive", d.IsActive));
+            return Rows("dbo.sp_AdminSaveProduct", 
+                P("@Id", d.Id), 
+                P("@CategoryId", d.CategoryId), 
+                P("@BrandId", d.BrandId),
+                P("@Name", d.Name), 
+                P("@Slug", d.Slug), 
+                P("@Description", d.Description), 
+                P("@RidingStyle", d.RidingStyle),
+                P("@BasePrice", d.BasePrice), 
+                P("@DiscountPercentage", d.DiscountPercentage),
+                P("@DiscountType", d.DiscountType ?? "Percentage"),
+                P("@DiscountAmount", d.DiscountAmount),
+                P("@DiscountStartDate", (object)d.DiscountStartDate ?? DBNull.Value),
+                P("@DiscountEndDate", (object)d.DiscountEndDate ?? DBNull.Value),
+                P("@MainImageUrl", d.MainImageUrl), 
+                P("@IsFeatured", d.IsFeatured), 
+                P("@IsActive", d.IsActive));
         }
 
         [HttpDelete, Route("catalog/products/{id:int}"), StaffAuthorize(adminOnly: true)]

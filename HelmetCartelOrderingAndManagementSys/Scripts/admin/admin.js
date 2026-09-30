@@ -5,6 +5,12 @@
  * Persisted state and business logic reside strictly in C# code-behind and MSSQL stored procedures.
  */
 
+// Queue server-side notifications that can execute before DOMContentLoaded.
+window.__adminToastQueue = window.__adminToastQueue || [];
+if (typeof window.showAdminToast !== 'function') {
+  window.showAdminToast = (...args) => window.__adminToastQueue.push(args);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // 1. Sidebar Collapse Toggle
   const sidebar = document.getElementById('admin-sidebar');
@@ -14,6 +20,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const mobileBreakpoint = window.matchMedia('(max-width: 1024px)');
   const mobileMenuBtn = document.getElementById('adminMobileMenuBtn');
   const sidebarBackdrop = document.getElementById('adminSidebarBackdrop');
+  const syncSidebarRootState = (collapsed) => {
+    document.documentElement.classList.toggle('admin-sidebar-collapsed', collapsed);
+  };
   const closeMobileSidebar = () => {
     if (!sidebar || !mobileBreakpoint.matches) return;
     sidebar.classList.remove('is-mobile-open');
@@ -33,9 +42,9 @@ document.addEventListener('DOMContentLoaded', () => {
     else mobileMenuBtn?.focus();
   };
   if (sidebar && toggleBtn) {
-    if (localStorage.getItem(collapseKey) === 'true') {
-      sidebar.classList.add('is-collapsed');
-    }
+    const storedCollapsed = localStorage.getItem(collapseKey) === 'true';
+    sidebar.classList.toggle('is-collapsed', storedCollapsed);
+    syncSidebarRootState(storedCollapsed && !mobileBreakpoint.matches);
     const updateDesktopToggle = () => {
       if (mobileBreakpoint.matches) return;
       const expanded = !sidebar.classList.contains('is-collapsed');
@@ -45,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     if (mobileBreakpoint.matches) {
       sidebar.classList.remove('is-collapsed');
+      syncSidebarRootState(false);
       closeMobileSidebar();
     }
     updateDesktopToggle();
@@ -56,14 +66,18 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const isCollapsed = sidebar.classList.toggle('is-collapsed');
       localStorage.setItem(collapseKey, isCollapsed);
+      syncSidebarRootState(isCollapsed);
       updateDesktopToggle();
     });
     mobileBreakpoint.addEventListener('change', () => {
       if (mobileBreakpoint.matches) {
         sidebar.classList.remove('is-collapsed');
+        syncSidebarRootState(false);
         closeMobileSidebar();
       } else {
-        sidebar.classList.toggle('is-collapsed', localStorage.getItem(collapseKey) === 'true');
+        const isCollapsed = localStorage.getItem(collapseKey) === 'true';
+        sidebar.classList.toggle('is-collapsed', isCollapsed);
+        syncSidebarRootState(isCollapsed);
         sidebar.classList.remove('is-mobile-open');
         sidebarBackdrop?.classList.remove('active');
       }
@@ -97,6 +111,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedIndex = -1;
 
     const performSearch = async (query) => {
+      if (document.getElementById('posCounter')) {
+        searchDropdown.style.display = 'none';
+        return;
+      }
       const trimmed = query.trim();
       if (trimmed.length === 0) {
         searchDropdown.style.display = 'none';
@@ -158,6 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     searchInput.addEventListener('focus', () => {
+      if (document.getElementById('posCounter')) return;
       if (searchInput.value.trim().length > 0 && searchDropdown.children.length > 0) {
         searchDropdown.classList.remove('is-hidden');
         searchDropdown.removeAttribute('hidden');
@@ -166,6 +185,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     searchInput.addEventListener('keydown', (e) => {
+      if (document.getElementById('posCounter')) {
+        if (e.key === 'Enter') e.preventDefault();
+        return;
+      }
       const visibleItems = searchDropdown.querySelectorAll('.admin-search-item');
 
       if (e.key === 'Enter') {
@@ -302,7 +325,57 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnConfirmSignOut = document.getElementById('btnConfirmSignOut');
   if (btnConfirmSignOut) btnConfirmSignOut.addEventListener('click', window.confirmSignOut);
 
+  // 6b. Shared confirmation modal for actions that change admin data
+  const actionConfirmModal = document.getElementById('adminActionConfirmModal');
+  const actionConfirmTitle = document.getElementById('adminActionConfirmTitle');
+  const actionConfirmMessage = document.getElementById('adminActionConfirmMessage');
+  const btnCancelAdminAction = document.getElementById('btnCancelAdminAction');
+  const btnConfirmAdminAction = document.getElementById('btnConfirmAdminAction');
+  let pendingAdminAction = null;
+
+  const closeAdminActionModal = () => {
+    if (!actionConfirmModal) return;
+    actionConfirmModal.classList.add('is-hidden');
+    actionConfirmModal.setAttribute('hidden', 'hidden');
+    pendingAdminAction = null;
+  };
+
+  const openAdminActionModal = (trigger) => {
+    if (!actionConfirmModal || !trigger) return;
+    actionConfirmTitle.textContent = trigger.dataset.confirmTitle || 'Confirm action';
+    actionConfirmMessage.textContent = trigger.dataset.confirmMessage || 'Are you sure you want to continue?';
+    pendingAdminAction = trigger;
+    actionConfirmModal.classList.remove('is-hidden');
+    actionConfirmModal.removeAttribute('hidden');
+    btnConfirmAdminAction?.focus();
+  };
+
+  btnCancelAdminAction?.addEventListener('click', closeAdminActionModal);
+  btnConfirmAdminAction?.addEventListener('click', () => {
+    const trigger = pendingAdminAction;
+    closeAdminActionModal();
+    if (!trigger) return;
+    trigger.dataset.confirmed = 'true';
+    trigger.click();
+    delete trigger.dataset.confirmed;
+  });
+  actionConfirmModal?.addEventListener('click', (event) => {
+    if (event.target === actionConfirmModal) closeAdminActionModal();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && actionConfirmModal && !actionConfirmModal.hasAttribute('hidden')) {
+      closeAdminActionModal();
+    }
+  });
+  document.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-admin-confirm]');
+    if (!trigger || trigger.dataset.confirmed === 'true') return;
+    event.preventDefault();
+    openAdminActionModal(trigger);
+  }, true);
+
   // 7. Toast Notification System
+  const queuedToasts = window.__adminToastQueue.splice(0);
   window.showAdminToast = (message, type = 'info', title = null, duration = 4000) => {
     const container = document.getElementById('adminToastContainer');
     if (!container) return;
@@ -349,6 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   window.showToast = window.showAdminToast;
+  queuedToasts.forEach(args => window.showAdminToast(...args));
 
   function dismissToast(toast) {
     if (!toast || !toast.parentNode) return;
@@ -438,8 +512,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 9. Add / Edit Helmet Model Modal & Tabbed Wizard (Catalog page)
-  window.activeColors = [
+  // 9. Add / Edit Helmet Model Modal & Tabbed Wizard (Legacy Catalog Modal)
+  if (document.getElementById('addProductModal')) {
+    window.activeColors = [
     { name: 'Matte Black', type: 'solid', hex: '#18181B' },
     { name: 'Pearl White', type: 'solid', hex: '#FFFFFF' },
     { name: 'Racing Red', type: 'solid', hex: '#DC2626' }
@@ -847,66 +922,66 @@ document.addEventListener('DOMContentLoaded', () => {
     addSelectedImageFiles(event.dataTransfer.files);
   });
 
-  // Wizard tab switching
+  // Wizard tab switching (Only for legacy #addProductModal on Catalog.aspx)
   window.switchWizardTab = (stepNumber) => {
-    const currentTabBtn = document.querySelector('.admin-wizard-tab-btn.active');
-    const currentStep = currentTabBtn ? parseInt(currentTabBtn.getAttribute('data-step'), 10) : 1;
+      const currentTabBtn = document.querySelector('.admin-wizard-tab-btn.active');
+      const currentStep = currentTabBtn ? parseInt(currentTabBtn.getAttribute('data-step'), 10) : 1;
 
-    if (stepNumber > currentStep) {
-      if (!validateWizardStep(currentStep)) return false;
-    }
-
-    document.querySelectorAll('.admin-wizard-tab-btn').forEach(btn => {
-      const step = parseInt(btn.getAttribute('data-step'), 10);
-      btn.classList.toggle('active', step === stepNumber);
-    });
-
-    document.querySelectorAll('.admin-wizard-pane').forEach(pane => {
-      const step = parseInt(pane.getAttribute('data-pane'), 10);
-      pane.classList.toggle('active', step === stepNumber);
-    });
-
-    if (stepNumber === 2) {
-      renderColorChips();
-    } else if (stepNumber === 3) {
-      updatePricingPreview();
-    } else if (stepNumber === 4) {
-      updateImagePreview();
-    } else if (stepNumber === 5) {
-      renderReviewSummary();
-    }
-
-    return true;
-  };
-
-  window.validateWizardStep = (step) => {
-    let isValid = true;
-    if (step === 1) {
-      const nameInput = document.getElementById('MainContent_txtNewName') || document.getElementById('txtNewName');
-      const errSpan = document.getElementById('errNewName');
-      if (!nameInput || !nameInput.value.trim()) {
-        if (nameInput) nameInput.classList.add('is-invalid');
-        if (errSpan) errSpan.style.display = 'block';
-        isValid = false;
-      } else {
-        if (nameInput) nameInput.classList.remove('is-invalid');
-        if (errSpan) errSpan.style.display = 'none';
+      if (stepNumber > currentStep) {
+        if (!validateWizardStep(currentStep)) return false;
       }
-    } else if (step === 3) {
-      const priceInput = document.getElementById('MainContent_txtNewBasePrice') || document.getElementById('txtNewBasePrice');
-      const errPrice = document.getElementById('errNewPrice');
-      const val = parseFloat(priceInput?.value || '0');
-      if (isNaN(val) || val <= 0) {
-        if (priceInput) priceInput.classList.add('is-invalid');
-        if (errPrice) errPrice.style.display = 'block';
-        isValid = false;
-      } else {
-        if (priceInput) priceInput.classList.remove('is-invalid');
-        if (errPrice) errPrice.style.display = 'none';
+
+      document.querySelectorAll('.admin-wizard-tab-btn').forEach(btn => {
+        const step = parseInt(btn.getAttribute('data-step'), 10);
+        btn.classList.toggle('active', step === stepNumber);
+      });
+
+      document.querySelectorAll('.admin-wizard-pane').forEach(pane => {
+        const step = parseInt(pane.getAttribute('data-pane'), 10);
+        pane.classList.toggle('active', step === stepNumber);
+      });
+
+      if (stepNumber === 2) {
+        renderColorChips();
+      } else if (stepNumber === 3) {
+        updatePricingPreview();
+      } else if (stepNumber === 4) {
+        updateImagePreview();
+      } else if (stepNumber === 5) {
+        renderReviewSummary();
       }
-    }
-    return isValid;
-  };
+
+      return true;
+    };
+
+    window.validateWizardStep = (step) => {
+      let isValid = true;
+      if (step === 1) {
+        const nameInput = document.getElementById('MainContent_txtNewName') || document.getElementById('txtNewName');
+        const errSpan = document.getElementById('errNewName');
+        if (!nameInput || !nameInput.value.trim()) {
+          if (nameInput) nameInput.classList.add('is-invalid');
+          if (errSpan) errSpan.style.display = 'block';
+          isValid = false;
+        } else {
+          if (nameInput) nameInput.classList.remove('is-invalid');
+          if (errSpan) errSpan.style.display = 'none';
+        }
+      } else if (step === 3) {
+        const priceInput = document.getElementById('MainContent_txtNewBasePrice') || document.getElementById('txtNewBasePrice');
+        const errPrice = document.getElementById('errNewPrice');
+        const val = parseFloat(priceInput?.value || '0');
+        if (isNaN(val) || val <= 0) {
+          if (priceInput) priceInput.classList.add('is-invalid');
+          if (errPrice) errPrice.style.display = 'block';
+          isValid = false;
+        } else {
+          if (priceInput) priceInput.classList.remove('is-invalid');
+          if (errPrice) errPrice.style.display = 'none';
+        }
+      }
+      return isValid;
+    };
 
   // Pricing & Discount preview calculation
   window.updatePricingPreview = () => {
@@ -1167,6 +1242,7 @@ document.addEventListener('DOMContentLoaded', () => {
     hdnMatrix.value = JSON.stringify(variants);
     return true;
   };
+  }
 
   function escapeHtml(text) {
     if (!text) return '';

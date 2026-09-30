@@ -1,26 +1,20 @@
 <%@ Page Title="POS Counter" Language="C#" MasterPageFile="~/Admin/Portal.master" %>
 
 <asp:Content ID="PosHead" ContentPlaceHolderID="HeadContent" runat="server">
-    <link rel="stylesheet" href="/Content/css/admin/pos.css?v=2" />
+    <link rel="stylesheet" href="/Content/css/admin/pos.css?v=4" />
 </asp:Content>
 
 <asp:Content ID="PosMain" ContentPlaceHolderID="MainContent" runat="server">
     <div class="admin-card-container pos-page" id="posCounter">
-        <div class="admin-page-header">
-            <div class="admin-page-title-row"><h1 class="admin-page-title">POS Counter</h1></div>
-            <div class="admin-header-actions"><a href="/Admin/Orders.aspx" class="btn-pill btn-pill--outline">View Orders</a></div>
-        </div>
-
         <div class="pos-layout">
             <section class="pos-catalog" aria-labelledby="posCatalogTitle">
-                <div class="pos-section-head"><h2 id="posCatalogTitle">Products</h2><span id="posResultCount" aria-live="polite"></span></div>
+                <div class="admin-page-header">
+                    <h1 class="admin-page-title">POINT OF SALE</h1>
+                </div>
                 <div class="pos-catalog-controls">
-                    <label class="pos-search-field" for="posSearch">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
-                        <input id="posSearch" type="search" placeholder="Search model or SKU" autocomplete="off" />
-                    </label>
-                    <select id="posBrand" aria-label="Filter products by brand"><option value="">All brands</option></select>
-                    <select id="posCategory" aria-label="Filter products by category"><option value="">All categories</option></select>
+                    <select id="posBrand" class="pos-filter-pill" aria-label="Filter products by brand"><option value="">All brands</option></select>
+                    <select id="posCategory" class="pos-filter-pill" aria-label="Filter products by category"><option value="">All categories</option></select>
+                    <span id="posResultCount" class="pos-result-count" aria-live="polite"></span>
                 </div>
                 <div id="posCatalogMessage" class="pos-message" role="status" aria-live="polite" hidden></div>
                 <div id="posProductGrid" class="pos-product-grid" aria-live="polite"></div>
@@ -34,17 +28,19 @@
                 <div id="posSaleError" class="pos-inline-alert" role="alert" hidden></div>
                 <div id="posCartItems" class="pos-cart-items" aria-live="polite"></div>
                 <div class="pos-sale-bottom">
-                    <div class="pos-subtotal-row"><span>Subtotal</span><strong id="posSubtotal">&#8369;0.00</strong></div>
-                    <div class="pos-total-row"><span>Total</span><strong id="posTotal">&#8369;0.00</strong></div>
-                    <details class="pos-customer-details" id="posCustomerDetails">
-                        <summary>Customer details <span>Optional</span></summary>
-                        <div class="pos-customer-fields">
-                            <label>Name<input id="posCustomerName" type="text" maxlength="100" autocomplete="name" placeholder="Walk-in Customer" /></label>
-                            <label>Phone<input id="posCustomerPhone" type="tel" maxlength="30" autocomplete="tel" placeholder="Phone number" /></label>
-                            <label>Email<input id="posCustomerEmail" type="email" maxlength="256" autocomplete="email" placeholder="Email address" aria-describedby="posCustomerEmailError" /></label>
-                            <span id="posCustomerEmailError" class="inline-error-msg" role="alert" hidden></span>
-                        </div>
-                    </details>
+                    <div class="pos-sale-prices">
+                        <div class="pos-subtotal-row"><span>Subtotal</span><strong id="posSubtotal">&#8369;0.00</strong></div>
+                        <div class="pos-total-row"><span>Total</span><strong id="posTotal">&#8369;0.00</strong></div>
+                        <details class="pos-customer-details" id="posCustomerDetails">
+                            <summary>Customer details <span>Optional</span></summary>
+                            <div class="pos-customer-fields">
+                                <label>Name<input id="posCustomerName" type="text" maxlength="100" autocomplete="name" placeholder="Walk-in Customer" /></label>
+                                <label>Phone<input id="posCustomerPhone" type="tel" maxlength="30" autocomplete="tel" placeholder="Phone number" /></label>
+                                <label>Email<input id="posCustomerEmail" type="email" maxlength="256" autocomplete="email" placeholder="Email address" aria-describedby="posCustomerEmailError" /></label>
+                                <span id="posCustomerEmailError" class="inline-error-msg" role="alert" hidden></span>
+                            </div>
+                        </details>
+                    </div>
                     <div class="pos-payment-section">
                         <span class="pos-field-label">Payment</span>
                         <div class="pos-payment-options" role="radiogroup" aria-label="Payment method">
@@ -62,7 +58,7 @@
                             <span id="posCardError" class="inline-error-msg" role="alert" hidden></span>
                         </div>
                     </div>
-                    <button type="button" id="posCompleteSale" class="btn-pill btn-pill--primary pos-complete-button" disabled>Complete Sale</button>
+                    <button type="button" id="posCompleteSale" class="btn-pill btn-pill--primary pos-complete-button" data-admin-confirm="true" data-confirm-title="Complete sale" data-confirm-message="Complete this sale and deduct the sold units from inventory?" disabled>Complete Sale</button>
                 </div>
             </section>
         </div>
@@ -87,5 +83,5 @@
     </div>
     <script src="/Scripts/vendor/jquery-3.7.1.min.js"></script>
     <script src="/Scripts/vendor/jquery.signalR-2.4.3.min.js"></script>
-    <script type="module" src="/Scripts/admin/pos.js?v=3"></script>
+    <script type="module" src="/Scripts/admin/pos.js?v=6"></script>
 </asp:Content>

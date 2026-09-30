@@ -41,7 +41,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             set => ViewState["CurrentPage"] = value;
         }
 
-        public const int PageSize = 10;
+        public const int PageSize = 20;
 
         public int CurrentActorUserId
         {
@@ -166,6 +166,19 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             btnTabAdmin.CssClass = "admin-tab-btn" + (CurrentRole == "Admin" ? " active" : "");
             btnTabStaff.CssClass = "admin-tab-btn" + (CurrentRole == "Staff" ? " active" : "");
             btnTabCustomer.CssClass = "admin-tab-btn" + (CurrentRole == "Customer" ? " active" : "");
+        }
+
+        protected string GetStatusConfirmationTitle(object activeObj)
+        {
+            return Convert.ToBoolean(activeObj) ? "Deactivate user account" : "Activate user account";
+        }
+
+        protected string GetStatusConfirmationMessage(object nameObj, object activeObj)
+        {
+            string name = Convert.ToString(nameObj ?? "this user");
+            return Convert.ToBoolean(activeObj)
+                ? $"Deactivate {name}'s account? They will no longer be able to sign in."
+                : $"Activate {name}'s account and restore sign-in access?";
         }
 
         protected void rptUsers_ItemCommand(object source, RepeaterCommandEventArgs e)

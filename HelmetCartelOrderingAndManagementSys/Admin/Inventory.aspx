@@ -149,7 +149,7 @@
             </div>
 
             <!-- Footer Pagination (Rendered ONLY in Active Stock View) -->
-            <div class="admin-table-footer admin-table-footer--center">
+            <asp:Panel ID="pnlInventoryPagination" runat="server" CssClass="admin-table-footer admin-table-footer--center" Visible="false">
                 <div class="admin-pagination">
                     <asp:LinkButton ID="btnPrevPage" runat="server" CssClass="admin-pagination-btn" OnClick="btnPrevPage_Click">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -177,7 +177,7 @@
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                     </asp:LinkButton>
                 </div>
-            </div>
+            </asp:Panel>
             
         </asp:Panel>
 
@@ -270,6 +270,29 @@
                     </tbody>
                 </table>
             </div>
+
+            <asp:Panel ID="pnlAuditPagination" runat="server" CssClass="admin-pagination-container" Visible="false">
+                <div class="admin-pagination">
+                    <asp:LinkButton ID="btnAuditPrevPage" runat="server" CssClass="admin-pagination-btn" CommandArgument="prev" OnClick="AuditPage_Change">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
+                        <span>Previous</span>
+                    </asp:LinkButton>
+                    <div class="admin-pagination-pages">
+                        <asp:Repeater ID="rptAuditPaginationPages" runat="server">
+                            <ItemTemplate>
+                                <asp:LinkButton ID="btnAuditPage" runat="server" CommandName="GoToPage" CommandArgument='<%# Eval("PageNumber") %>'
+                                    CssClass='<%# "admin-pagination-page" + ((bool)Eval("IsActive") ? " active" : "") %>'
+                                    Visible='<%# !(bool)Eval("IsEllipsis") %>' OnClick="AuditPage_Change"><%# Eval("PageNumber") %></asp:LinkButton>
+                                <asp:Literal ID="litAuditPageEllipsis" runat="server" Text="&hellip;" Visible='<%# (bool)Eval("IsEllipsis") %>' />
+                            </ItemTemplate>
+                        </asp:Repeater>
+                    </div>
+                    <asp:LinkButton ID="btnAuditNextPage" runat="server" CssClass="admin-pagination-btn" CommandArgument="next" OnClick="AuditPage_Change">
+                        <span>Next</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                    </asp:LinkButton>
+                </div>
+            </asp:Panel>
         </asp:Panel>
     </div>
 

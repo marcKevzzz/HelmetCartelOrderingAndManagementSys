@@ -148,15 +148,55 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             return null;
         }
 
+        protected string GetActivityIconMarkup(object activityType)
+        {
+            string type = Convert.ToString(activityType) ?? string.Empty;
+
+            if (type.IndexOf("stock", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                type.IndexOf("inventory", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "<path d=\"M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z\"></path>" +
+                       "<polyline points=\"3.27 6.96 12 12.01 20.73 6.96\"></polyline>" +
+                       "<line x1=\"12\" y1=\"22.08\" x2=\"12\" y2=\"12\"></line>";
+            }
+
+            if (type.IndexOf("order", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "<path d=\"M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z\"></path>" +
+                       "<line x1=\"3\" y1=\"6\" x2=\"21\" y2=\"6\"></line>" +
+                       "<path d=\"M16 10a4 4 0 0 1-8 0\"></path>";
+            }
+
+            return "<polygon points=\"12 2 2 7 12 12 22 7 12 2\"></polygon>" +
+                   "<polyline points=\"2 17 12 22 22 17\"></polyline>" +
+                   "<polyline points=\"2 12 12 17 22 12\"></polyline>";
+        }
+
         protected string FormatActivityTime(object dateObj)
         {
             if (dateObj == null || dateObj == DBNull.Value) return "";
             if (DateTime.TryParse(Convert.ToString(dateObj), out var dt))
             {
                 var diff = DateTime.UtcNow - dt.ToUniversalTime();
-                if (diff.TotalMinutes < 60) return $"{(int)Math.Max(1, diff.TotalMinutes)}m ago";
-                if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
-                return dt.ToString("MMM dd, HH:mm");
+                string relative;
+                if (diff.TotalSeconds < 60)
+                {
+                    relative = "now";
+                }
+                else if (diff.TotalMinutes < 60)
+                {
+                    relative = $"{(int)diff.TotalMinutes}m ago";
+                }
+                else if (diff.TotalHours < 24)
+                {
+                    relative = $"{(int)diff.TotalHours}h ago";
+                }
+                else
+                {
+                    relative = $"{(int)diff.TotalDays}d ago";
+                }
+
+                return $"{relative} &middot; {dt.ToLocalTime():MMM d, yyyy, h:mm tt}";
             }
             return "";
         }

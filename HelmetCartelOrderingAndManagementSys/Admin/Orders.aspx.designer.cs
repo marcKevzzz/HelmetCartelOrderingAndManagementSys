@@ -13,6 +13,8 @@ namespace HelmetCartelOrderingAndManagementSys.Admin {
         protected global::System.Web.UI.WebControls.LinkButton btnTabReady;
         protected global::System.Web.UI.WebControls.LinkButton btnTabCompleted;
         protected global::System.Web.UI.WebControls.LinkButton btnTabPending;
+        protected global::System.Web.UI.WebControls.TextBox txtOrderDate;
+        protected global::System.Web.UI.WebControls.Button btnApplyDateFilter;
         protected global::System.Web.UI.WebControls.Literal litShowingTop;
         protected global::System.Web.UI.WebControls.Literal litTotalTop;
         protected global::System.Web.UI.WebControls.Repeater rptOrders;

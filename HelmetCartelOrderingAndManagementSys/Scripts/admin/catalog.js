@@ -1,23 +1,13 @@
 /**
  * Helmet Cartel - Catalog Management Script
- * Handles Add/Edit Helmet Model 5-tab wizard, dynamic variant matrix,
- * and Delete Confirmation Preview Modal without inline scripts.
+ * Handles Storefront Preview Modal and Delete Confirmation Preview Modal.
  */
 
 (function () {
   'use strict';
 
   document.addEventListener('DOMContentLoaded', () => {
-    // 1. Delete Confirmation Preview Modal
-    const deleteModal = document.getElementById('adminDeleteProductModal');
-    const delModalImage = document.getElementById('delModalImage');
-    const delModalName = document.getElementById('delModalName');
-    const delModalBrand = document.getElementById('delModalBrand');
-    const delModalCategory = document.getElementById('delModalCategory');
-    const delModalSku = document.getElementById('delModalSku');
-    const delModalSummary = document.getElementById('delModalVariantsSummary');
-    const hfDeleteProductId = document.getElementById('hfDeleteProductId');
-    const btnCancelDelete = document.getElementById('btnCancelDelete');
+    // 1. Storefront Product Preview Modal
     const previewModal = document.getElementById('adminProductPreviewModal');
     const previewFrame = document.getElementById('productPreviewFrame');
     const previewTitle = document.getElementById('productPreviewTitle');
@@ -53,7 +43,17 @@
       }
     });
 
-    // Event delegation for delete buttons
+    // 2. Delete Confirmation Preview Modal
+    const deleteModal = document.getElementById('adminDeleteProductModal');
+    const delModalImage = document.getElementById('delModalImage');
+    const delModalName = document.getElementById('delModalName');
+    const delModalBrand = document.getElementById('delModalBrand');
+    const delModalCategory = document.getElementById('delModalCategory');
+    const delModalSku = document.getElementById('delModalSku');
+    const delModalSummary = document.getElementById('delModalVariantsSummary');
+    const hfDeleteProductId = document.getElementById('hfDeleteProductId');
+    const btnCancelDelete = document.getElementById('btnCancelDelete');
+
     document.addEventListener('click', (e) => {
       const delBtn = e.target.closest('.btn-delete-product');
       if (delBtn) {
@@ -89,36 +89,19 @@
       });
     }
 
-    // 2. Open Add Helmet Model Modal Button
-    const btnAddHelmet = document.getElementById('btnOpenAddHelmetModal');
-    if (btnAddHelmet) {
-      btnAddHelmet.addEventListener('click', () => {
-        if (typeof window.openAddProductModal === 'function') {
-          window.openAddProductModal();
-        }
-      });
-    }
-
-    // 3. Edit Helmet Model Buttons (Event Delegation)
-    document.addEventListener('click', (e) => {
-      const editBtn = e.target.closest('.btn-edit-product');
-      if (editBtn) {
-        e.preventDefault();
-        const id = parseInt(editBtn.getAttribute('data-id'), 10);
-        const name = editBtn.getAttribute('data-name') || '';
-        const brandId = parseInt(editBtn.getAttribute('data-brandid'), 10) || 1;
-        const catId = parseInt(editBtn.getAttribute('data-catid'), 10) || 1;
-        const style = editBtn.getAttribute('data-style') || '';
-        const price = parseFloat(editBtn.getAttribute('data-price')) || 0;
-        const disType = editBtn.getAttribute('data-distype') || 'Percentage';
-        const disAmt = parseFloat(editBtn.getAttribute('data-disamt')) || 0;
-        const img = editBtn.getAttribute('data-img') || '';
-        const desc = editBtn.getAttribute('data-desc') || '';
-
-        if (typeof window.openEditProductModal === 'function') {
-          window.openEditProductModal(id, name, brandId, catId, style, price, disType, disAmt, img, desc);
-        }
+    // 3. Status Query Parameter Toasts
+    const urlParams = new URLSearchParams(window.location.search);
+    const msg = urlParams.get('msg');
+    if (msg === 'draft_saved') {
+      if (typeof window.showAdminToast === 'function') {
+        window.showAdminToast('Draft saved successfully. Item is listed in your catalog table.', 'success', 'Draft Saved');
       }
-    });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (msg === 'published') {
+      if (typeof window.showAdminToast === 'function') {
+        window.showAdminToast('Helmet model published successfully.', 'success', 'Published');
+      }
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   });
 })();

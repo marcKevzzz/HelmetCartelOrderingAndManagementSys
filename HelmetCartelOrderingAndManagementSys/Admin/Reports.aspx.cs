@@ -16,6 +16,8 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
 {
     public partial class ReportsPage : Page
     {
+        public const int PageSize = 20;
+
         private readonly AdminDataRepository _adminRepo;
         private Dictionary<string, List<AdminBrandInventoryDetailDto>> _brandDetails =
             new Dictionary<string, List<AdminBrandInventoryDetailDto>>(StringComparer.OrdinalIgnoreCase);
@@ -29,6 +31,18 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         public string ChartLabelsJson { get; set; } = "[]";
         public string ChartRevenueJson { get; set; } = "[]";
         public string ChartOrdersJson { get; set; } = "[]";
+
+        public int CurrentDailySalesPage
+        {
+            get => (ViewState["CurrentDailySalesPage"] as int?) ?? 1;
+            set => ViewState["CurrentDailySalesPage"] = value;
+        }
+
+        public int CurrentBrandReportPage
+        {
+            get => (ViewState["CurrentBrandReportPage"] as int?) ?? 1;
+            set => ViewState["CurrentBrandReportPage"] = value;
+        }
 
         public ReportsPage()
         {
@@ -77,9 +91,10 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                         break;
 
                     case "custom":
-                        ActivePreset = "custom";
-                        UpdatePresetButtons();
-                        return;
+                ActivePreset = "custom";
+                ResetTablePages();
+                UpdatePresetButtons();
+                return;
 
                     case "30days":
                     default:
@@ -89,6 +104,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 }
 
                 ActivePreset = preset;
+                ResetTablePages();
                 txtStartDate.Text = start.ToString("yyyy-MM-dd");
                 txtEndDate.Text = end.ToString("yyyy-MM-dd");
                 pnlDateError.Visible = false;
@@ -122,6 +138,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             }
 
             ActivePreset = "custom";
+            ResetTablePages();
             pnlDateError.Visible = false;
 
             RegisterAsyncTask(new PageAsyncTask(() => LoadReportsDataAsync(startDate, endDate)));
@@ -146,8 +163,22 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 var details = await _adminRepo.GetBrandInventoryDetailsAsync().ConfigureAwait(false);
                 _brandDetails = details.GroupBy(item => item.Brand, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.OrdinalIgnoreCase);
-                rptBrandReport.DataSource = brandReport;
+                int brandTotalPages = Math.Max(1, (int)System.Math.Ceiling((double)brandReport.Count / PageSize));
+                CurrentBrandReportPage = ClampPage(CurrentBrandReportPage, brandTotalPages);
+                var pagedBrandReport = brandReport
+                    .Skip((CurrentBrandReportPage - 1) * PageSize)
+                    .Take(PageSize)
+                    .ToList();
+
+                rptBrandReport.DataSource = pagedBrandReport;
                 rptBrandReport.DataBind();
+                pnlBrandReportPagination.Visible = brandTotalPages > 1;
+                BindReportPagination(
+                    rptBrandReportPages,
+                    lnkBrandReportPrev,
+                    lnkBrandReportNext,
+                    CurrentBrandReportPage,
+                    brandTotalPages);
 
                 var inventoryTrend = await _adminRepo.GetInventoryTrendAsync(startDate, endDate).ConfigureAwait(false);
                 string inventoryComparisonLabel = $"{startDate:MMM dd, yyyy} to {endDate:MMM dd, yyyy}";
@@ -241,8 +272,22 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
 
                 // 4. Bind Daily Sales table (ordered descending)
                 var descSales = sales.OrderByDescending(s => s.SalesDate).ToList();
-                rptDailySales.DataSource = descSales;
+                int dailySalesTotalPages = Math.Max(1, (int)System.Math.Ceiling((double)descSales.Count / PageSize));
+                CurrentDailySalesPage = ClampPage(CurrentDailySalesPage, dailySalesTotalPages);
+                var pagedDailySales = descSales
+                    .Skip((CurrentDailySalesPage - 1) * PageSize)
+                    .Take(PageSize)
+                    .ToList();
+
+                rptDailySales.DataSource = pagedDailySales;
                 rptDailySales.DataBind();
+                pnlDailySalesPagination.Visible = dailySalesTotalPages > 1;
+                BindReportPagination(
+                    rptDailySalesPages,
+                    lnkDailySalesPrev,
+                    lnkDailySalesNext,
+                    CurrentDailySalesPage,
+                    dailySalesTotalPages);
 
                 // 5. Update UI labels and active badge
                 string rangeSubtitle = $"Performance from {startDate:MMMM dd, yyyy} to {endDate:MMMM dd, yyyy}";
@@ -283,6 +328,83 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             btnPresetMonth.CssClass = ActivePreset == "month" ? "admin-tab-btn active" : "admin-tab-btn";
             btnPreset30Days.CssClass = ActivePreset == "30days" ? "admin-tab-btn active" : "admin-tab-btn";
             btnPresetCustom.CssClass = ActivePreset == "custom" ? "admin-tab-btn active" : "admin-tab-btn";
+        }
+
+        private void ResetTablePages()
+        {
+            CurrentDailySalesPage = 1;
+            CurrentBrandReportPage = 1;
+        }
+
+        private static int ClampPage(int page, int totalPages)
+        {
+            return Math.Max(1, Math.Min(page, totalPages));
+        }
+
+        private void BindReportPagination(
+            Repeater pagesRepeater,
+            LinkButton previousButton,
+            LinkButton nextButton,
+            int currentPage,
+            int totalPages)
+        {
+            previousButton.Enabled = currentPage > 1;
+            previousButton.CssClass = "admin-pagination-btn" + (currentPage <= 1 ? " disabled" : "");
+            nextButton.Enabled = currentPage < totalPages;
+            nextButton.CssClass = "admin-pagination-btn" + (currentPage >= totalPages ? " disabled" : "");
+            pagesRepeater.DataSource = PaginationHelper.BuildPageLinks(currentPage, totalPages, p => p.ToString());
+            pagesRepeater.DataBind();
+        }
+
+        private bool TryGetSelectedReportDates(out DateTime startDate, out DateTime endDate)
+        {
+            bool validStart = DateTime.TryParse(txtStartDate.Text, CultureInfo.InvariantCulture, DateTimeStyles.None, out startDate);
+            bool validEnd = DateTime.TryParse(txtEndDate.Text, CultureInfo.InvariantCulture, DateTimeStyles.None, out endDate);
+            if (!validStart || !validEnd || startDate > endDate)
+            {
+                startDate = DateTime.Today.AddDays(-29);
+                endDate = DateTime.Today;
+                return false;
+            }
+
+            return true;
+        }
+
+        protected void DailySalesPage_Change(object sender, EventArgs e)
+        {
+            if (sender is LinkButton button)
+            {
+                CurrentDailySalesPage = GetTargetPage(button.CommandArgument, CurrentDailySalesPage);
+                if (TryGetSelectedReportDates(out DateTime startDate, out DateTime endDate))
+                {
+                    RegisterAsyncTask(new PageAsyncTask(() => LoadReportsDataAsync(startDate, endDate)));
+                }
+            }
+        }
+
+        protected void BrandReportPage_Change(object sender, EventArgs e)
+        {
+            if (sender is LinkButton button)
+            {
+                CurrentBrandReportPage = GetTargetPage(button.CommandArgument, CurrentBrandReportPage);
+                if (TryGetSelectedReportDates(out DateTime startDate, out DateTime endDate))
+                {
+                    RegisterAsyncTask(new PageAsyncTask(() => LoadReportsDataAsync(startDate, endDate)));
+                }
+            }
+        }
+
+        private static int GetTargetPage(string commandArgument, int currentPage)
+        {
+            if (string.Equals(commandArgument, "prev", StringComparison.OrdinalIgnoreCase))
+            {
+                return Math.Max(1, currentPage - 1);
+            }
+            if (string.Equals(commandArgument, "next", StringComparison.OrdinalIgnoreCase))
+            {
+                return currentPage + 1;
+            }
+            return int.TryParse(commandArgument, out int page) && page > 0 ? page : currentPage;
         }
 
         protected void rptBrandReport_ItemDataBound(object sender, RepeaterItemEventArgs e)

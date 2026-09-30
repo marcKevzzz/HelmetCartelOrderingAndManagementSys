@@ -93,6 +93,9 @@
                                         <asp:LinkButton ID="btnToggleActive" runat="server" 
                                             CommandName="ToggleStatus" 
                                             CommandArgument='<%# Eval("Id") + ":" + Eval("IsActive") %>'
+                                            data-admin-confirm="true"
+                                            data-confirm-title='<%# GetStatusConfirmationTitle(Eval("IsActive")) %>'
+                                            data-confirm-message='<%# GetStatusConfirmationMessage(Eval("FullName"), Eval("IsActive")) %>'
                                             CssClass='<%# Convert.ToBoolean(Eval("IsActive")) ? "btn-pill-sm btn-pill--outline btn-pill--danger" : "btn-pill-sm btn-pill--outline" %>'
                                             Visible='<%# Convert.ToInt32(Eval("Id")) != CurrentActorUserId %>'>
                                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

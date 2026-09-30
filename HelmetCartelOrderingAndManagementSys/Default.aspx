@@ -160,19 +160,19 @@
         <div class="bento-wrapper">
             <h2 class="bento-title">BROWSE BY RIDING STYLE</h2>
             <div class="bento-grid">
-                <a class="bento-card bento-card--span-4" href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Casual%2FUrban") %>">
+                <a class="bento-card bento-card--span-4" href="<%= ResolveUrl("~/Pages/Shop.aspx") %>">
                     <div class="bento-card__title">Casual</div>
                     <img src="<%= ResolveUrl("~/Content/images/casual.png") %>" alt="Casual Urban" class="bento-card__bg-img casual" />
                 </a>
-                <a class="bento-card bento-card--span-8" href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Sport%2FTrack") %>">
+                <a class="bento-card bento-card--span-8" href="<%= ResolveUrl("~/Pages/Shop.aspx") %>">
                     <div class="bento-card__title">Sport / Track</div>
                     <img src="<%= ResolveUrl("~/Content/images/track.png") %>" alt="Sport Track" class="bento-card__bg-img sport" />
                 </a>
-                <a class="bento-card bento-card--span-8" href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Touring%2FAdventure") %>">
+                <a class="bento-card bento-card--span-8" href="<%= ResolveUrl("~/Pages/Shop.aspx") %>">
                     <div class="bento-card__title">Touring / Adventure</div>
                     <img src="<%= ResolveUrl("~/Content/images/touring.png") %>" alt="Touring Adventure" class="bento-card__bg-img touring" />
                 </a>
-                <a class="bento-card bento-card--span-4" href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Motocross%2FOff-Road") %>">
+                <a class="bento-card bento-card--span-4" href="<%= ResolveUrl("~/Pages/Shop.aspx") %>">
                     <div class="bento-card__title">Off-Road</div>
                     <img src="<%= ResolveUrl("~/Content/images/offroad.png") %>" alt="Off-Road Dirt" class="bento-card__bg-img offroad" />
                 </a>

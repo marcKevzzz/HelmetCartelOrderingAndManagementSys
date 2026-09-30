@@ -175,6 +175,29 @@
                     </tbody>
                 </table>
             </div>
+
+            <asp:Panel ID="pnlDailySalesPagination" runat="server" CssClass="admin-pagination-container" Visible="false">
+                <div class="admin-pagination">
+                    <asp:LinkButton ID="lnkDailySalesPrev" runat="server" CssClass="admin-pagination-btn" CommandArgument="prev" OnClick="DailySalesPage_Change">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
+                        <span>Previous</span>
+                    </asp:LinkButton>
+                    <div class="admin-pagination-pages">
+                        <asp:Repeater ID="rptDailySalesPages" runat="server">
+                            <ItemTemplate>
+                                <asp:LinkButton ID="btnDailySalesPage" runat="server" CommandArgument='<%# Eval("PageNumber") %>'
+                                    CssClass='<%# "admin-pagination-page" + ((bool)Eval("IsCurrent") ? " active" : "") %>'
+                                    Visible='<%# !(bool)Eval("IsEllipsis") %>' OnClick="DailySalesPage_Change"><%# Eval("PageNumber") %></asp:LinkButton>
+                                <asp:Literal ID="litDailySalesPageEllipsis" runat="server" Text="&hellip;" Visible='<%# (bool)Eval("IsEllipsis") %>' />
+                            </ItemTemplate>
+                        </asp:Repeater>
+                    </div>
+                    <asp:LinkButton ID="lnkDailySalesNext" runat="server" CssClass="admin-pagination-btn" CommandArgument="next" OnClick="DailySalesPage_Change">
+                        <span>Next</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                    </asp:LinkButton>
+                </div>
+            </asp:Panel>
         </div>
 
         <!-- 3. Brand Inventory Breakdown Section -->
@@ -233,6 +256,29 @@
                     </tbody>
                 </table>
             </div>
+
+            <asp:Panel ID="pnlBrandReportPagination" runat="server" CssClass="admin-pagination-container" Visible="false">
+                <div class="admin-pagination">
+                    <asp:LinkButton ID="lnkBrandReportPrev" runat="server" CssClass="admin-pagination-btn" CommandArgument="prev" OnClick="BrandReportPage_Change">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
+                        <span>Previous</span>
+                    </asp:LinkButton>
+                    <div class="admin-pagination-pages">
+                        <asp:Repeater ID="rptBrandReportPages" runat="server">
+                            <ItemTemplate>
+                                <asp:LinkButton ID="btnBrandReportPage" runat="server" CommandArgument='<%# Eval("PageNumber") %>'
+                                    CssClass='<%# "admin-pagination-page" + ((bool)Eval("IsCurrent") ? " active" : "") %>'
+                                    Visible='<%# !(bool)Eval("IsEllipsis") %>' OnClick="BrandReportPage_Change"><%# Eval("PageNumber") %></asp:LinkButton>
+                                <asp:Literal ID="litBrandReportPageEllipsis" runat="server" Text="&hellip;" Visible='<%# (bool)Eval("IsEllipsis") %>' />
+                            </ItemTemplate>
+                        </asp:Repeater>
+                    </div>
+                    <asp:LinkButton ID="lnkBrandReportNext" runat="server" CssClass="admin-pagination-btn" CommandArgument="next" OnClick="BrandReportPage_Change">
+                        <span>Next</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                    </asp:LinkButton>
+                </div>
+            </asp:Panel>
         </div>
     </div>
 

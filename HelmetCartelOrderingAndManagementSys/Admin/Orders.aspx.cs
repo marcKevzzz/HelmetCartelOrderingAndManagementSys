@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -22,6 +23,12 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             set => ViewState["CurrentStatus"] = value;
         }
 
+        public DateTime? CurrentOrderDate
+        {
+            get => ViewState["CurrentOrderDate"] == null ? (DateTime?)null : (DateTime)ViewState["CurrentOrderDate"];
+            set => ViewState["CurrentOrderDate"] = value.HasValue ? (object)value.Value.Date : null;
+        }
+
         public OrdersPage()
         {
             _adminRepo = new AdminDataRepository(new DbConnectionFactory());
@@ -35,6 +42,12 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 {
                     CurrentStatus = Request.QueryString["status"];
                 }
+
+                if (DateTime.TryParseExact(Request.QueryString["date"], "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var orderDate))
+                {
+                    CurrentOrderDate = orderDate.Date;
+                    txtOrderDate.Text = orderDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                }
                 RegisterAsyncTask(new PageAsyncTask(LoadOrdersDataAsync));
             }
         }
@@ -45,14 +58,14 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             set => ViewState["CurrentPage"] = value;
         }
 
-        public const int PageSize = 10;
+        public const int PageSize = 20;
 
         private async Task LoadOrdersDataAsync()
         {
             string search = Request.QueryString["q"] ?? Request.QueryString["search"];
             string status = CurrentStatus == "all" ? null : CurrentStatus;
 
-            var orders = await _adminRepo.GetOrdersAsync(search, status, null, 250).ConfigureAwait(false);
+            var orders = await _adminRepo.GetOrdersAsync(search, status, null, 250, CurrentOrderDate).ConfigureAwait(false);
 
             int totalCount = orders.Count;
             int totalPages = Math.Max(1, (int)Math.Ceiling((double)totalCount / PageSize));
@@ -112,6 +125,22 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 CurrentPage = 1;
                 RegisterAsyncTask(new PageAsyncTask(LoadOrdersDataAsync));
             }
+        }
+
+        protected void ApplyDateFilter_Click(object sender, EventArgs e)
+        {
+            if (DateTime.TryParseExact(txtOrderDate.Text, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var orderDate))
+            {
+                CurrentOrderDate = orderDate.Date;
+            }
+            else
+            {
+                CurrentOrderDate = null;
+                txtOrderDate.Text = string.Empty;
+            }
+
+            CurrentPage = 1;
+            RegisterAsyncTask(new PageAsyncTask(LoadOrdersDataAsync));
         }
 
         private void UpdateTabButtonStyles()
@@ -184,11 +213,11 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         {
             if (status == "Processing")
             {
-                return $"<button type=\"submit\" name=\"ctl00$MainContent$rptOrders$ctl{orderId}$btnAct\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','ReadyForPickup${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--primary\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg><span>Mark Ready</span></button>";
+                return $"<button type=\"submit\" name=\"ctl00$MainContent$rptOrders$ctl{orderId}$btnAct\" data-admin-confirm=\"true\" data-confirm-title=\"Mark order ready\" data-confirm-message=\"Move this order to Ready for Pickup?\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','ReadyForPickup${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--primary\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg><span>Mark Ready</span></button>";
             }
             if (status == "ReadyForPickup")
             {
-                return $"<button type=\"submit\" name=\"ctl00$MainContent$rptOrders$ctl{orderId}$btnAct\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','Completed${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--outline\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"></path><polyline points=\"22 4 12 14.01 9 11.01\"></polyline></svg><span>Complete</span></button>";
+                return $"<button type=\"submit\" name=\"ctl00$MainContent$rptOrders$ctl{orderId}$btnAct\" data-admin-confirm=\"true\" data-confirm-title=\"Complete order\" data-confirm-message=\"Mark this order as completed? This will finalize the transaction.\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','Completed${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--outline\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"></path><polyline points=\"22 4 12 14.01 9 11.01\"></polyline></svg><span>Complete</span></button>";
             }
             return "<span class=\"admin-activity-time\">&mdash;</span>";
         }
@@ -198,7 +227,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             RegisterAsyncTask(new PageAsyncTask(async () =>
             {
                 string status = CurrentStatus == "all" ? null : CurrentStatus;
-                var orders = await _adminRepo.GetOrdersAsync(null, status, null, 500).ConfigureAwait(false);
+                var orders = await _adminRepo.GetOrdersAsync(null, status, null, 500, CurrentOrderDate).ConfigureAwait(false);
                 var sb = new StringBuilder();
                 sb.AppendLine("OrderId,OrderNumber,CustomerName,Email,Phone,Source,Items,TotalAmount,PaymentStatus,OrderStatus,CreatedAt");
 

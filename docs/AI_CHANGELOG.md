@@ -1,6 +1,91 @@
 # AI Change Log & Architectural Evolution: Helmet Cartel
 
-## [2026-09-29] — Mobile Navigation, Inventory Drill-down, and POS Counter
+## [2026-09-30] — Full-Page Catalog Editor, Technical Specifications, Dynamic Taxonomies & UI Polish
+
+- **Request Size Limit Resolution, Server-Side Image Persistence & Empty Preview Integrity:**
+  - **Resolved `Maximum request length exceeded` Error:** Configured [Web.config](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Web.config) with `maxRequestLength="51200"` (50MB) and `executionTimeout="300"` under `<httpRuntime>`, and added `<requestLimits maxAllowedContentLength="52428800" />` under `<system.webServer><security><requestFiltering>`, eliminating runtime request length exceptions during image uploads.
+  - **Client-Side Image Compression:** Added `optimizeImageFile()` in [catalog-item.js](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Scripts/admin/catalog-item.js) to scale images exceeding 1600px width/height and compress to quality 0.85 via canvas before generating data URLs, reducing 5-10MB camera files to ~250KB without visual degradation.
+  - **Server-Side Base64 Image Persistence:** Added `SaveBase64ImageIfPresent()` and `ProcessGalleryImagesListAsync()` in [CatalogItem.aspx.cs](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Admin/CatalogItem.aspx.cs). Base64 data URLs in both `txtMainImageUrl` and `hdnGalleryJson` are decoded and saved to physical disk files under `~/Content/images/products/helmets/{brand}/` using [ImageUploadHelper.SaveImageBytes](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Infrastructure/ImageUploadHelper.cs), ensuring only clean web URLs are saved into `dbo.Products.MainImageUrl` and `dbo.ProductGalleryImages.ImageUrl` (`NVARCHAR(500)`).
+  - **Zero Initial Image Preview & Null Image Support:** Removed fallback defaulting to `agv/images.jpg` in both `CatalogItem.aspx.cs` and `dbo.sp_AdminSaveProduct` (in [15_catalog_enhancements.sql](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/database/schema/15_catalog_enhancements.sql)). When no images are provided, `MainImageUrl` is cleanly set to `NULL`, Tab 5 displays the empty notice, and Tab 6 review summary displays the `#reviewSummaryThumbEmpty` placeholder. When images ARE inputted, preview tiles in Tab 5 and the review card in Tab 6 render immediately.
+
+- **Catalog Item Draft Status Badges, Drop Indicator & Clean Slate Image Handling:**
+  - **Dynamic Draft Status Badge:** Replaced `DRAFT (Unpublished)` with dynamic status indicators in [CatalogItem.aspx](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Admin/CatalogItem.aspx) and [catalog-item.js](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Scripts/admin/catalog-item.js): displays `DRAFT (Saved)` if the draft is stored in MSSQL (`ProductId > 0` and `!isDirty`), `DRAFT (Not Saved)` when adding a new item or when unsaved modifications are made, and `PUBLISHED` for active catalog models.
+  - **No Initial Image Preview:** Removed automatic syncing of placeholder/primary URLs into the gallery grid on clean-slate loads in `initExistingData()`. The review card in Tab 6 now displays a clean `#reviewSummaryThumbEmpty` placeholder when no images have been uploaded, preventing premature or unexpected image displays.
+  - **Fixed Between-Tile Drop Indicator:** Corrected styling on `.admin-upload-drop-indicator` in [admin.css](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Content/css/admin/admin.css) to `position: absolute; z-index: 20; width: 4px;` with active visibility. Updated coordinate calculations and dragover/dragenter event handling on tiles and grid in [catalog-item.js](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Scripts/admin/catalog-item.js), smoothly opening space and showing the vertical indicator directly between tiles during drag-and-drop reordering.
+
+- **Unselected Initial Sizes State:**
+  - Removed automatic pre-selection of sizes (`S`, `M`, `L`, `XL`, `2XL`) on clean-slate creation in both `initExistingData()` and `resetFormState()` within [catalog-item.js](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Scripts/admin/catalog-item.js).
+  - All size pills (`XS`, `S`, `M`, `L`, `XL`, `2XL`, `3XL`) start in the unselected, muted outline state (`aria-pressed="false"`, no `.is-active`), allowing administrators to select only the intended sizes for the helmet.
+
+- **Draft Saving Full Persistence & Catalog Table Redirect:**
+  - **Redirect to Catalog Table:** Configured draft save in [CatalogItem.aspx.cs](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Admin/CatalogItem.aspx.cs) to redirect to `/Admin/Catalog.aspx?msg=draft_saved` upon completion, returning the administrator directly to the catalog management table with a confirmation toast.
+  - **Full Input Reset for New Items:** Enhanced `resetFormState()` in [catalog-item.js](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Scripts/admin/catalog-item.js) and clean-slate handling in code-behind to guarantee all inputs, specifications, colors, variants, gallery images, and hidden JSON payloads are completely cleared when adding a new item.
+  - **Fixed Specification Deserialization:** Resolved property casing mismatch (`s.SpecificationKey` vs `s.specificationKey`) in `initExistingData()` so technical specifications (both core and custom) are fully restored and visible when opening saved drafts or products.
+  - **Upsert-Safe Database Operations:**
+    - Updated `dbo.sp_AdminSaveColor` and `dbo.sp_AdminSaveVariant` in `database/schema/15_catalog_enhancements.sql` to auto-resolve existing records by product ID and color/size/SKU when `@Id = 0`, eliminating unique constraint violations on re-saving drafts.
+    - Added `dbo.sp_AdminClearProductGallery` and invoked it in `ProcessGalleryImagesAsync` before inserting gallery images, preventing `UQ_ProductGalleryImages_Product_DisplayOrder` constraint collisions.
+  - **Catalog Toast Handler:** Added query parameter listener in [catalog.js](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Scripts/admin/catalog.js) to display toast notifications for `draft_saved` and `published` states.
+
+- **Header Navigation, Action Icons, Unsaved Modal & Specs Validation:**
+  - **Back Icon Button:** Replaced breadcrumb navigation with `.admin-back-btn` circular pill button placed inline with the page title, styled with `border-radius: var(--radius-pill)` and hover shift animation.
+  - **Header Action Icons:** Added SVG icons to Discard (trash/delete), Save as Draft (floppy/save), and Publish (checkmark) buttons in `.admin-item-header-actions`, converting save/publish buttons to `<asp:LinkButton>` for clean server postbacks.
+  - **Server Alert Banner Removal:** Removed `phServerAlert` / `MainContent_divServerAlert` / `.admin-alert-banner` from [CatalogItem.aspx](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Admin/CatalogItem.aspx), replacing server alert handling with non-intrusive client-side toast notifications (`showAdminToast`).
+  - **Unsaved Changes Confirmation Modal:** Implemented `#modalUnsavedChanges` modal triggered on clicking the back button or Discard with unsaved dirty changes, offering "Save as Draft", "Discard & Leave", or "Keep Editing".
+  - **Clean Slate Data Reset on Create:** Explicitly cleared all form inputs, specs, colors, variants, and gallery data in both C# code-behind and JS `resetFormState()` on page load and `pageshow` events when creating a new helmet (`ProductId == 0`), preventing stale draft data from persisting when navigating back and clicking "Add" again.
+  - **Specification Input Validation:** Added dynamic validation for both predefined core specs and custom specification rows, highlighting incomplete custom label/value pairs with `.is-invalid` and displaying `#errCustomSpecs`.
+
+- **Form Validation, Error Alignment & Image Gallery Drag Polish:**
+  - **Required Technical Specifications (Tab 2):** Designated core specifications (Shell Material, Safety Certifications, and Helmet Weight) as required with asterisks (`<span class="admin-required-star">*</span>`), added inline error validation messages (`#errSpecShellMaterial`, `#errSpecSafetyCertifications`, `#errSpecWeight`), and integrated step 2 into `validateStep()` and `handleFormSubmit()`.
+  - **Color Error Alignment (Tab 3):** Encapsulated the color creator card inside `.admin-color-creator-column` so `#errColors` renders directly beneath `.admin-color-creator-card` instead of in the left chips column of the CSS grid.
+  - **Sizes Inline Error (Tab 3):** Added `<span class="inline-error-msg" id="errSizes">` directly beneath `#sizesSelector` and enforced that at least one size pill must be active when advancing or publishing.
+  - **Image Dropzone Required State (Tab 5):** Styled `.admin-dropzone.is-invalid` with red dashed border, light red tint, and red icon/text highlighting when an image has not been uploaded.
+  - **Between-Tile Image Insertion & Pill Indicator (Tab 5):** Added base CSS for `.admin-upload-drop-indicator` ensuring it is strictly hidden initially (`display: none; opacity: 0; visibility: hidden;`), styled with `border-radius: var(--radius-pill)`, and placed directly between images during drag while subsequent tiles smoothly shift right (`.is-shifted-right`) instead of swapping tiles.
+
+- **Size Selector Pill Transformation & Color Suggestions Cleanup:**
+  - Removed `.admin-color-suggestions-row` from the Colorway Palette section in [CatalogItem.aspx](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Admin/CatalogItem.aspx) and cleaned up corresponding handlers in [catalog-item.js](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Scripts/admin/catalog-item.js).
+  - Replaced checkbox-based size selector with `.admin-size-pills-row` containing standalone pill buttons (`.admin-size-pill`) for sizes `XS`, `S`, `M`, `L`, `XL`, `2XL`, and `3XL`, completely removing checkboxes.
+  - Styled size selector pills to be solid black pill with white text when active (`.admin-size-pill.is-active`), and muted outline with transparent background when inactive, using `var(--radius-pill)`.
+  - Wired two-way state synchronization in [catalog-item.js](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Scripts/admin/catalog-item.js) for `syncVariantsWithColors()`, `updateReviewSummary()`, and `initExistingData()` based on `.admin-size-pill.is-active`.
+
+- **Catalog Item Form Validation & Script Isolation Fixes:**
+  - Resolved JavaScript conflict where legacy modal code in `Scripts/admin/admin.js` was interfering with the full-page editor; wrapped legacy modal logic with `if (document.getElementById('addProductModal'))`.
+  - Added comprehensive step-by-step inline validation across all 5 entry tabs (`#errBrand`, `#errCategory`, `#errProductName`, `#errDescription`, `#errColors`, `#errVariants`, `#errBasePrice`, `#errGalleryImages`) with `.is-invalid` borders and visible `.inline-error-msg` spans.
+  - Implemented automatic forward-navigation guarding in `switchWizardTab`: stepping forward validates all previous steps and focuses the first invalid element before advancing.
+  - Implemented full validation on both "Publish Helmet" (all required fields) and "Save as Draft" (minimum product name & brand).
+  - Ensured all styles strictly utilize `var(--radius-pill)` per design system standards (eliminating `var(--radius-full)`).
+- **Discount & Toggles UI Refinements:**
+  - Standardized the Promotional Discount input into a joined group (`.admin-input-joined`) with retail amount on the left and unit dropdown (`%` or `₱`) on the right; completely removed "Discount Scheme".
+  - Standardized segmented pill toggles (`.admin-segmented-pill` with `.admin-pill-segment.is-active`) for Discount Campaign Status (`ACTIVE` / `INACTIVE`) and Color Finish Type (`SOLID` / `GRADIENT`).
+- **Predefined Shade-Based Color Names:**
+  - Added motorcycle shade library and RGB/HSL distance detector to automatically prefill and suggest colorway names (e.g., Matte Black, Pearl White, Racing Red, Yamaha Blue, Hi-Vis Yellow, Nardo Gray, Kawasaki Green, etc.) whenever a hex is picked or typed.
+  - Added quick predefined shade pill buttons in the Color Palette section for one-click colorway creation.
+- **Smooth Drag-and-Drop Image Gallery & Media Section Clean-Up:**
+  - Cleaned up Tab 5 markup by removing manual URL text boxes, file size hints, and secondary angle labels, replacing them with a modern drag-and-drop file dropzone and reorderable gallery tiles grid.
+  - Implemented smooth between-tile insertion indicator (`.admin-upload-drop-indicator`) that shifts tiles dynamically without swapping, automatically designating the first tile as Primary and synchronizing with the hidden `txtMainImageUrl`.
+
+- **Full-Page Catalog Editor (`/Admin/CatalogItem.aspx`):**
+  - Converted product creation and editing from the 5-tab modal in `Admin/Catalog.aspx` into a dedicated full-page editor with sticky header, breadcrumbs, status pill (`DRAFT` / `PUBLISHED`), "Discard Changes" (with dirty-form guard), "Save as Draft" (`IsActive = 0`), and "Publish Helmet" (`IsActive = 1`).
+  - Removed `#addProductModal` (340+ lines of obsolete markup) and wired "Add Helmet Model" and table row "Edit" actions to navigate directly to `/Admin/CatalogItem.aspx` and `/Admin/CatalogItem.aspx?id=...`.
+- **Riding Style Removal & Storefront Clean-up:**
+  - Completely removed Riding Style from the admin interface and stored procedure `dbo.sp_AdminSaveProduct` (now optional, falling back to Category name or `'Standard'`).
+  - Replaced mega-menu and mobile navigation "Riding Styles" in `Site.Master` with "Popular Finishes" (`Matte Black`, `Pearl White`, `Racing Red`, `Graphic Editions`).
+  - Cleaned Bento box cards in `Default.aspx` by removing the redundant `ridingStyle` query parameter.
+- **Dynamic Taxonomies (Brands & Categories):**
+  - Added on-the-fly creation for Brands and Categories via quick popover modals (`#modalQuickBrand`, `#modalQuickCategory`) connecting to C# Web API endpoints (`/api/v1/admin/catalog/brands` and `categories`), automatically appending and selecting new entries without page reloads.
+- **Structured Technical Specifications:**
+  - Implemented 9 core rider specifications (Shell Material, Safety Certifications, Weight, Retention System, Visor, Pinlock, Ventilation, Interior Liner, Intercom) with dynamic custom specification rows.
+  - Implemented `dbo.sp_AdminSaveProductSpecifications` for atomic JSON batch upserting and `dbo.sp_AdminGetProductComplete` for comprehensive multi-table product retrieval.
+- **Discount & Finish Type UI Enhancements (Screenshots 1 & 2):**
+  - Implemented joined input group (`.admin-input-joined`) matching Screenshot 1 (amount on left, unit select `[% / ₱]` on right).
+  - Implemented segmented pill toggles (`.admin-segmented-pill`) matching Screenshot 2 (pill track with active floating white thumb) for Discount Status (`ACTIVE` / `INACTIVE`) and Color Finish Type (`SOLID` / `GRADIENT`).
+  - Removed background from `.admin-color-creator-card` (now transparent border treatment).
+- **Smooth Drag-and-Drop Image Gallery:**
+  - Implemented smooth image reordering with a between-tile insertion indicator line (`.admin-upload-drop-indicator`) instead of swapping/replacing tiles.
+- **Wizard Tabination & Design System Harmonization:**
+  - Preserved the established 6-step tabbed wizard workflow ("tabination") with numbered step tabs across the top (`1. Basic Info`, `2. Specifications`, `3. Variants & Stock`, `4. Pricing & Discount`, `5. Images & Upload`, `6. Review`), with smooth sequential navigation and backward/forward footers.
+  - Enclosed the entire editor in the standard `.admin-card-container.admin-wizard-page` card container, eliminating nested inner section cards and inconsistent classes to keep the exact visual design of the admin design system.
+  - Harmonized form controls to the standard `.admin-form-group`, `.admin-form-label`, `.admin-form-input`, `.admin-form-select`, `.admin-form-textarea`, and `.admin-matrix-input`.
+  - Zero inline styles: all styles use semantic classes and CSS custom properties matching `AGENTS.md`.
 
 - Made the admin sidebar header close the mobile drawer and kept backdrop, Escape, navigation-link, ARIA, and desktop compact-state behavior in sync. Replaced the sidebar Brands List with a database-backed Inventory brand filter before Category.
 - Added expandable Analytics brand details with product images, categories, variant stock/status, and exact Inventory links. Migration 14 adds the detail procedure and exact product/variant filters.
@@ -141,6 +226,7 @@
 - Opening quantities and adjustments are demonstration values and need review before real sales. Run this seed after `05_catalog_content.sql` on an existing installation.
 
 ## [2026-09-28] — Gradient Color Selection & Color Input Capabilities
+
 - **Gradient Swatch UI & Rendering:** Enhanced `.color-swatch` in `Content/css/storefront.css` and `Pages/ProductDetail.aspx` to render rich CSS gradients (`linear-gradient(...)`, `radial-gradient(...)`, and comma-separated hex codes). Added drop-shadowed checkmarks (`filter: drop-shadow(0 1px 2px rgba(0,0,0,0.75))`) and active rings (`box-shadow: 0 0 0 2px #000000, 0 2px 8px rgba(0,0,0,0.18)`) ensuring high contrast and legibility over any gradient.
 - **Database Schema Expansion:** Altered `dbo.ProductColors.ColorHex` from `NVARCHAR(10)` to `NVARCHAR(255)` on the live database and in `database/schema/01_schema.sql`, dropping the restrictive 6-character hex CHECK constraint `CK_ProductColors_ColorHex` so gradient CSS definitions and multi-hex strings are fully accepted.
 - **Base Color Algorithm Gradient Resilience:** Updated SQL function `dbo.fn_BaseColorFromHex(@ColorHex NVARCHAR(255))` in `database/queries/03_procedures_and_queries.sql` and the live MSSQL database to gracefully extract the primary hex from gradient strings or return `'Multi'`, preventing filtering crashes.
@@ -150,6 +236,7 @@
   - Removed `.Take(5)` limitation on `UniqueColors` in `Pages/ProductDetail.aspx.cs` so all product colors and gradients are presented to shoppers.
 
 ## [2026-09-28] — 5-Thumbnail Rail Height Matching, Extra Images Modal & Unlimited Product Images
+
 - **Mathematical Height Matching:** Aligned `.product-gallery__main` and `.product-gallery__thumbs` to an exact shared height formula using CSS variables (`--gallery-thumb-size: clamp(86px, 8.8vw, 102px); --gallery-gap: var(--space-3); --gallery-total-height: calc((5 * var(--gallery-thumb-size)) + (4 * var(--gallery-gap)));`). This guarantees the main product image and the 5 stacked thumbnail slots match pixel-for-pixel with zero vertical misalignment.
 - **Overflow Scroll Prevention & 5-Slot Left Rail:** Disabled scrolling on `.product-gallery__thumbs` (`overflow: hidden; max-height: var(--gallery-total-height);`). Extra thumbnail items past slot 5 are hidden from the rail via `.gallery-thumb--hidden` (`display: none !important;`).
 - **5th Thumbnail `+N...` Frosted Glass Overlay:** When a product has 6 or more total images, the 5th thumbnail slot renders a semi-transparent frosted glass badge (`.gallery-thumb__more`) displaying `+{count - 5}...` (e.g. `+1...` when 6 images exist) over a subtly dimmed image preview (`filter: brightness(0.6)`).
@@ -157,29 +244,31 @@
 - **Removal of 6-Image Product Limit:** Relaxed database constraint `CK_ProductGalleryImages_DisplayOrder` from `DisplayOrder BETWEEN 1 AND 5` to `DisplayOrder >= 1` in `database/schema/03_product_gallery.sql` and live MSSQL. Removed `TOP (5)` and `@DisplayOrder > 5` check in stored procedures `dbo.sp_GetProductById` and `dbo.sp_AddProductGalleryImage` in `database/queries/03_procedures_and_queries.sql`. Removed `.Take(Math.Max(0, 6 - GalleryImages.Count))` in `Pages/ProductDetail.aspx.cs` to allow unlimited gallery views per product.
 
 ## [2026-09-28] — Vertical Product Gallery & Left-Hand Thumbnails
+
 - **Left-Aligned Thumbnail Rail:** Repositioned `.product-gallery__thumbs` to the left side of the main product image in a vertical column (`display: grid; grid-template-columns: clamp(96px, 10vw, 124px) 1fr; gap: var(--space-4);`) matching the Shop.co / modern luxury e-commerce layout.
 - **Vertical Main Product Image Layout:** Restructured `.product-gallery__main` into a vertical portrait ratio (`aspect-ratio: 4 / 5; max-height: 560px;`) with smooth thumbnail switching and rounded container framing.
 - **Adaptive Mobile Gallery:** On narrow viewports (≤ 768px), the gallery automatically falls back to a full-width main image with a horizontal scrollable thumbnail strip beneath it (`order: 1` and `order: 2`).
 
-
 ## [2026-09-28] — Product Info Sizing Balance & Grid Discipline
+
 - **Unified Product Info Flex Rhythm:** Restructured `.product-info` on `ProductDetail.aspx` using a structured vertical Flexbox layout with design-system gaps (`gap: var(--space-4)`), eliminating asymmetric stacked margins and arbitrary loose paddings.
 - **Consistent Section Dividers & Proportional Gaps:** Standardized the divider lines across color selector, size selector, quantity stepper, and action buttons (`border-top: 1px solid var(--color-border-subtle)` with uniform `padding-top: var(--space-4)`).
 - **Harmonized Action Buttons & Control Heights:** Aligned `.btn--fav-detail`, `.btn--add-cart`, and `.btn--buy-now` to a unified 50px height with consistent pill border-radii and typography. Balanced `.size-pill` at 42px height and `.quantity-stepper-lg` at 44px height.
 
-
 ## [2026-09-28] — Hero Section Viewport Balance & Clean Search Suggestions Dropdown
+
 - **Balanced Hero Section Viewport Scaling:** Standardized the landing page hero section (`Default.aspx`) to fill the screen viewport height below the navigation while leaving `--hero-ticker-peek: 70px` for the black brand ticker strip to cleanly peek in at the fold. Added design tokens in `Content/css/variables.css` (`--hero-min-height`, `--hero-title-size`, `--hero-desc-size`, `--hero-stat-number-size`, `--hero-stat-label-size`).
 - **Harmonious Grid Balance:** Realigned `.hero-content` to vertically center text, description, CTA button, and stats counters, while grounding `.hero-media__img` at the bottom edge of the hero section without clipping.
 - **Clean Search Dropdown State:** Fixed `#nav-search-dropdown` in `Scripts/site.js` so focusing or clicking `#nav-search-input` when there is no query and no search history kept in local storage will no longer display a blank "Search the helmet catalog" dropdown box. It opens only when real history items or typed query suggestions exist.
 
-
 ## [2026-09-28] — Product order count and mobile storefront
+
 - Product detail now counts distinct non-cancelled orders through product colors and variants, and hides the count when zero. Added an order-item lookup index for new and existing databases; rerun `database/queries/03_procedures_and_queries.sql` after applying the index migration.
 - Moved brand, category, riding style, available sizes, and color count into the Product Details block below the description.
 - Added a collapsible mobile shop filter panel and narrow-screen layouts for shop cards, pagination, gallery thumbnails, review controls, related products, cart items, wishlist cards, and checkout steps and forms. Removed inline checkout styles touched by this change.
 
 ## [2026-09-27] — Catalog photos, content and purchasing state
+
 - Added 113 selected source photos under the web project's product image tree, with a source-to-product manifest. Added an idempotent stored procedure seed for gallery images, nine distinct image-based helmets, editable nonzero price estimates, visible product specifications and ten unverified reviews explicitly labeled as samples. Existing nonzero prices and inventory are preserved.
 - Corrected the Gille FF005 Visage and 135 GTS V1 category mappings to match the visible helmet type.
 - Cart items now use SQL variant IDs, current database prices and stock. Product detail matches both size and color, checks stock, and computes variant adjustments before the product discount.
@@ -187,6 +276,7 @@
 - Existing catalog seed inventory remains zero until real stock is recorded. The new prices and sample review content should be reviewed before stocking products for sale.
 
 ## [2026-09-27] — Product detail page flow and recommendations
+
 - Replaced the detail, review, and FAQ tabs with a vertical product details block, a single-column review discussion, and related product cards.
 - Product details show the description and first three specifications by default; Show more reveals the remaining product-specific specifications.
 - Added `sp_GetRelatedProducts` and a repository method that return up to four active products, ordered by matching category, matching riding style, then catalog rating.
@@ -194,12 +284,14 @@
 - Re-run `database/queries/03_procedures_and_queries.sql` on existing databases to install the related-product procedure.
 
 ## [2026-09-27] — Category-aware product specifications
+
 - Added normalized specification definitions, category-to-spec mappings, and product-specific specification values.
 - Added stored procedures to read specifications, add definitions, map specs to categories, and upsert product values, plus an idempotent seed procedure for the supplied Shoei RF-1400 details.
 - Product detail specifications now load from MSSQL and only display values that exist for the selected product; removed the hardcoded Shoei certification badge strip.
 - Run `database/schema/04_product_specifications.sql`, then `database/queries/04_product_specification_procedures.sql`; execute `dbo.sp_SeedShoeiRf1400Specifications` after the target product is present.
 
 ## [2026-09-27] — Product detail variants and gallery
+
 - Product detail now renders no more than five distinct color variants and derives thumbnails from the product's own image data instead of fixed sample images.
 - Added `ProductGalleryImages` for up to five optional images per product, while `Products.MainImageUrl` remains the primary image; together they support six gallery thumbnails.
 - Extended `sp_GetProductById` with a gallery result set and added `sp_AddProductGalleryImage` for controlled gallery inserts.
@@ -213,11 +305,13 @@ This file maintains a historical ledger of major architectural decisions, direct
 ## [2026-09-27] — Product Detail Script Modularization: Zero Inline JavaScript
 
 ### 1. External JavaScript Architecture (`Scripts/product-detail.js`)
+
 - Extracted and centralized all client interactions into a dedicated ES6 module [`Scripts/product-detail.js`](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Scripts/product-detail.js).
 - Cleanly decoupled server data injection via a non-executable `<script type="application/json" id="product-detail-data">` payload.
 - Registered `Scripts/product-detail.js` in `HelmetCartelOrderingAndManagementSys.csproj` and loaded via `<script type="module" src="...">`.
 
 ### 2. Elimination of All Inline Event Handlers (`Pages/ProductDetail.aspx`)
+
 - Stripped every `onclick="..."` attribute across the entire page:
   - Gallery thumbnails: event delegation/listeners updating `#main-product-img` and `.active` classes.
   - Color swatches: event listeners toggling `.active` state and injecting vector checkmark icons.
@@ -233,6 +327,7 @@ This file maintains a historical ledger of major architectural decisions, direct
 ## [2026-09-27] — Product Detail Page Reviews Architecture: Reporting, Star Filtering, & Verified Buyer System
 
 ### 1. Star-Based Review Filter & Verified Buyer Controls (`Pages/ProductDetail.aspx`)
+
 - Upgraded the reviews filter dropdown menu (`#review-filter-menu`) to render visual **Gold/Empty SVG Stars** matching the store design system instead of plain text:
   - 5 Stars (★★★★★), 4 Stars (★★★★☆), 3 Stars (★★★☆☆), 2 Stars (★★☆☆☆), 1 Star (★☆☆☆☆).
   - Each star filter row displays a dynamic count pill indicating how many reviews on the helmet match that rating.
@@ -241,12 +336,14 @@ This file maintains a historical ledger of major architectural decisions, direct
 - Dynamic client-side filter engine (`applyReviewFilters()`) instantaneously combines rating criteria and verified status, updating the total count display (`#reviews-count-display`) and showing a responsive empty-filter state if zero reviews match.
 
 ### 2. Community Review Reporting Workflow
+
 - Added review action popovers (`•••`) on each review card with a "Report this review" action.
 - Built accessible Report Modal (`#report-review-modal`) supporting community flagging reasons (`SPAM`, `OFFENSIVE`, `IRRELEVANT`, `FAKE`) with optional reporter notes.
 - Integrated `POST /api/v1/reviews/report` invoking `dbo.sp_ReportReview` with stored procedure execution, IP/User duplicate prevention, and automatic review auto-hiding when flag count reaches $\ge 3$.
 - Instant UI state reflection: shows a confirmation toast notification, updates the review card with a persistent amber "Reported" pill, and locks the reporting action to prevent duplicate clicks.
 
 ### 3. C# Web API Backend & Stored Procedure Execution
+
 - Added `Models/DTOs/ReviewDTOs.cs` defining `ProductReviewDto`, `ReportReviewRequestDto`, `ReportReviewResultDto`, and `AddReviewRequestDto`.
 - Added `IReviewRepository` and `ReviewRepository` executing MSSQL stored procedures (`dbo.sp_GetProductReviews`, `dbo.sp_ReportReview`, and `dbo.sp_AddProductReview`) via parameterized `SqlParameter` and ADO.NET (strict compliance with Rule 8 and Rule 10).
 - Created `Controllers/Api/ReviewsController.cs` exposing REST endpoints for reviews retrieval and reporting.
@@ -264,6 +361,7 @@ This file maintains a historical ledger of major architectural decisions, direct
 ## [2026-09-27] — Brand-Segmented Helmet Image Storage Architecture
 
 ### 1. Brand-Segmented Image Storage (`Content/images/products/helmets/{brand}/`)
+
 - Reorganized helmet image storage from a flat product folder into dynamic brand-segmented subdirectories:
   - Base Directory: `Content/images/products/helmets/`
   - Subdirectories: `/hnj/`, `/gille/`, `/shoei/`, `/agv/`, `/zebra/`, `/bell/`, `/arai/`, `/hjc/`, `/shark/`
@@ -273,6 +371,7 @@ This file maintains a historical ledger of major architectural decisions, direct
 - Updated `database/seeds/03_helmet_catalog_seed.sql` to reference `/Content/images/products/helmets/{brand}/...`.
 
 ### 2. Upgraded ImageUploadHelper (`Infrastructure/ImageUploadHelper.cs`)
+
 - Added `CleanBrandSlug(string brand)` to sanitize brand names into filesystem-safe and URL-safe slugs (e.g. `"Shoei"` -> `"shoei"`, `"HNJ"` -> `"hnj"`).
 - Added `GetBrandHelmetFolder(string brand)` resolving `~/Content/images/products/helmets/{brand}/`.
 - Updated `SaveUploadedImage(FileUpload, brand, prefix, ...)` and all overloads to route uploads dynamically to the brand subfolder.
@@ -280,6 +379,7 @@ This file maintains a historical ledger of major architectural decisions, direct
 - Added `Brand` property to `ImageUploadResult`.
 
 ### 3. Dashboard Image Upload UI & Zero Inline Styles Integration
+
 - Updated [`Pages/Dashboard.aspx`](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Pages/Dashboard.aspx) with `<asp:DropDownList ID="ddlImageBrand">` containing all supported helmet brands.
 - Refactored all inline styles into clean design-system classes in [`Content/css/dashboard.css`](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Content/css/dashboard.css) (`.image-upload-grid`, `.image-upload-field`, `.image-upload-label`, `.image-upload-result`, `.image-upload-preview`).
 - Updated [`Pages/Dashboard.aspx.cs`](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Pages/Dashboard.aspx.cs) to pass the selected brand into `ImageUploadHelper.SaveUploadedImage(...)`.
@@ -289,6 +389,7 @@ This file maintains a historical ledger of major architectural decisions, direct
 ## [2026-09-27] — Normalized Reviews, Community Reports, and FAQs Schema Deployment
 
 ### 1. Database Schema Extension (`database/schema/01_schema.sql`)
+
 - Added normalized tables:
   - `dbo.ProductReviews`: Stores immediate-publishing customer ratings (1-5 stars), reviewer headline, body comment, verified buyer badge, and community flag counter (`FlagCount`).
   - `dbo.ReviewReports`: Normalized junction table for community reporting/flagging. Enforces `UNIQUE (ReviewId, UserId)` to prevent duplicate report spamming and records report reasons (`SPAM`, `OFFENSIVE`, `IRRELEVANT`, `FAKE`).
@@ -296,11 +397,13 @@ This file maintains a historical ledger of major architectural decisions, direct
 - Maintained strict reverse-dependency drops at script header.
 
 ### 2. Seed Data Enhancement (`database/seeds/02_seed_data.sql`)
+
 - Seeded general store FAQs covering in-store cash pickup, helmet head measurement guide, 3-day exchange policy, and safety certifications.
 - Seeded product-specific FAQs (Pinlock compatibility for Shoei RF-1400, biplano spoiler replacement for AGV Pista).
 - Seeded verified customer reviews with 5-star ratings across flagship products.
 
 ### 3. Dedicated Stored Procedures (`database/queries/03_procedures_and_queries.sql`)
+
 - Implemented `dbo.sp_GetProductReviews`: Retrieves unhidden reviews for product view.
 - Implemented `dbo.sp_AddProductReview`: Atomically inserts reviews and automatically recalculates and syncs `Rating` and `ReviewCount` in `dbo.Products`.
 - Implemented `dbo.sp_ReportReview`: Logs user report, increments `FlagCount`, and automatically sets `IsHidden = 1` if flag threshold (`>= 3`) is reached.
@@ -312,6 +415,7 @@ This file maintains a historical ledger of major architectural decisions, direct
 ## [2026-09-27] — Server-Side Data-Binding via ASP Components & Image Upload Helper
 
 ### 1. Server-Side Data-Binding with ASP Components & C# Code-Behind
+
 - Migrated primary data retrieval from client-side JavaScript DOM population to native ASP.NET Web Forms server controls and C# code-behind:
   - **`Default.aspx` & `Default.aspx.cs`:** Implemented `<asp:Repeater ID="rptNewArrivals">` and `<asp:Repeater ID="rptTopSelling">` using `IProductRepository.GetNewArrivalsAsync()` and `GetTopSellingAsync()`. Added `RenderStars()` helper for dynamic SVG star rating generation.
   - **`Pages/Shop.aspx` & `Shop.aspx.cs`:** Implemented `<asp:Repeater ID="rptCatalog">`, `<asp:Literal ID="litProductsCount">`, and `<asp:Panel ID="pnlNoProducts">`. Dynamically filters by category, brand, riding style, search keywords, and sort orders in C# `Page_Load` via `ProductFilterParams`.
@@ -321,6 +425,7 @@ This file maintains a historical ledger of major architectural decisions, direct
   - **`Scripts/storefront.js` & `Scripts/dashboard.js`:** Preserved server-rendered ASP component cards and rows upon initial load to eliminate double-fetching and layout shifts while preserving client interactivity.
 
 ### 2. Image Input & Storage Helper (`ImageUploadHelper.cs`)
+
 - Created [`Infrastructure/ImageUploadHelper.cs`](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Infrastructure/ImageUploadHelper.cs) to process image uploads:
   - Accepts `<asp:FileUpload>`, `HttpPostedFile`, `HttpPostedFileBase`, and `byte[]`.
   - Validates file existence, extension whitelist (`.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`), MIME types, and maximum file size (default: 5 MB).
@@ -335,12 +440,14 @@ This file maintains a historical ledger of major architectural decisions, direct
 ## [2026-09-27] — Full Database Integration & Mandatory Stored Procedures Migration (Rule 10 & Rule 8 Compliance)
 
 ### 1. Database Connection & Schema Deployment
+
 - Deployed relational database `HelmetCartelDB` to local SQL Server Express instance (`.\SQLEXPRESS`).
 - Successfully executed `01_schema.sql`, `02_seed_data.sql`, and `03_procedures_and_queries.sql`.
 - Updated connection string in `Web.config` (`DefaultConnection`) to target `.\SQLEXPRESS` with `Integrated Security=True;Encrypt=True;TrustServerCertificate=True;`.
 - Explicitly ensured `SET ANSI_NULLS ON` and `SET QUOTED_IDENTIFIER ON` across all stored procedure batches to support computed columns (`IsLowStock PERSISTED` on `dbo.Inventories`).
 
 ### 2. Mandatory Stored Procedures Refactoring (Rule 10 & Rule 8)
+
 - Completely eliminated all inline raw SQL text across C# repositories (`ProductRepository.cs`, `OrderRepository.cs`, `InventoryRepository.cs`).
 - Implemented and verified the following stored procedures:
   - `dbo.sp_GetProductsPaged`: Retrieves filtered and paginated catalog with brand and category joins.
@@ -358,6 +465,7 @@ This file maintains a historical ledger of major architectural decisions, direct
   - `dbo.sp_RestockInventory`: Restocks variant with audit logging.
 
 ### 3. Cash on In-Store Pickup Order Flow
+
 - Supported In-Store Pickup order creation via `POST /api/v1/orders`.
 - Orders placed with payment method `Cash` deduct stock atomically via `dbo.sp_DeductStockAtomic`, generate audit trail logs in `dbo.StockAuditLogs`, and return an immediate order confirmation without requiring HitPay payment redirects.
 - Client storefront (`storefront.js`) now dynamically consumes `/api/v1/products` live from `.\SQLEXPRESS`.
@@ -367,11 +475,13 @@ This file maintains a historical ledger of major architectural decisions, direct
 ## [2026-09-25] — Initial Architecture Realization & Folder Restructuring
 
 ### 1. Context & Motivation
+
 - The project is transitioning from a traditional spreadsheet stock tracking system into a real-time, transaction-linked e-commerce and retail management platform.
 - The approved visual template (`E-commerce Website Template_page-0001.jpg`) represents a modern streetwear e-commerce layout (Shop.co style). This design was adapted for Helmet Cartel (high-contrast monochrome, off-white card backgrounds, rounded pill buttons, bento box riding style category layouts, and verified customer testimonials).
 - Supported Stack: ASP.NET Web Application (.NET Framework 4.7.2), OWIN Pipeline, SignalR for real-time inventory updates, MSSQL with atomic row-locking, JWT authentication, and HitPay payment gateway.
 
 ### 2. Major Directory Restructuring
+
 - **Root Customizations (`.agents/`):**
   - Added `.agents/rules/` (General principles, C# standards, Frontend UI standards, MSSQL rules, Security & Auth rules).
   - Added `.agents/workflows/` (Order fulfillment, Real-time inventory sync, HitPay payment gateway, Restock & reporting).
@@ -398,6 +508,7 @@ This file maintains a historical ledger of major architectural decisions, direct
   - `Repositories/` and `Services/`: Clean data access and business logic decoupling.
 
 ### 3. Key Design Decisions & Invariants
+
 - **Stock Negative Constraint:** Enforced in SQL (`CHECK (CurrentStock >= 0)`) as well as in stored procedures using `UPDLOCK, ROWLOCK`.
 - **Zero Inline Styles / Zero Magic Strings:** All styling must reference `variables.css`. All status strings and roles must reference `AppConstants.cs` or `constants.js`.
 - **HitPay Webhook Verification:** Strict HMAC-SHA256 signature check is required before processing any payment status transition.
@@ -408,6 +519,7 @@ This file maintains a historical ledger of major architectural decisions, direct
 ## [2026-09-25] — ASP.NET Web Forms Architecture & UI Monochrome Refinement
 
 ### 1. Architectural Conversion to Master Page & Web Forms (.aspx)
+
 - **Root Master Page (`Site.Master`):** Houses the global layout, top announcement bar, header with fitted SVG icons (Search, Cart with live count badge, User/Staff profile), main `ContentPlaceHolder`, overlapping floating newsletter, and global footer.
 - **Root Default Page (`Default.aspx`):** Storefront home view inheriting `~/Site.Master` containing the balanced Hero section, Brand Ticker, New Arrivals, Top Selling, Bento Box ("Browse by Riding Style"), and Customer Testimonials carousel.
 - **Pages Directory (`Pages/`):**
@@ -420,6 +532,7 @@ This file maintains a historical ledger of major architectural decisions, direct
   - `Pages/Shop/ProductFilterControl.ascx`: Reusable Web Forms user control component for catalog filtering.
 
 ### 2. UI & Design System Polishing
+
 - **Monochrome Palette:** Enforced high-contrast, pure monochrome grayscale palette matching the template context (`#000000`, `#FFFFFF`, `#F2F0F1`, `#E5E5E5`, `#525252`).
 - **Balanced Typography:** Balanced font scales across all viewports (Hero heading scaled to `clamp(2rem, 3.8vw, 3.25rem)`, section titles scaled to `clamp(1.5rem, 2.5vw, 2.125rem)`, balanced body text at `15px`), eliminating viewport distortion and uneven proportions.
 - **Fitted SVG Vectors:** Replaced all emojis with fitted, crisp inline SVG icons for Search, Cart, Profile, Close, Stepper, Trash, Stars, and Verified Checkmarks.
@@ -431,10 +544,12 @@ This file maintains a historical ledger of major architectural decisions, direct
 ## [2026-09-25] — Shop.co Hero Section Realization & Container Max-Width Expansion
 
 ### 1. Widescreen Container Scaling
+
 - **Container Max-Width:** Increased `--container-max-width` from `1200px` to `1440px` with responsive padding `clamp(1rem, 3.5vw, 3.5rem)` in [variables.css](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Content/css/variables.css), eliminating cramped margins on high-resolution displays.
 - **Header & Navbar:** Expanded search bar width to `580px`, styled with `#F0F0F0` capsule background and fitted search vector; updated navigation to match template structure ("Shop ⌵", "On Sale", "New Arrivals", "Brands").
 
 ### 2. Shop.co Hero Section & Typography Alignment
+
 - **Local Webfonts:** Installed local `integralcf-bold.woff2` and `satoshi` fonts into `Content/fonts/` with `@font-face` definitions and Google Fonts fallback.
 - **Hero Grid & Proportions:** Updated `.hero-grid` to `1.15fr 0.85fr` with bottom alignment in [layout.css](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/HelmetCartelOrderingAndManagementSys/Content/css/layout.css).
 - **Hero Image Integration:** Integrated transparent cutout models (`hero.webp`) resting directly on `#F2F0F1` background, extending down flush to the brand ticker strip. Added `.webp` MIME type mapping to `Web.config`.
@@ -447,16 +562,19 @@ This file maintains a historical ledger of major architectural decisions, direct
 ## [2026-09-25] — C# Backend Authority Mandate, Storefront Cart Standards & Zero Inline Styles
 
 ### 1. C# Backend Exclusivity & Architectural Mandate
+
 - **Strict C# Backend:** Updated `AGENTS.md`, `01_general_principles.md`, `02_csharp_backend_rules.md`, and `03_frontend_ui_rules.md` to establish that **C# is the exclusively authorized backend runtime** (ASP.NET Web API 2, OWIN pipeline, C# controllers, services, repositories, ADO.NET / MSSQL transactions, SignalR hubs, and Web Forms code-behind).
 - **No JavaScript Mock Backend:** Prohibited using JavaScript to simulate in-memory mock databases or mock APIs. Frontend JavaScript is strictly confined to client-side presentation, DOM manipulation, progressive enhancement, UI event listeners, and consuming live C# Web API endpoints via HTTP requests.
 - **MSSQL Database Activation:** Created and started `(localdb)\MSSQLLocalDB`, executed production schema (`01_schema.sql`), seed data (`02_seed_data.sql`), and stored procedures (`03_procedures_and_queries.sql`), configuring `Web.config` connection strings.
 - **Live C# API Integration:** Verified and connected `storefront.js` directly to `/api/v1/products/new-arrivals`, `/api/v1/products/top-selling`, and `/api/v1/products`.
 
 ### 2. Storefront Cart & Purchasing Interaction Standards
+
 - **Home Page (`Default.aspx`):** Removed all "Add to Cart" buttons from product cards. Cards now serve strictly as navigational preview links navigating directly to `Pages/ProductDetail.aspx?id=...`.
 - **Product Detail Page (`Pages/ProductDetail.aspx`):** Brought back and elevated the primary "Add to Cart" purchasing component. Styled `#btn-add-detail` with `.btn--add-cart` pill curves, hover transitions, and a fitted shopping cart vector icon. Dynamically reads selected size, color swatch, and quantity stepper, adds items to `CartManager`, updates the header cart badge, and shows interactive success toasts.
 
 ### 3. Mojibake Elimination & Zero Inline Styles
+
 - **Character Encoding Integrity:** Eliminated `â‚±` and `â€”` mojibake artifacts across all markup and scripts by enforcing UTF-8 globalization in `Web.config`, adopting official HTML entities (`&#8369;`, `&mdash;`), and using JS unicode escapes (`\u20B1`).
 - **Zero Inline Styles Mandate:** Replaced all inline `style="..."` attributes with semantic stylesheet classes backed by CSS custom properties in `variables.css` across `Default.aspx`, `Shop.aspx`, `ProductDetail.aspx`, `Cart.aspx`, `Dashboard.aspx`, `InventoryTableControl.ascx`, and `ProductFilterControl.ascx`.
 - **Unused Files Clean-up:** Purged all dead `.html` prototype files (`cart.html`, `dashboard.html`, `index.html`) from the repository.
@@ -466,6 +584,7 @@ This file maintains a historical ledger of major architectural decisions, direct
 ## [2026-09-25] — Full-Screen Authentication Architecture & Database Stored Procedure Mandate
 
 ### 1. Database Stored Procedure Mandate (Project Rule Grounding)
+
 - **Rule Hierarchy Update:** Updated `AGENTS.md` (Ground Rule 10) and `.agents/rules/04_database_mssql_rules.md` (Section 4) to mandate that **all database operations MUST execute via named MSSQL Stored Procedures (`sp_...`)** using ADO.NET `CommandType.StoredProcedure` with strongly typed parameters. Raw inline SQL query strings within C# code are strictly prohibited.
 - **Authentication & User Stored Procedures Created:** Added and deployed four stored procedures in `database/queries/03_procedures_and_queries.sql` to `(localdb)\MSSQLLocalDB` (`HelmetCartelDB`):
   - `sp_GetUserByEmail`: Securely fetches user credentials (`Id`, `RoleId`, `RoleName`, `FullName`, `Email`, `PasswordHash`, `Salt`, `PhoneNumber`, `IsActive`) for authentication.
@@ -474,6 +593,7 @@ This file maintains a historical ledger of major architectural decisions, direct
   - `sp_GetUserOrders`: Returns customer order history with item counts, payment gateway, and total amounts.
 
 ### 2. C# Backend Authentication Layer
+
 - **C# DTOs (`Models/DTOs/AuthDTOs.cs`):** Defined `LoginRequestDto`, `RegisterRequestDto`, `AuthResponseDto`, `UserProfileDto`, `UserRecordDto`, and `UserOrderSummaryDto`.
 - **Infrastructure (`Infrastructure/JwtTokenProvider.cs`):** Implemented RFC 7519 compliant HMAC-SHA256 JWT generation and validation without unnecessary third-party package dependencies.
 - **Data Access Repository (`Repositories/UserRepository.cs` & `IUserRepository.cs`):** Built repository executing `sp_GetUserByEmail`, `sp_RegisterUser`, `sp_GetUserProfile`, and `sp_GetUserOrders` exclusively via `CommandType.StoredProcedure` and typed `SqlParameter` objects.
@@ -485,6 +605,7 @@ This file maintains a historical ledger of major architectural decisions, direct
   - `GET /api/v1/auth/my-orders`: Returns order history for the authenticated user.
 
 ### 3. Full-Screen Authentication UI (No Floating Cards)
+
 - **View (`Pages/Auth.aspx`):** Built a 100vw / 100vh full-screen, split-editorial authentication experience matching the luxury dark motorcycle streetwear aesthetic:
   - **Left Editorial Showcase (50%):** Dark atmospheric background with hero helmet imagery, brand typography, certification badge (`ECE 22.06 & DOT CERTIFIED`), headline (`RIDE PROTECTED. RIDE UNAPOLOGETIC.`), and three key value pillars (Real-Time Stock Locks, Seamless HitPay Gateway, Track & Street Heritage).
   - **Right Interactive Console (50%):** Full-height canvas with clean header (`← Return to Storefront`), 256-bit SSL badge, pill-shaped mode switcher ("Sign In" vs "Create Account"), floating input fields with password visibility toggle, and full-width pill action buttons.
@@ -498,6 +619,7 @@ This file maintains a historical ledger of major architectural decisions, direct
 ## [2026-09-25] — North-East Directional Button Micro-Interactions & Product Detail "Buy Now" Action
 
 ### 1. North-East Arrow Button Micro-Interactions
+
 - **Zero Button Transformation on Hover:** Eliminated disruptive button jumps and scaling (`translateY` removed from `.btn--hero:hover`, `.auth-submit-btn:hover`, `.btn--apply-filters:hover`, and `.btn--add-cart:hover`). Buttons preserve their exact layout geometry and dimensions.
 - **Directional Icon Movement:** Created `.btn-arrow-icon` class in `components.css` with North-East arrow SVG vectors (`<line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline>`). On hover, the icon smoothly translates in the direction it points (`transform: translate(3px, -3px)`) with cubic-bezier easing.
 - **System-Wide Application:** Integrated the North-East arrow across:
@@ -510,6 +632,7 @@ This file maintains a historical ledger of major architectural decisions, direct
   - "Buy Now" button (`Pages/ProductDetail.aspx`)
 
 ### 2. Product Detail "Buy Now" Button
+
 - **Layout & Visual Hierarchy:** Added `#btn-buy-now` with `.btn--buy-now` styling alongside `.btn--add-cart` in `.product-actions-row` on `Pages/ProductDetail.aspx`.
   - `.btn--add-cart` styled as high-contrast border outline button (`#FFFFFF` background, `1.5px solid #000000`) with fitted cart icon.
   - `.btn--buy-now` styled as bold black solid button (`#000000` background, `#FFFFFF` text) with North-East arrow icon.
@@ -521,10 +644,12 @@ This file maintains a historical ledger of major architectural decisions, direct
 ## [2026-09-26] — Storefront Proportions, Product Details & FAQs Redesign, Direct Checkout & Project Proposal Alignment
 
 ### 1. Typography & Proportions Refinements
+
 - **Product Card Pricing & Titles:** Refined `.product-card__title` (0.875rem), `.price-current` (0.95rem), `.price-original` (0.95rem), and discount badges in `Content/css/components.css` for balanced catalog scanning.
 - **Product Detail Action Controls:** Adjusted `.size-pill`, `.quantity-stepper-lg`, `.btn--add-cart`, `.btn--buy-now`, and `.btn--fav-detail` in `Content/css/storefront.css` for balanced visual proportions.
 
 ### 2. Product Details & FAQs Tab Overhaul
+
 - **Product Details Tab (`#tab-details`):** Overhauled with a structured, dark-accented layout matching the design system:
   - Overview hero callout highlighting engineering & safety philosophy.
   - 4-card feature highlights grid (`AIM+ Shell`, `Dual-Layer EPS`, `CWR-F2 Shield`, `E.Q.R.S.`).
@@ -533,10 +658,12 @@ This file maintains a historical ledger of major architectural decisions, direct
 - **FAQs Tab (`#tab-faqs`):** Implemented an interactive accordion component with rotating chevron indicators and comprehensive answers regarding sizing, Bluetooth intercom installation, visors, warranty, and liner care.
 
 ### 3. Cart Variant Deduplication & Direct "Buy Now" Checkout
+
 - **Cart Variant Indexing (`Scripts/cart.js`):** Implemented deterministic `uniqueVariantId` (`${prodId}_${size}_${color}`) to ensure selecting identical product configurations increments quantities rather than creating duplicate lines.
 - **Buy Now Flow:** Updated `btn-buy-now` event listener in `Pages/ProductDetail.aspx` to route directly to `Pages/Checkout.aspx`.
 
 ### 4. Capstone Project Proposal Alignment (`docs/PROJECT_PROPOSAL.md`)
+
 - Integrated **Customer Account Management & Payment Transaction History** and **Promotional Voucher Management** into Specific Objectives, Project Scope, and Core Features.
 
 ---
@@ -544,12 +671,14 @@ This file maintains a historical ledger of major architectural decisions, direct
 ## [2026-09-27] — Storefront Card Navigation & Selector Syntax Fixes
 
 ### 1. Storefront QuerySelector Syntax Fix
+
 - **Selector Correction (`Scripts/storefront.js`):** Fixed syntax error on line 258 (`card?.querySelector('.')` replaced with `card?.querySelector('.price-current')`) in the wishlist heart click delegation listener.
 - **Cache-Busting:** Bumped script references to `storefront.js?v=5` in `Default.aspx` and `Pages/Shop.aspx`.
 - **API Client Method Extensions (`Scripts/api.js`):** Added `getProducts(params)` and `getProductById(id)` helper methods to `ApiClient`.
 - **API Response Unpacking (`Scripts/storefront.js`):** Updated `loadLiveProducts()` to handle array, `{ items: [...] }`, and `{ data: [...] }` envelopes seamlessly.
 
 ### 2. Dynamic Product Detail Page (`Pages/ProductDetail.aspx` & `Pages/ProductDetail.aspx.cs`)
+
 - **Code-Behind Integration:** Implemented `LoadProductDetailsAsync` in `Pages/ProductDetail.aspx.cs` utilizing `IProductRepository.GetProductByIdAsync` and `RegisterAsyncTask` (`Async="true"` page directive).
 - **Dynamic Markup Binding:** Linked breadcrumb title, hero image, product title, star ratings, current price, original price, discount badge, description, variant color swatches, and size pills to the dynamically loaded product.
 - **Model & Query Updates (`Models/DTOs/ProductDTOs.cs` & `Repositories/ProductRepository.cs`):** Added `Description` property to `ProductListDto` and included `p.Description` in `GetProductByIdAsync`.
@@ -561,12 +690,14 @@ This file maintains a historical ledger of major architectural decisions, direct
 ## [2026-09-27] — HNJ Top Box Integration & Storefront Brand Filtering
 
 ### 1. HNJ Top Box Implementation
+
 - **Brand & Category Provisioning:** Added brand `HNJ` (Id: 7) in `dbo.Brands` and new category `Top Boxes & Luggage` (Id: 6, Slug: `top-boxes-luggage`) in `dbo.Categories`.
 - **Product & Variants Seed:** Added `HNJ 45L Heavy-Duty Aluminum Motorcycle Top Box` (Id: 1001, BasePrice: 4850.00, 10% discount) with variants `HNJ-TB45-BLK` (45L / Matte Deep Black), `HNJ-TB45-SLV` (45L / Anodized Silver), and `HNJ-TB55-BLK` (55L / Matte Deep Black, +600.00) in `dbo.ProductVariants` and `dbo.Inventories`.
 - **Product Visuals:** Generated and added high-resolution product photography for HNJ 45L Top Box in `Content/images/hnj_topbox.jpg`.
 - **Storefront Fallback Sample Data:** Added HNJ Top Box (id: 1001) with category metadata in `SAMPLE_PRODUCTS` within `Scripts/storefront.js`.
 
 ### 2. Multi-Channel Brand & Category Filtering
+
 - **Backend API Filtering (`Repositories/ProductRepository.cs` & `Models/DTOs/ProductDTOs.cs`):** Added `Brand` and `Category` string parameters to `ProductFilterParams` and parameterized WHERE filtering in `GetProductsAsync` (e.g. `GET /api/v1/products?brand=HNJ`).
 - **Sidebar Filter Control UI (`Pages/Shop/ProductFilterControl.ascx`):** Added dedicated "Brands" accordion filter section with buttons for All Brands, Shoei, AGV, Arai, HJC, Bell, Shark, and HNJ (Top Box), along with "Top Boxes & Luggage" in the Categories list.
 - **Client-Side Reactive Filter Controller (`Scripts/storefront.js`):**
@@ -577,13 +708,13 @@ This file maintains a historical ledger of major architectural decisions, direct
 - **Brand Ticker Strip Navigation (`Default.aspx`):** Converted home page brand logos (Zebra, Gille, HNJ, Shoei, AGV) into interactive links routing directly to `Pages/Shop.aspx?brand=...`.
 
 ### 3. Visual Scale Alignment & Filter Streamlining
+
 - **Top Box Proportional Image Scaling (`Content/images/hnj_topbox.jpg`):** Scaled and centered the HNJ Top Box product photograph with balanced canvas padding (~55-60% object scale on neutral light background), ensuring exact visual parity with helmet product cards and gallery hero views.
 - **Filter Redundancy Removal (`Pages/Shop/ProductFilterControl.ascx`):** Removed the redundant Riding Style accordion from the Shop sidebar filter, consolidating product filtering around the primary `Categories` list while keeping Riding Style exclusively on the Homepage Bento Grid and Shop mega-menu for lifestyle discovery.
 
 ### 4. Helmet-Centric Scope Refinement
+
 - **Top Box Scope Removal:** Removed Top Box category and HNJ top box products from MSSQL database (`dbo.Categories`, `dbo.Products`, `dbo.ProductVariants`, `dbo.Inventories`), seed script (`02_seed_data.sql`), sidebar filter (`ProductFilterControl.ascx`), and frontend sample catalog (`Scripts/storefront.js`) to focus exclusively on motorcycle helmets for the academic project scope.
-
-
 
 ## [2026-09-27] — Catalog 3NF and SQL integrity migration
 

@@ -20,22 +20,5 @@ namespace HelmetCartelOrderingAndManagementSys.Admin {
         protected global::System.Web.UI.WebControls.LinkButton lnkCatalogNext;
         protected global::System.Web.UI.WebControls.HiddenField hfDeleteProductId;
         protected global::System.Web.UI.WebControls.Button btnConfirmDeleteProduct;
-        protected global::System.Web.UI.WebControls.HiddenField hdnVariantsJson;
-        protected global::System.Web.UI.HtmlControls.HtmlInputHidden hdnEditProductId;
-        protected global::System.Web.UI.WebControls.DropDownList ddlNewBrand;
-        protected global::System.Web.UI.WebControls.DropDownList ddlNewCategory;
-        protected global::System.Web.UI.HtmlControls.HtmlInputText txtNewName;
-        protected global::System.Web.UI.WebControls.DropDownList ddlNewStyle;
-        protected global::System.Web.UI.HtmlControls.HtmlTextArea txtNewDescription;
-        protected global::System.Web.UI.HtmlControls.HtmlInputGenericControl txtNewBasePrice;
-        protected global::System.Web.UI.WebControls.DropDownList ddlNewDiscountType;
-        protected global::System.Web.UI.HtmlControls.HtmlInputGenericControl txtNewDiscountValue;
-        protected global::System.Web.UI.HtmlControls.HtmlInputCheckBox chkNewDiscountActive;
-        protected global::System.Web.UI.HtmlControls.HtmlInputGenericControl txtNewDiscountStartDate;
-        protected global::System.Web.UI.HtmlControls.HtmlInputGenericControl txtNewDiscountEndDate;
-        protected global::System.Web.UI.WebControls.FileUpload fileUploadImages;
-        protected global::System.Web.UI.HtmlControls.HtmlInputText txtNewImageUrl;
-        protected global::System.Web.UI.HtmlControls.HtmlTextArea txtNewGalleryUrls;
-        protected global::System.Web.UI.WebControls.Button btnSubmitNewProduct;
     }
 }

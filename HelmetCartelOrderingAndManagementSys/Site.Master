@@ -220,13 +220,13 @@
                             </ul>
                         </div>
 
-                        <!-- Column 3: Riding Style -->
+                        <!-- Column 3: Color Finishes -->
                         <div class="mega-menu__col">
-                            <h3 class="mega-menu__col-title">RIDING STYLES</h3>
+                            <h3 class="mega-menu__col-title">POPULAR FINISHES</h3>
                             <ul class="mega-menu__list">
                                 <li>
-                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Casual%2FUrban") %>" class="mega-menu__link">
-                                        <span>Casual &amp; Urban</span>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?q=black") %>" class="mega-menu__link">
+                                        <span>Matte &amp; Gloss Black</span>
                                         <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <line x1="7" y1="17" x2="17" y2="7"></line>
                                             <polyline points="7 7 17 7 17 17"></polyline>
@@ -234,8 +234,8 @@
                                     </a>
                                 </li>
                                 <li>
-                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Sport%2FTrack") %>" class="mega-menu__link">
-                                        <span>Sport &amp; Track Day</span>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?q=white") %>" class="mega-menu__link">
+                                        <span>Pearl White</span>
                                         <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <line x1="7" y1="17" x2="17" y2="7"></line>
                                             <polyline points="7 7 17 7 17 17"></polyline>
@@ -243,8 +243,8 @@
                                     </a>
                                 </li>
                                 <li>
-                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Touring%2FAdventure") %>" class="mega-menu__link">
-                                        <span>Touring &amp; Adventure</span>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?q=red") %>" class="mega-menu__link">
+                                        <span>Racing Red</span>
                                         <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <line x1="7" y1="17" x2="17" y2="7"></line>
                                             <polyline points="7 7 17 7 17 17"></polyline>
@@ -252,8 +252,8 @@
                                     </a>
                                 </li>
                                 <li>
-                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Motocross%2FOff-Road") %>" class="mega-menu__link">
-                                        <span>Motocross &amp; Dirt Trail</span>
+                                    <a href="<%= ResolveUrl("~/Pages/Shop.aspx?q=graphic") %>" class="mega-menu__link">
+                                        <span>Graphic Editions</span>
                                         <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <line x1="7" y1="17" x2="17" y2="7"></line>
                                             <polyline points="7 7 17 7 17 17"></polyline>
@@ -446,11 +446,11 @@
                             <a href="<%= ResolveUrl("~/Pages/Shop.aspx?category=open-face-urban") %>" class="mobile-sublink">Open Face / Retro</a>
                             <a href="<%= ResolveUrl("~/Pages/Shop.aspx?category=off-road-motocross") %>" class="mobile-sublink">Off-Road &amp; Motocross</a>
                             <a href="<%= ResolveUrl("~/Pages/Shop.aspx?category=dual-sport-adventure") %>" class="mobile-sublink">Dual Sport Adventure</a>
-                            <span class="mobile-nav-subheading">Riding Styles</span>
-                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Casual%2FUrban") %>" class="mobile-sublink">Casual &amp; Urban</a>
-                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Sport%2FTrack") %>" class="mobile-sublink">Sport &amp; Track Day</a>
-                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Touring%2FAdventure") %>" class="mobile-sublink">Touring &amp; Adventure</a>
-                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?ridingStyle=Motocross%2FOff-Road") %>" class="mobile-sublink">Motocross &amp; Dirt Trail</a>
+                            <span class="mobile-nav-subheading">Popular Finishes</span>
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?q=black") %>" class="mobile-sublink">Matte &amp; Gloss Black</a>
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?q=white") %>" class="mobile-sublink">Pearl White</a>
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?q=red") %>" class="mobile-sublink">Racing Red</a>
+                            <a href="<%= ResolveUrl("~/Pages/Shop.aspx?q=graphic") %>" class="mobile-sublink">Graphic Editions</a>
                         </div>
                     </div>
                     <a href="<%= ResolveUrl("~/Pages/Shop.aspx?onSale=1") %>" class="mobile-nav-link">On Sale</a>

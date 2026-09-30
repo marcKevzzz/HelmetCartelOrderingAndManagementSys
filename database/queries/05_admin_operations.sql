@@ -195,7 +195,8 @@ CREATE OR ALTER PROCEDURE dbo.sp_AdminOrders
     @Search NVARCHAR(100) = NULL,
     @Status NVARCHAR(50) = NULL,
     @Source NVARCHAR(30) = NULL,
-    @Limit INT = 100
+    @Limit INT = 100,
+    @OrderDate DATE = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -206,6 +207,7 @@ BEGIN
     FROM dbo.Orders o
     WHERE (@Status IS NULL OR o.Status = @Status)
       AND (@Source IS NULL OR o.OrderSource = @Source)
+      AND (@OrderDate IS NULL OR (o.CreatedAt >= @OrderDate AND o.CreatedAt < DATEADD(DAY, 1, @OrderDate)))
       AND (@Search IS NULL OR o.OrderNumber LIKE N'%' + @Search + N'%'
            OR o.CustomerName LIKE N'%' + @Search + N'%' OR o.CustomerEmail LIKE N'%' + @Search + N'%')
     ORDER BY o.CreatedAt DESC, o.Id DESC;
@@ -696,6 +698,5 @@ BEGIN
     SELECT @ProductId AS Id;
 END;
 GO
-
 
 

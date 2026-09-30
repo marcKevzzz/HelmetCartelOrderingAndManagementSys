@@ -5,10 +5,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Helmet Cartel Operations</title>
+    <script src="/Scripts/admin/sidebar-state.js?v=1"></script>
     <link rel="stylesheet" href="/Content/css/variables.css" />
     <link rel="stylesheet" href="/Content/css/reset.css" />
     <link rel="stylesheet" href="/Content/css/components.css" />
-    <link rel="stylesheet" href="/Content/css/admin/admin.css?v=7" />
+    <link rel="stylesheet" href="/Content/css/admin/admin.css?v=14" />
     <asp:ContentPlaceHolder ID="HeadContent" runat="server" />
 </head>
 <body class="admin-body">
@@ -211,8 +212,28 @@
                 </div>
             </div>
         </div>
+
+        <!-- Shared confirmation modal for reversible admin actions -->
+        <div id="adminActionConfirmModal" class="admin-modal-backdrop is-hidden" hidden>
+            <div class="admin-modal admin-modal--confirm" role="dialog" aria-modal="true" aria-labelledby="adminActionConfirmTitle" aria-describedby="adminActionConfirmMessage">
+                <div class="admin-modal-icon-circle">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 9v4"></path>
+                        <path d="M12 17h.01"></path>
+                        <path d="M10.3 3.8 2.6 17.2a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0Z"></path>
+                    </svg>
+                </div>
+                <h3 class="admin-modal-title" id="adminActionConfirmTitle">Confirm action</h3>
+                <p class="admin-modal-desc-subtle" id="adminActionConfirmMessage">Are you sure you want to continue?</p>
+                <div class="admin-modal-footer">
+                    <button type="button" class="btn-pill btn-pill--outline" id="btnCancelAdminAction">Cancel</button>
+                    <button type="button" class="btn-pill btn-pill--primary" id="btnConfirmAdminAction">Confirm</button>
+                </div>
+            </div>
+        </div>
     </form>
-    <script src="/Scripts/admin/admin.js?v=8"></script>
+    <script src="/Scripts/admin/admin.js?v=15"></script>
     <script src="/Scripts/admin/search-history.js?v=1"></script>
+    <asp:ContentPlaceHolder ID="ScriptsContent" runat="server" />
 </body>
 </html>

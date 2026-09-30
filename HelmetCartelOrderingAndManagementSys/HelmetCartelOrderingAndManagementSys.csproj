@@ -110,6 +110,8 @@
     <Content Include="Admin\Inventory.aspx" />
     <Content Include="Admin\POS.aspx" />
     <Content Include="Admin\Catalog.aspx" />
+    <Content Include="Admin\CatalogItem.aspx" />
+    <Content Include="Scripts\admin\catalog-item.js" />
     <Content Include="Admin\Reports.aspx" />
     <Content Include="Admin\Users.aspx" />
     <Content Include="Admin\Reviews.aspx" />
@@ -410,6 +412,13 @@
     </Compile>
     <Compile Include="Admin\Catalog.aspx.designer.cs">
       <DependentUpon>Catalog.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Admin\CatalogItem.aspx.cs">
+      <DependentUpon>CatalogItem.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Admin\CatalogItem.aspx.designer.cs">
+      <DependentUpon>CatalogItem.aspx</DependentUpon>
     </Compile>
     <Compile Include="Admin\Reports.aspx.cs">
       <DependentUpon>Reports.aspx</DependentUpon>

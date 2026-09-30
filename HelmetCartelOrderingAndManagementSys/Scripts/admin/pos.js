@@ -3,8 +3,9 @@ import { APP_CONSTANTS } from '../constants.js';
 const root = document.getElementById('posCounter');
 if (root) {
   const byId = id => document.getElementById(id);
+  const globalSearch = document.getElementById('adminGlobalSearch');
   const ui = {
-    search: byId('posSearch'), brand: byId('posBrand'), category: byId('posCategory'),
+    search: byId('posSearch') || globalSearch, brand: byId('posBrand'), category: byId('posCategory'),
     grid: byId('posProductGrid'), message: byId('posCatalogMessage'), count: byId('posResultCount'),
     panel: byId('posSalePanel'), cart: byId('posCartItems'), itemCount: byId('posItemCount'),
     subtotal: byId('posSubtotal'), total: byId('posTotal'), saleError: byId('posSaleError'), complete: byId('posCompleteSale'),
@@ -17,6 +18,9 @@ if (root) {
     mobileTotal: byId('posMobileTotal'), mobileBackdrop: byId('posMobileBackdrop'),
     closeSale: byId('posCloseSale'), receipt: byId('posReceiptModal')
   };
+  if (globalSearch) {
+    globalSearch.placeholder = 'Search POS products by model, brand, color, SKU... (Ctrl+K)';
+  }
   const storageKey = APP_CONSTANTS.STORAGE_KEYS.POS_SALE;
   const money = amount => `${APP_CONSTANTS.UI.CURRENCY_SYMBOL}${Number(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
@@ -46,6 +50,12 @@ if (root) {
   function showError(message) {
     ui.saleError.textContent = message;
     ui.saleError.hidden = !message;
+  }
+
+  function showToast(message, type = 'info', title = null) {
+    if (typeof window.showAdminToast === 'function') {
+      window.showAdminToast(message, type, title);
+    }
   }
 
   function setFieldError(input, target, message) {
@@ -145,26 +155,72 @@ if (root) {
       return !item || Number(item.availableStock) < quantity;
     });
     if (!rows.length) {
-      ui.cart.innerHTML = '<div class="pos-cart-empty">Choose a product to start a sale.</div>';
+      ui.cart.innerHTML = `<div class="pos-cart-empty">
+        <div class="pos-cart-empty-icon">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="9" cy="21" r="1"></circle>
+            <circle cx="20" cy="21" r="1"></circle>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+          </svg>
+        </div>
+        <p class="pos-cart-empty-title">Current sale is empty</p>
+        <p class="pos-cart-empty-subtitle">Select helmets from the catalog to add them to this order</p>
+      </div>`;
       updateChange();
       return;
     }
     ui.cart.innerHTML = rows.map(([id, quantity]) => {
       const item = itemFor(id);
-      if (!item) return `<div class="pos-cart-line"><div class="pos-cart-line-body"><strong>Item unavailable</strong><button type="button" class="pos-remove" data-remove-id="${id}">Remove</button></div></div>`;
+      if (!item) {
+        return `<div class="pos-cart-line pos-cart-line--unavailable">
+          <div class="pos-cart-line-content">
+            <div class="pos-cart-line-header">
+              <strong class="pos-cart-line-name">Item unavailable</strong>
+              <button type="button" class="pos-cart-line-remove" data-remove-id="${id}" aria-label="Remove item" title="Remove item">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              </button>
+            </div>
+          </div>
+        </div>`;
+      }
       const available = Math.max(0, Number(item.availableStock || 0));
-      return `<div class="pos-cart-line">
-        <img data-pos-image src="${escapeHtml(safeImage(item.mainImageUrl))}" alt="" loading="lazy" />
-        <div class="pos-cart-line-body"><strong>${escapeHtml(item.brand)} ${escapeHtml(item.productName)}</strong>
-          <span>${escapeHtml(item.color)} &middot; ${escapeHtml(item.size)} &middot; ${escapeHtml(item.sku)}</span>
-          <span>${money(item.unitPrice)} each${quantity > available ? ` &middot; Only ${available} available` : ''}</span>
-          <div class="pos-cart-line-foot"><div class="pos-quantity">
-            <button type="button" data-qty-id="${id}" data-delta="-1" aria-label="Decrease ${escapeHtml(item.productName)} quantity">&minus;</button>
-            <span>${quantity}</span>
-            <button type="button" data-qty-id="${id}" data-delta="1" aria-label="Increase ${escapeHtml(item.productName)} quantity" ${quantity >= available ? 'disabled' : ''}>+</button>
-          </div><strong>${money(Number(item.unitPrice) * quantity)}</strong></div>
-          <button type="button" class="pos-remove" data-remove-id="${id}">Remove</button>
-        </div></div>`;
+      return `<div class="pos-cart-line" data-variant-id="${id}">
+        <div class="pos-cart-line-media">
+          <img data-pos-image src="${escapeHtml(safeImage(item.mainImageUrl))}" alt="${escapeHtml(item.productName)}" loading="lazy" />
+        </div>
+        <div class="pos-cart-line-content">
+          <div class="pos-cart-line-header">
+            <div class="pos-cart-line-title-group">
+              <span class="pos-cart-line-brand">${escapeHtml(item.brand)}</span>
+              <h4 class="pos-cart-line-name">${escapeHtml(item.productName)}</h4>
+            </div>
+            <button type="button" class="pos-cart-line-remove" data-remove-id="${id}" aria-label="Remove ${escapeHtml(item.productName)}" title="Remove item">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          </div>
+          <div class="pos-cart-line-meta">
+            <span class="pos-variant-pill">${escapeHtml(item.color)}</span>
+            <span class="pos-variant-pill pos-variant-pill--size">${escapeHtml(item.size)}</span>
+            <span class="pos-cart-line-sku">${escapeHtml(item.sku)}</span>
+          </div>
+          ${quantity > available ? `<div class="pos-stock-warning">Only ${available} available in stock</div>` : ''}
+          <div class="pos-cart-line-bottom">
+            <div class="pos-quantity-stepper">
+              <button type="button" class="pos-qty-btn" data-qty-id="${id}" data-delta="-1" aria-label="Decrease quantity">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              </button>
+              <span class="pos-qty-val">${quantity}</span>
+              <button type="button" class="pos-qty-btn" data-qty-id="${id}" data-delta="1" aria-label="Increase quantity" ${quantity >= available ? 'disabled' : ''}>
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              </button>
+            </div>
+            <div class="pos-cart-line-pricing">
+              <span class="pos-cart-unit-price">${money(item.unitPrice)} each</span>
+              <strong class="pos-cart-line-total">${money(Number(item.unitPrice) * quantity)}</strong>
+            </div>
+          </div>
+        </div>
+      </div>`;
     }).join('');
     renderImages(ui.cart);
     updateChange();
@@ -292,16 +348,20 @@ if (root) {
       renderCart();
       closeMobileSale();
       showReceipt(order, method, tendered);
+      showToast(`Order ${order.orderNumber || ''} was completed successfully.`, 'success', 'Sale Complete');
       await refreshAll();
       await loadCatalog();
     } catch (error) {
       if (error.status === 401) {
         showError('Your staff session expired. Sign in again to complete the sale.');
+        showToast('Your staff session expired. Sign in again to complete the sale.', 'error', 'Session Expired');
       } else if (error.status === 409) {
         showError(error.message || 'The stock or final total changed. Review the sale and try again.');
+        showToast(error.message || 'The stock or final total changed. Review the sale and try again.', 'warning', 'Sale Updated');
         try { await refreshAll(); await loadCatalog(); } catch { /* keep current sale visible */ }
       } else {
         showError(error.message || 'The sale could not be completed. Try again.');
+        showToast(error.message || 'The sale could not be completed. Try again.', 'error', 'Sale Failed');
       }
     } finally {
       state.submitting = false;
@@ -349,7 +409,18 @@ if (root) {
     saveSale();
     renderCart();
   });
-  ui.search.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(loadCatalog, 250); });
+  if (ui.search) {
+    ui.search.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(loadCatalog, 200); });
+    ui.search.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        ui.search.value = '';
+        loadCatalog();
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+      }
+    });
+  }
   ui.brand.addEventListener('change', loadCatalog);
   ui.category.addEventListener('change', loadCatalog);
   [ui.name, ui.phone, ui.email].forEach(input => input.addEventListener('input', saveSale));
@@ -385,8 +456,18 @@ if (root) {
     root.querySelector(`input[name="posPayment"][value="${APP_CONSTANTS.PAYMENT_METHODS.CASH}"]`).checked = true;
     renderPayment();
     renderCart();
-    ui.search.focus();
+    if (ui.search) {
+      ui.search.value = '';
+      ui.search.focus();
+      loadCatalog();
+    }
   });
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialSearch = urlParams.get('search') || urlParams.get('q');
+  if (initialSearch && ui.search) {
+    ui.search.value = initialSearch;
+  }
 
   restoreSale();
   renderCart();

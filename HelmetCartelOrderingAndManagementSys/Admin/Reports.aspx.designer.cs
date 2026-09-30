@@ -33,6 +33,14 @@ namespace HelmetCartelOrderingAndManagementSys.Admin {
         protected global::System.Web.UI.WebControls.Literal litChartSubtitle;
         protected global::System.Web.UI.WebControls.Literal litActiveRangeBadge;
         protected global::System.Web.UI.WebControls.Repeater rptDailySales;
+        protected global::System.Web.UI.WebControls.Panel pnlDailySalesPagination;
+        protected global::System.Web.UI.WebControls.LinkButton lnkDailySalesPrev;
+        protected global::System.Web.UI.WebControls.Repeater rptDailySalesPages;
+        protected global::System.Web.UI.WebControls.LinkButton lnkDailySalesNext;
         protected global::System.Web.UI.WebControls.Repeater rptBrandReport;
+        protected global::System.Web.UI.WebControls.Panel pnlBrandReportPagination;
+        protected global::System.Web.UI.WebControls.LinkButton lnkBrandReportPrev;
+        protected global::System.Web.UI.WebControls.Repeater rptBrandReportPages;
+        protected global::System.Web.UI.WebControls.LinkButton lnkBrandReportNext;
     }
 }

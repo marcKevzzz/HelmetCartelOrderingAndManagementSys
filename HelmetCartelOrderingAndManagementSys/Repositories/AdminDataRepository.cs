@@ -158,7 +158,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             return list;
         }
 
-        public async Task<List<AdminOrderListItemDto>> GetOrdersAsync(string search = null, string status = null, string source = null, int limit = 100)
+        public async Task<List<AdminOrderListItemDto>> GetOrdersAsync(string search = null, string status = null, string source = null, int limit = 100, DateTime? orderDate = null)
         {
             var list = new List<AdminOrderListItemDto>();
             using (var connection = (SqlConnection)_factory.CreateConnection())
@@ -169,6 +169,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                 command.Parameters.Add(new SqlParameter("@Status", SqlDbType.NVarChar, 50) { Value = (object)status ?? DBNull.Value });
                 command.Parameters.Add(new SqlParameter("@Source", SqlDbType.NVarChar, 30) { Value = (object)source ?? DBNull.Value });
                 command.Parameters.Add(new SqlParameter("@Limit", SqlDbType.Int) { Value = limit });
+                command.Parameters.Add(new SqlParameter("@OrderDate", SqlDbType.Date) { Value = orderDate.HasValue ? (object)orderDate.Value.Date : DBNull.Value });
 
                 await connection.OpenAsync().ConfigureAwait(false);
                 using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
@@ -637,6 +638,125 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                 await connection.OpenAsync().ConfigureAwait(false);
                 var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
                 return result != null ? Convert.ToInt32(result) : 0;
+            }
+        }
+
+        public async Task SaveProductSpecificationsAsync(int productId, string specsJson)
+        {
+            using (var connection = (SqlConnection)_factory.CreateConnection())
+            using (var command = new SqlCommand("dbo.sp_AdminSaveProductSpecifications", connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add(new SqlParameter("@ProductId", SqlDbType.Int) { Value = productId });
+                command.Parameters.Add(new SqlParameter("@SpecsJson", SqlDbType.NVarChar, -1) { Value = (object)specsJson ?? DBNull.Value });
+
+                await connection.OpenAsync().ConfigureAwait(false);
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+        }
+
+        public async Task<AdminProductCompleteDto> GetProductCompleteAsync(int productId)
+        {
+            using (var connection = (SqlConnection)_factory.CreateConnection())
+            using (var command = new SqlCommand("dbo.sp_AdminGetProductComplete", connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add(new SqlParameter("@ProductId", SqlDbType.Int) { Value = productId });
+
+                await connection.OpenAsync().ConfigureAwait(false);
+                using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    if (!await reader.ReadAsync().ConfigureAwait(false))
+                        return null;
+
+                    var product = new AdminProductCompleteDto
+                    {
+                        Id = Convert.ToInt32(reader["Id"]),
+                        CategoryId = Convert.ToInt32(reader["CategoryId"]),
+                        BrandId = Convert.ToInt32(reader["BrandId"]),
+                        Name = reader["Name"]?.ToString(),
+                        Slug = reader["Slug"]?.ToString(),
+                        Description = reader["Description"] != DBNull.Value ? reader["Description"].ToString() : null,
+                        RidingStyle = reader["RidingStyle"] != DBNull.Value ? reader["RidingStyle"].ToString() : null,
+                        BasePrice = Convert.ToDecimal(reader["BasePrice"]),
+                        DiscountPercentage = reader["DiscountPercentage"] != DBNull.Value ? Convert.ToInt32(reader["DiscountPercentage"]) : 0,
+                        DiscountType = reader["DiscountType"] != DBNull.Value ? reader["DiscountType"].ToString() : "Percentage",
+                        DiscountAmount = reader["DiscountAmount"] != DBNull.Value ? Convert.ToDecimal(reader["DiscountAmount"]) : 0m,
+                        DiscountStartDate = reader["DiscountStartDate"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(reader["DiscountStartDate"]) : null,
+                        DiscountEndDate = reader["DiscountEndDate"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(reader["DiscountEndDate"]) : null,
+                        DiscountIsActive = reader["DiscountIsActive"] != DBNull.Value && Convert.ToBoolean(reader["DiscountIsActive"]),
+                        MainImageUrl = reader["MainImageUrl"] != DBNull.Value ? reader["MainImageUrl"].ToString() : null,
+                        IsFeatured = reader["IsFeatured"] != DBNull.Value && Convert.ToBoolean(reader["IsFeatured"]),
+                        IsActive = reader["IsActive"] != DBNull.Value && Convert.ToBoolean(reader["IsActive"]),
+                        BrandName = reader["BrandName"]?.ToString(),
+                        CategoryName = reader["CategoryName"]?.ToString()
+                    };
+
+                    if (await reader.NextResultAsync().ConfigureAwait(false))
+                    {
+                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            product.Specifications.Add(new AdminSpecificationItemDto
+                            {
+                                SpecificationKey = reader["SpecificationKey"]?.ToString(),
+                                DisplayName = reader["DisplayName"]?.ToString(),
+                                SpecificationValue = reader["SpecificationValue"]?.ToString(),
+                                DisplayOrder = reader["DisplayOrder"] != DBNull.Value ? Convert.ToInt32(reader["DisplayOrder"]) : 0
+                            });
+                        }
+                    }
+
+                    if (await reader.NextResultAsync().ConfigureAwait(false))
+                    {
+                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            product.Colors.Add(new AdminColorDto
+                            {
+                                Id = Convert.ToInt32(reader["Id"]),
+                                Color = reader["Color"]?.ToString(),
+                                SolidHex = reader["ColorHex"]?.ToString(),
+                                ColorType = reader["ColorType"]?.ToString(),
+                                GradientAngle = reader["GradientAngle"] != DBNull.Value ? (int?)Convert.ToInt32(reader["GradientAngle"]) : null
+                            });
+                        }
+                    }
+
+                    if (await reader.NextResultAsync().ConfigureAwait(false))
+                    {
+                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            product.Variants.Add(new AdminVariantDto
+                            {
+                                Id = Convert.ToInt32(reader["VariantId"]),
+                                ProductColorId = Convert.ToInt32(reader["ProductColorId"]),
+                                Color = reader["Color"]?.ToString(),
+                                ColorHex = reader["ColorHex"]?.ToString(),
+                                Size = reader["Size"]?.ToString(),
+                                SKU = reader["SKU"]?.ToString(),
+                                PriceAdjustment = reader["PriceAdjustment"] != DBNull.Value ? Convert.ToDecimal(reader["PriceAdjustment"]) : 0m,
+                                IsActive = reader["IsActive"] != DBNull.Value && Convert.ToBoolean(reader["IsActive"]),
+                                CurrentStock = reader["CurrentStock"] != DBNull.Value ? Convert.ToInt32(reader["CurrentStock"]) : 0,
+                                ReorderPoint = reader["ReorderPoint"] != DBNull.Value ? Convert.ToInt32(reader["ReorderPoint"]) : 3
+                            });
+                        }
+                    }
+
+                    if (await reader.NextResultAsync().ConfigureAwait(false))
+                    {
+                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            product.GalleryImages.Add(new AdminGalleryDto
+                            {
+                                Id = Convert.ToInt32(reader["Id"]),
+                                ImageUrl = reader["ImageUrl"]?.ToString(),
+                                AltText = reader["AltText"] != DBNull.Value ? reader["AltText"].ToString() : null,
+                                DisplayOrder = reader["DisplayOrder"] != DBNull.Value ? Convert.ToInt32(reader["DisplayOrder"]) : 0
+                            });
+                        }
+                    }
+
+                    return product;
+                }
             }
         }
 

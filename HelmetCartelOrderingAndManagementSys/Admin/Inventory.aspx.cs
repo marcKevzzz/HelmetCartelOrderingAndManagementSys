@@ -18,12 +18,19 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         private readonly AdminDataRepository _adminRepo;
         private readonly IProductRepository _productRepo;
 
-        public const int PageSize = 50;
+        public const int PageSize = 20;
+        public const int AuditPageSize = 20;
 
         public int CurrentPageNumber
         {
             get => (ViewState["CurrentPageNumber"] as int?) ?? 1;
             set => ViewState["CurrentPageNumber"] = value;
+        }
+
+        public int CurrentAuditPageNumber
+        {
+            get => (ViewState["CurrentAuditPageNumber"] as int?) ?? 1;
+            set => ViewState["CurrentAuditPageNumber"] = value;
         }
 
         public string CurrentStatus
@@ -191,7 +198,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 btnViewAuditHistory.CssClass = "admin-tab-btn active";
 
                 string search = string.IsNullOrWhiteSpace(CurrentSearch) ? null : CurrentSearch;
-                var auditLogs = await _adminRepo.GetStockAuditLogsAsync(search: search, limit: 150).ConfigureAwait(false);
+                var auditLogs = await _adminRepo.GetStockAuditLogsAsync(search: search, limit: 500).ConfigureAwait(false);
 
                 // Functional Filter: Change Type
                 if (CurrentAuditType == "restock")
@@ -209,13 +216,25 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     auditLogs = auditLogs.Where(l => string.Equals(l.BrandName, CurrentAuditBrand, StringComparison.OrdinalIgnoreCase)).ToList();
                 }
 
-                rptAuditHistory.DataSource = auditLogs;
+                int auditTotalCount = auditLogs.Count;
+                int auditTotalPages = Math.Max(1, (int)Math.Ceiling((double)auditTotalCount / AuditPageSize));
+                if (CurrentAuditPageNumber < 1) CurrentAuditPageNumber = 1;
+                if (CurrentAuditPageNumber > auditTotalPages) CurrentAuditPageNumber = auditTotalPages;
+
+                var pagedAuditLogs = auditLogs
+                    .Skip((CurrentAuditPageNumber - 1) * AuditPageSize)
+                    .Take(AuditPageSize)
+                    .ToList();
+
+                rptAuditHistory.DataSource = pagedAuditLogs;
                 rptAuditHistory.DataBind();
-                litAuditCount.Text = auditLogs.Count.ToString("N0");
+                litAuditCount.Text = auditTotalCount.ToString("N0");
 
                 int totalAdded = auditLogs.Where(l => l.QuantityChanged > 0).Sum(l => l.QuantityChanged);
                 litAuditUnitsAdded.Text = totalAdded.ToString("N0");
 
+                pnlAuditPagination.Visible = auditTotalPages > 1;
+                BindAuditPagination(CurrentAuditPageNumber, auditTotalPages);
                 UpdateAuditFilterStyles();
                 return;
             }
@@ -251,6 +270,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             litShowingRange.Text = totalCount == 0 ? "0" : $"{startItem}-{endItem}";
             litTotalCount.Text = totalCount.ToString("N0");
 
+            pnlInventoryPagination.Visible = totalCount > 0;
             BindPagination(CurrentPageNumber, totalPages);
             UpdateTabButtonStyles();
         }
@@ -277,12 +297,35 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             rptPaginationPages.DataBind();
         }
 
+        private void BindAuditPagination(int currentPage, int totalPages)
+        {
+            btnAuditPrevPage.Enabled = currentPage > 1;
+            btnAuditPrevPage.CssClass = "admin-pagination-btn" + (currentPage <= 1 ? " disabled" : "");
+            btnAuditNextPage.Enabled = currentPage < totalPages;
+            btnAuditNextPage.CssClass = "admin-pagination-btn" + (currentPage >= totalPages ? " disabled" : "");
+
+            var pageLinks = HelmetCartelOrderingAndManagementSys.Infrastructure.PaginationHelper.BuildPageLinks(
+                currentPage,
+                totalPages,
+                p => p.ToString()
+            );
+
+            rptAuditPaginationPages.DataSource = pageLinks.Select(p => new PaginationPageItem
+            {
+                PageNumber = p.PageNumber,
+                IsActive = p.IsCurrent,
+                IsEllipsis = p.IsEllipsis
+            }).ToList();
+            rptAuditPaginationPages.DataBind();
+        }
+
         protected void btnViewMode_Click(object sender, EventArgs e)
         {
             if (sender is LinkButton btn)
             {
                 CurrentViewMode = btn.CommandArgument;
                 CurrentPageNumber = 1;
+                CurrentAuditPageNumber = 1;
                 RegisterAsyncTask(new PageAsyncTask(LoadInventoryDataAsync));
             }
         }
@@ -426,6 +469,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             if (sender is LinkButton btn)
             {
                 CurrentAuditType = btn.CommandArgument;
+                CurrentAuditPageNumber = 1;
                 RegisterAsyncTask(new PageAsyncTask(LoadInventoryDataAsync));
             }
         }
@@ -433,7 +477,30 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         protected void AuditFilterDropdown_Changed(object sender, EventArgs e)
         {
             CurrentAuditBrand = ddlAuditBrandFilter.SelectedValue;
+            CurrentAuditPageNumber = 1;
             RegisterAsyncTask(new PageAsyncTask(LoadInventoryDataAsync));
+        }
+
+        protected void AuditPage_Change(object sender, EventArgs e)
+        {
+            if (sender is LinkButton btn)
+            {
+                string arg = btn.CommandArgument;
+                if (arg == "prev")
+                {
+                    CurrentAuditPageNumber = Math.Max(1, CurrentAuditPageNumber - 1);
+                }
+                else if (arg == "next")
+                {
+                    CurrentAuditPageNumber++;
+                }
+                else if (int.TryParse(arg, out int page))
+                {
+                    CurrentAuditPageNumber = page;
+                }
+
+                RegisterAsyncTask(new PageAsyncTask(LoadInventoryDataAsync));
+            }
         }
 
         private void UpdateAuditFilterStyles()
