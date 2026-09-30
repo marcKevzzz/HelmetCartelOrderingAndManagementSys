@@ -17,8 +17,12 @@
         </svg>
     </div>
 
-    <!-- Category Filter List (with chevron >) -->
-    <div class="filter-categories-list" id="filter-categories-container">
+    <!-- Category Filter List (Collapsible Accordion) -->
+    <div class="filter-accordion-header" id="filter-categories-header" role="button" tabindex="0" aria-expanded="true">
+        <span>Categories</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="accordion-chevron"><polyline points="18 15 12 9 6 15"></polyline></svg>
+    </div>
+    <div class="filter-categories-list filter-accordion-content" id="filter-categories-container">
         <a href="Shop.aspx" class="filter-category-item <%= SelectedCategory == "all" ? "active" : "" %>" data-category="all">
             <span>All Categories</span>
             <svg class="shop-breadcrumb__icon" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>

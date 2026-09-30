@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web.UI;
 using System.Web.UI.WebControls;
+using HelmetCartelOrderingAndManagementSys.Constants;
 using HelmetCartelOrderingAndManagementSys.Infrastructure;
 using HelmetCartelOrderingAndManagementSys.Models.DTOs;
 using HelmetCartelOrderingAndManagementSys.Repositories;
@@ -148,15 +149,38 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             btnTabAll.CssClass = "admin-tab-btn" + (CurrentStatus == "all" ? " active" : "");
             btnTabProcessing.CssClass = "admin-tab-btn" + (CurrentStatus == "Processing" ? " active" : "");
             btnTabReady.CssClass = "admin-tab-btn" + (CurrentStatus == "ReadyForPickup" ? " active" : "");
+            btnTabShipped.CssClass = "admin-tab-btn" + (CurrentStatus == "Shipped" ? " active" : "");
             btnTabCompleted.CssClass = "admin-tab-btn" + (CurrentStatus == "Completed" ? " active" : "");
             btnTabPending.CssClass = "admin-tab-btn" + (CurrentStatus == "PendingPayment" ? " active" : "");
         }
 
         protected void rptOrders_ItemCommand(object source, RepeaterCommandEventArgs e)
         {
-            if (int.TryParse(Convert.ToString(e.CommandArgument), out int orderId))
+            string arg = Convert.ToString(e.CommandArgument);
+            if (string.IsNullOrEmpty(arg))
             {
-                string targetStatus = e.CommandName; // e.g. "ReadyForPickup" or "Completed"
+                arg = Request["__EVENTARGUMENT"];
+            }
+
+            string targetStatus = e.CommandName;
+            int orderId = 0;
+
+            if (arg != null && arg.Contains("$"))
+            {
+                var parts = arg.Split('$');
+                if (parts.Length >= 2 && int.TryParse(parts[1], out int parsedId))
+                {
+                    targetStatus = parts[0];
+                    orderId = parsedId;
+                }
+            }
+            else if (int.TryParse(arg, out int parsedId))
+            {
+                orderId = parsedId;
+            }
+
+            if (orderId > 0 && !string.IsNullOrWhiteSpace(targetStatus))
+            {
                 RegisterAsyncTask(new PageAsyncTask(async () =>
                 {
                     try
@@ -181,11 +205,37 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             return "<span class=\"admin-badge admin-badge--role-customer\">Online Store</span>";
         }
 
-        protected string RenderPaymentBadge(string paymentStatus)
+        protected string RenderFulfillmentCell(string shippingMethod, string shippingRegion, string courier, string trackingNumber)
+        {
+            if (string.Equals(shippingMethod, "Delivery", StringComparison.OrdinalIgnoreCase))
+            {
+                var sb = new StringBuilder();
+                sb.Append("<div class=\"admin-variant-cell\">");
+                sb.Append("<span class=\"admin-badge admin-badge--ready\">Delivery</span>");
+                if (!string.IsNullOrWhiteSpace(shippingRegion))
+                {
+                    sb.Append($"<span class=\"admin-cell-mono-muted admin-cell-contacts\">{Server.HtmlEncode(shippingRegion)}</span>");
+                }
+                if (!string.IsNullOrWhiteSpace(courier))
+                {
+                    sb.Append($"<span class=\"admin-activity-time admin-cell-contacts\">{Server.HtmlEncode(courier)}: {Server.HtmlEncode(trackingNumber ?? "N/A")}</span>");
+                }
+                sb.Append("</div>");
+                return sb.ToString();
+            }
+
+            return "<div class=\"admin-variant-cell\"><span class=\"admin-badge admin-badge--pending\">Pickup</span><span class=\"admin-cell-mono-muted admin-cell-contacts\">Flagship Hub (QC)</span></div>";
+        }
+
+        protected string RenderPaymentBadge(string paymentStatus, string paymentMethod)
         {
             if (paymentStatus == "Completed")
             {
                 return "<span class=\"admin-badge admin-badge--in-stock\">Paid</span>";
+            }
+            if (string.Equals(paymentMethod, "CashOnDelivery", StringComparison.OrdinalIgnoreCase))
+            {
+                return "<span class=\"admin-badge admin-badge--role-staff\">COD Pending</span>";
             }
             return "<span class=\"admin-badge admin-badge--pending\">Pending</span>";
         }
@@ -198,6 +248,10 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     return "<span class=\"admin-badge admin-badge--completed\">Completed</span>";
                 case "ReadyForPickup":
                     return "<span class=\"admin-badge admin-badge--ready\">Ready for Pickup</span>";
+                case "Shipped":
+                    return "<span class=\"admin-badge admin-badge--role-staff\">In Transit / Shipped</span>";
+                case "Delivered":
+                    return "<span class=\"admin-badge admin-badge--in-stock\">Delivered</span>";
                 case "Processing":
                     return "<span class=\"admin-badge admin-badge--processing\">Processing</span>";
                 case "PendingPayment":
@@ -209,15 +263,37 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             }
         }
 
-        protected string RenderTransitionButton(int orderId, string status, string paymentStatus)
+        protected string RenderTransitionButton(int orderId, string status, string paymentStatus, string shippingMethod, decimal totalAmount, string paymentMethod, string orderNumber, string customerName, string city)
         {
+            bool isDelivery = string.Equals(shippingMethod, "Delivery", StringComparison.OrdinalIgnoreCase);
+            string safeCity = Server.HtmlEncode(string.IsNullOrEmpty(city) ? "Customer Address" : city).Replace("'", "\\'");
+            string safeOrderNo = Server.HtmlEncode(orderNumber ?? "").Replace("'", "\\'");
+            string safeCustomer = Server.HtmlEncode(customerName ?? "").Replace("'", "\\'");
+
             if (status == "Processing")
             {
+                if (isDelivery)
+                {
+                    return $"<button type=\"button\" onclick=\"openDispatchModal({orderId}, '{safeOrderNo}', '{safeCustomer}', '{safeCity}'); return false;\" class=\"btn-pill-sm btn-pill--primary\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"1\" y=\"3\" width=\"15\" height=\"13\"></rect><polygon points=\"16 8 20 8 23 11 23 16 16 16 16 8\"></polygon><circle cx=\"5.5\" cy=\"18.5\" r=\"2.5\"></circle><circle cx=\"18.5\" cy=\"18.5\" r=\"2.5\"></circle></svg><span>Dispatch</span></button>";
+                }
                 return $"<button type=\"submit\" name=\"ctl00$MainContent$rptOrders$ctl{orderId}$btnAct\" data-admin-confirm=\"true\" data-confirm-title=\"Mark order ready\" data-confirm-message=\"Move this order to Ready for Pickup?\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','ReadyForPickup${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--primary\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg><span>Mark Ready</span></button>";
             }
             if (status == "ReadyForPickup")
             {
-                return $"<button type=\"submit\" name=\"ctl00$MainContent$rptOrders$ctl{orderId}$btnAct\" data-admin-confirm=\"true\" data-confirm-title=\"Complete order\" data-confirm-message=\"Mark this order as completed? This will finalize the transaction.\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','Completed${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--outline\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"></path><polyline points=\"22 4 12 14.01 9 11.01\"></polyline></svg><span>Complete</span></button>";
+                return $"<button type=\"submit\" name=\"ctl00$MainContent$rptOrders$ctl{orderId}$btnAct\" data-admin-confirm=\"true\" data-confirm-title=\"Complete order\" data-confirm-message=\"Mark this order as collected by customer?\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','Completed${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--outline\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"></path><polyline points=\"22 4 12 14.01 9 11.01\"></polyline></svg><span>Collected</span></button>";
+            }
+            if (status == "Shipped")
+            {
+                bool isCod = string.Equals(paymentMethod, "CashOnDelivery", StringComparison.OrdinalIgnoreCase);
+                string confirmMsg = isCod
+                    ? $"Confirm parcel handover and collection of Cash on Delivery payment (&#8369;{totalAmount:N2})? Payment will be marked Paid and order marked Delivered."
+                    : "Mark this parcel as successfully delivered by the courier?";
+
+                return $"<button type=\"submit\" name=\"ctl00$MainContent$rptOrders$ctl{orderId}$btnAct\" data-admin-confirm=\"true\" data-confirm-title=\"Mark Delivered\" data-confirm-message=\"{confirmMsg}\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','Delivered${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--primary\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg><span>Mark Delivered</span></button>";
+            }
+            if (status == "Delivered")
+            {
+                return $"<button type=\"submit\" name=\"ctl00$MainContent$rptOrders$ctl{orderId}$btnAct\" data-admin-confirm=\"true\" data-confirm-title=\"Finalize order\" data-confirm-message=\"Finalize this delivered order as completed?\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','Completed${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--outline\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"></path><polyline points=\"22 4 12 14.01 9 11.01\"></polyline></svg><span>Finalize</span></button>";
             }
             return "<span class=\"admin-activity-time\">&mdash;</span>";
         }
@@ -229,11 +305,11 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 string status = CurrentStatus == "all" ? null : CurrentStatus;
                 var orders = await _adminRepo.GetOrdersAsync(null, status, null, 500, CurrentOrderDate).ConfigureAwait(false);
                 var sb = new StringBuilder();
-                sb.AppendLine("OrderId,OrderNumber,CustomerName,Email,Phone,Source,Items,TotalAmount,PaymentStatus,OrderStatus,CreatedAt");
+                sb.AppendLine("OrderId,OrderNumber,CustomerName,Email,Phone,Source,Fulfillment,ShippingFee,Courier,TrackingNumber,Items,TotalAmount,PaymentStatus,PaymentMethod,OrderStatus,CreatedAt");
 
                 foreach (var o in orders)
                 {
-                    sb.AppendLine($"\"{o.Id}\",\"{o.OrderNumber}\",\"{o.CustomerName.Replace("\"", "\"\"")}\",\"{o.CustomerEmail}\",\"{o.CustomerPhone}\",\"{o.OrderSource}\",{o.ItemCount},{o.TotalAmount},\"{o.PaymentStatus}\",\"{o.Status}\",\"{o.CreatedAt:yyyy-MM-dd HH:mm}\"");
+                    sb.AppendLine($"\"{o.Id}\",\"{o.OrderNumber}\",\"{o.CustomerName.Replace("\"", "\"\"")}\",\"{o.CustomerEmail}\",\"{o.CustomerPhone}\",\"{o.OrderSource}\",\"{o.ShippingMethod}\",{o.ShippingFee},\"{o.Courier}\",\"{o.TrackingNumber}\",{o.ItemCount},{o.TotalAmount},\"{o.PaymentStatus}\",\"{o.PaymentMethod}\",\"{o.Status}\",\"{o.CreatedAt:yyyy-MM-dd HH:mm}\"");
                 }
 
                 Response.Clear();

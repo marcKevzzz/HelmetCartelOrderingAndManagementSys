@@ -110,10 +110,12 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             }
                         }
 
-                        decimal total = subtotal;
+                        decimal shippingFee = request.ShippingFee < 0 ? 0.00m : request.ShippingFee;
+                        string shippingMethod = string.IsNullOrWhiteSpace(request.ShippingMethod) ? AppConstants.ShippingMethods.Pickup : request.ShippingMethod;
+                        decimal total = subtotal + shippingFee;
                         var initialStatus = orderSource == AppConstants.OrderSources.InStorePos
                             ? AppConstants.OrderStatus.Completed
-                            : (request.PaymentMethod == AppConstants.PaymentGateways.Cash
+                            : ((request.PaymentMethod == AppConstants.PaymentGateways.Cash || request.PaymentMethod == AppConstants.PaymentGateways.CashOnDelivery)
                                 ? AppConstants.OrderStatus.Processing : AppConstants.OrderStatus.PendingPayment);
 
                         // 2. Insert Order Header via stored procedure dbo.sp_CreateOrder
@@ -133,6 +135,15 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             orderCmd.Parameters.Add(new SqlParameter("@DiscountAmount", SqlDbType.Decimal) { Value = 0.00m });
                             orderCmd.Parameters.Add(new SqlParameter("@TotalAmount", SqlDbType.Decimal) { Value = total });
                             orderCmd.Parameters.Add(new SqlParameter("@Notes", SqlDbType.NVarChar, 500) { Value = (object)request.Notes ?? DBNull.Value });
+                            orderCmd.Parameters.Add(new SqlParameter("@ShippingMethod", SqlDbType.NVarChar, 50) { Value = shippingMethod });
+                            orderCmd.Parameters.Add(new SqlParameter("@ShippingFee", SqlDbType.Decimal) { Value = shippingFee });
+                            orderCmd.Parameters.Add(new SqlParameter("@ShippingRegion", SqlDbType.NVarChar, 100) { Value = (object)request.ShippingRegion ?? DBNull.Value });
+                            orderCmd.Parameters.Add(new SqlParameter("@ShippingAddress", SqlDbType.NVarChar, 300) { Value = (object)request.ShippingAddress ?? DBNull.Value });
+                            orderCmd.Parameters.Add(new SqlParameter("@ShippingBarangay", SqlDbType.NVarChar, 100) { Value = (object)request.ShippingBarangay ?? DBNull.Value });
+                            orderCmd.Parameters.Add(new SqlParameter("@ShippingCity", SqlDbType.NVarChar, 100) { Value = (object)request.ShippingCity ?? DBNull.Value });
+                            orderCmd.Parameters.Add(new SqlParameter("@ShippingProvince", SqlDbType.NVarChar, 100) { Value = (object)request.ShippingProvince ?? DBNull.Value });
+                            orderCmd.Parameters.Add(new SqlParameter("@ShippingPostalCode", SqlDbType.NVarChar, 20) { Value = (object)request.ShippingPostalCode ?? DBNull.Value });
+                            orderCmd.Parameters.Add(new SqlParameter("@DeliveryNotes", SqlDbType.NVarChar, 500) { Value = (object)request.DeliveryNotes ?? DBNull.Value });
 
                             var newOrderIdParam = new SqlParameter("@NewOrderId", SqlDbType.Int)
                             {
@@ -182,6 +193,26 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             await totalsCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                         }
 
+                        // 4. Record Pending Payment for COD or Cash
+                        if (request.PaymentMethod == AppConstants.PaymentGateways.CashOnDelivery ||
+                            (request.PaymentMethod == AppConstants.PaymentGateways.Cash && shippingMethod == AppConstants.ShippingMethods.Pickup))
+                        {
+                            using (var payCmd = new SqlCommand("dbo.sp_RecordPayment", conn, transaction))
+                            {
+                                payCmd.CommandType = CommandType.StoredProcedure;
+                                payCmd.Parameters.Add(new SqlParameter("@OrderId", SqlDbType.Int) { Value = orderId });
+                                payCmd.Parameters.Add(new SqlParameter("@PaymentGateway", SqlDbType.NVarChar, 50) { Value = request.PaymentMethod });
+                                payCmd.Parameters.Add(new SqlParameter("@GatewayReference", SqlDbType.NVarChar, 100) { Value = (object)DBNull.Value });
+                                payCmd.Parameters.Add(new SqlParameter("@Amount", SqlDbType.Decimal) { Value = total });
+                                payCmd.Parameters.Add(new SqlParameter("@Status", SqlDbType.NVarChar, 50) { Value = AppConstants.PaymentStatus.Pending });
+                                payCmd.Parameters.Add(new SqlParameter("@PaidAt", SqlDbType.DateTime2) { Value = (object)DBNull.Value });
+                                var payIdParam = new SqlParameter("@PaymentId", SqlDbType.Int) { Direction = ParameterDirection.Output };
+                                payCmd.Parameters.Add(payIdParam);
+
+                                await payCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                            }
+                        }
+
                         transaction.Commit();
 
                         return new OrderSummaryDto
@@ -194,7 +225,19 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             OrderSource = orderSource,
                             Status = initialStatus,
                             Subtotal = subtotal,
+                            DiscountAmount = 0.00m,
                             TotalAmount = total,
+                            ShippingMethod = shippingMethod,
+                            ShippingFee = shippingFee,
+                            ShippingRegion = request.ShippingRegion,
+                            ShippingAddress = request.ShippingAddress,
+                            ShippingBarangay = request.ShippingBarangay,
+                            ShippingCity = request.ShippingCity,
+                            ShippingProvince = request.ShippingProvince,
+                            ShippingPostalCode = request.ShippingPostalCode,
+                            DeliveryNotes = request.DeliveryNotes,
+                            PaymentMethod = request.PaymentMethod,
+                            PaymentStatus = AppConstants.PaymentStatus.Pending,
                             CreatedAt = DateTime.UtcNow,
                             Items = summaryItems
                         };
@@ -249,6 +292,17 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 Subtotal = reader.GetDecimal(reader.GetOrdinal("Subtotal")),
                                 DiscountAmount = reader.GetDecimal(reader.GetOrdinal("DiscountAmount")),
                                 TotalAmount = reader.GetDecimal(reader.GetOrdinal("TotalAmount")),
+                                ShippingMethod = reader.IsDBNull(reader.GetOrdinal("ShippingMethod")) ? "Pickup" : reader.GetString(reader.GetOrdinal("ShippingMethod")),
+                                ShippingFee = reader.IsDBNull(reader.GetOrdinal("ShippingFee")) ? 0.00m : reader.GetDecimal(reader.GetOrdinal("ShippingFee")),
+                                ShippingRegion = reader.IsDBNull(reader.GetOrdinal("ShippingRegion")) ? null : reader.GetString(reader.GetOrdinal("ShippingRegion")),
+                                ShippingAddress = reader.IsDBNull(reader.GetOrdinal("ShippingAddress")) ? null : reader.GetString(reader.GetOrdinal("ShippingAddress")),
+                                ShippingBarangay = reader.IsDBNull(reader.GetOrdinal("ShippingBarangay")) ? null : reader.GetString(reader.GetOrdinal("ShippingBarangay")),
+                                ShippingCity = reader.IsDBNull(reader.GetOrdinal("ShippingCity")) ? null : reader.GetString(reader.GetOrdinal("ShippingCity")),
+                                ShippingProvince = reader.IsDBNull(reader.GetOrdinal("ShippingProvince")) ? null : reader.GetString(reader.GetOrdinal("ShippingProvince")),
+                                ShippingPostalCode = reader.IsDBNull(reader.GetOrdinal("ShippingPostalCode")) ? null : reader.GetString(reader.GetOrdinal("ShippingPostalCode")),
+                                Courier = reader.IsDBNull(reader.GetOrdinal("Courier")) ? null : reader.GetString(reader.GetOrdinal("Courier")),
+                                TrackingNumber = reader.IsDBNull(reader.GetOrdinal("TrackingNumber")) ? null : reader.GetString(reader.GetOrdinal("TrackingNumber")),
+                                DeliveryNotes = reader.IsDBNull(reader.GetOrdinal("DeliveryNotes")) ? null : reader.GetString(reader.GetOrdinal("DeliveryNotes")),
                                 CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
                                 Items = new List<OrderItemSummaryDto>()
                             };
@@ -271,6 +325,16 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                     UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
                                     TotalPrice = reader.GetDecimal(reader.GetOrdinal("TotalPrice"))
                                 });
+                            }
+                        }
+
+                        // 3. Payments
+                        if (summary != null && await reader.NextResultAsync().ConfigureAwait(false))
+                        {
+                            if (await reader.ReadAsync().ConfigureAwait(false))
+                            {
+                                summary.PaymentMethod = reader.IsDBNull(reader.GetOrdinal("PaymentGateway")) ? null : reader.GetString(reader.GetOrdinal("PaymentGateway"));
+                                summary.PaymentStatus = reader.IsDBNull(reader.GetOrdinal("Status")) ? null : reader.GetString(reader.GetOrdinal("Status"));
                             }
                         }
 

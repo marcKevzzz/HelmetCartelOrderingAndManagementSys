@@ -323,7 +323,7 @@
             <div class="admin-form-grid-2">
                 <div class="admin-form-group">
                     <label class="admin-form-label">Units to Add (+)</label>
-                    <input type="number" id="txtAdjustQuantity" runat="server" min="1" max="10000" class="admin-form-input" value="5" required="required" />
+                    <input type="number" id="txtAdjustQuantity" runat="server" min="1" max="10000" class="admin-form-input" value="5" />
                 </div>
                 <div class="admin-form-group">
                     <label class="admin-form-label">Stock In Reason</label>
@@ -343,8 +343,34 @@
 
             <div class="admin-modal-footer">
                 <button type="button" class="btn-pill btn-pill--outline js-close-stock-modal">Cancel</button>
-                <asp:Button ID="btnSubmitStockAdjust" runat="server" CssClass="btn-pill btn-pill--primary" Text="Add Stock" OnClick="btnSubmitStockAdjust_Click" />
+                <asp:Button ID="btnSubmitStockAdjust" runat="server" CssClass="btn-pill btn-pill--primary" Text="Add Stock" OnClick="btnSubmitStockAdjust_Click" OnClientClick="return handleStockAdjustSubmit(this);" />
             </div>
         </div>
     </div>
+
+    <script>
+        window.isStockAdjustSubmitting = false;
+        function handleStockAdjustSubmit(btn) {
+            if (window.isStockAdjustSubmitting) {
+                return false;
+            }
+            const txtQty = document.getElementById('<%= txtAdjustQuantity.ClientID %>') || document.getElementById('txtAdjustQuantity');
+            const qty = parseInt(txtQty ? txtQty.value : '0', 10);
+            if (!qty || qty <= 0) {
+                if (typeof window.showAdminToast === 'function') {
+                    window.showAdminToast('Please specify a positive unit quantity to add.', 'warning', 'Invalid Quantity');
+                }
+                return false;
+            }
+            window.isStockAdjustSubmitting = true;
+            btn.style.pointerEvents = 'none';
+            btn.style.opacity = '0.65';
+            if (btn.tagName === 'INPUT') {
+                btn.value = 'Adding Stock...';
+            } else {
+                btn.textContent = 'Adding Stock...';
+            }
+            return true;
+        }
+    </script>
 </asp:Content>

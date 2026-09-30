@@ -46,20 +46,31 @@ namespace HelmetCartelOrderingAndManagementSys.Services
             }
 
             bool isCashOnPickup = string.Equals(request.PaymentMethod, AppConstants.PaymentGateways.Cash, StringComparison.OrdinalIgnoreCase);
+            bool isCod = string.Equals(request.PaymentMethod, AppConstants.PaymentGateways.CashOnDelivery, StringComparison.OrdinalIgnoreCase);
             var orderNumber = GenerateOrderNumber();
 
-            if (isCashOnPickup)
+            if (isCashOnPickup || isCod)
             {
                 try
                 {
                     if (request.Items.Any(x => x.Quantity <= 0) || request.Items.Select(x => x.VariantId).Distinct().Count() != request.Items.Count)
                         return ApiResponse<OrderSummaryDto>.Fail("Invalid or duplicate items.", AppConstants.ErrorCodes.VariantNotFound);
-                    var cashOrder = await _orderRepository.CreatePhysicalSaleAsync(request, orderNumber,
-                        AppConstants.OrderSources.Online, AppConstants.OrderStatus.Processing,
-                        AppConstants.PaymentStatus.Pending, userId).ConfigureAwait(false);
+
+                    var orderResult = await _orderRepository.CreateOrderAsync(request, orderNumber, AppConstants.OrderSources.Online, userId).ConfigureAwait(false);
+
+                    // Atomic stock deduction for committed orders
+                    foreach (var item in request.Items)
+                    {
+                        await _inventoryService.ProcessSaleDeductionAsync(item.VariantId, item.Quantity, userId, AppConstants.StockAuditChangeType.OnlineSale, orderNumber).ConfigureAwait(false);
+                    }
+
                     await NotifySafelyAsync(() => BroadcastCommittedStockAsync(request.Items, AppConstants.StockAuditChangeType.OnlineSale)).ConfigureAwait(false);
-                    NotifySafely(() => OrderHub.NotifyNewOrder(cashOrder));
-                    return ApiResponse<OrderSummaryDto>.Ok(cashOrder, "Order placed for store pickup.");
+                    NotifySafely(() => OrderHub.NotifyNewOrder(orderResult));
+
+                    string msg = isCod
+                        ? "Order placed successfully with Cash on Delivery. Preparing for dispatch."
+                        : "Order placed for store pickup.";
+                    return ApiResponse<OrderSummaryDto>.Ok(orderResult, msg);
                 }
                 catch (Exception e) { return ApiResponse<OrderSummaryDto>.Fail(e.Message, AppConstants.ErrorCodes.InsufficientStock); }
             }

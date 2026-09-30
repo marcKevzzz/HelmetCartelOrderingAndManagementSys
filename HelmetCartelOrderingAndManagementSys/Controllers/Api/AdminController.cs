@@ -77,7 +77,11 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Status)) return BadRequest("Status is required.");
             var result = await Run("dbo.sp_AdminUpdateOrderStatus", new[] {
-                P("@OrderId", id), P("@NewStatus", request.Status), P("@Notes", request.Notes)
+                P("@OrderId", id),
+                P("@NewStatus", request.Status),
+                P("@Notes", request.Notes),
+                P("@Courier", request.Courier),
+                P("@TrackingNumber", request.TrackingNumber)
             }).ConfigureAwait(false);
             if (result is System.Web.Http.Results.OkNegotiatedContentResult<ApiResponse<object>>)
             {
@@ -85,6 +89,32 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                 {
                     var order = await _orders.GetOrderByIdAsync(id).ConfigureAwait(false);
                     if (order != null) OrderHub.NotifyOrderStatusChanged(id, order.OrderNumber, request.Status);
+                }
+                catch (Exception ex) { System.Diagnostics.Trace.TraceWarning($"Committed order notification failed: {ex}"); }
+            }
+            return result;
+        }
+
+        [HttpPost, Route("orders/{id:int}/dispatch")]
+        public async Task<IHttpActionResult> DispatchOrder(int id, DispatchOrderRequestDto request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Courier) || string.IsNullOrWhiteSpace(request.TrackingNumber))
+                return BadRequest("Courier and Tracking Number are required for dispatch.");
+
+            var result = await Run("dbo.sp_AdminUpdateOrderStatus", new[] {
+                P("@OrderId", id),
+                P("@NewStatus", AppConstants.OrderStatus.Shipped),
+                P("@Notes", request.Notes),
+                P("@Courier", request.Courier),
+                P("@TrackingNumber", request.TrackingNumber)
+            }).ConfigureAwait(false);
+
+            if (result is System.Web.Http.Results.OkNegotiatedContentResult<ApiResponse<object>>)
+            {
+                try
+                {
+                    var order = await _orders.GetOrderByIdAsync(id).ConfigureAwait(false);
+                    if (order != null) OrderHub.NotifyOrderStatusChanged(id, order.OrderNumber, AppConstants.OrderStatus.Shipped);
                 }
                 catch (Exception ex) { System.Diagnostics.Trace.TraceWarning($"Committed order notification failed: {ex}"); }
             }

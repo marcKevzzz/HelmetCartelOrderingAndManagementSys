@@ -41,8 +41,25 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Shop
         {
             try
             {
-                var categories = await _productRepository.GetCategoriesAsync().ConfigureAwait(false);
-                var brands = await _productRepository.GetBrandsAsync().ConfigureAwait(false);
+                var categories = System.Web.HttpRuntime.Cache["ShopFilterCategories"] as List<CategoryDto>;
+                if (categories == null)
+                {
+                    categories = await _productRepository.GetCategoriesAsync().ConfigureAwait(false);
+                    if (categories != null && categories.Count > 0)
+                    {
+                        System.Web.HttpRuntime.Cache.Insert("ShopFilterCategories", categories, null, DateTime.UtcNow.AddMinutes(5), System.Web.Caching.Cache.NoSlidingExpiration);
+                    }
+                }
+
+                var brands = System.Web.HttpRuntime.Cache["ShopFilterBrands"] as List<BrandDto>;
+                if (brands == null)
+                {
+                    brands = await _productRepository.GetBrandsAsync().ConfigureAwait(false);
+                    if (brands != null && brands.Count > 0)
+                    {
+                        System.Web.HttpRuntime.Cache.Insert("ShopFilterBrands", brands, null, DateTime.UtcNow.AddMinutes(5), System.Web.Caching.Cache.NoSlidingExpiration);
+                    }
+                }
 
                 rptCategoryFilter.DataSource = categories ?? new List<CategoryDto>();
                 rptCategoryFilter.DataBind();

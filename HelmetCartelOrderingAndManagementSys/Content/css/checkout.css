@@ -903,3 +903,47 @@
     min-width: 0;
   }
 }
+
+/* 11. Delivery Address Section & Regional Tier Styles */
+.delivery-address-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background-color: var(--color-surface-subtle);
+  border: 1.5px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  margin-top: var(--space-3);
+  transition: all var(--transition-fast);
+}
+
+.delivery-address-section.is-hidden {
+  display: none !important;
+}
+
+.delivery-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: rgba(22, 163, 74, 0.1);
+  color: var(--color-accent-green);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+.shipping-card__badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-accent-green);
+  background-color: rgba(22, 163, 74, 0.08);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  margin-left: var(--space-2);
+}
+
+.payment-method-card.is-hidden {
+  display: none !important;
+}
+

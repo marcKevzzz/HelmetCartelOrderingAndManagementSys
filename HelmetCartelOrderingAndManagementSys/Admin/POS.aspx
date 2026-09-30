@@ -42,10 +42,16 @@
                         </details>
                     </div>
                     <div class="pos-payment-section">
-                        <span class="pos-field-label">Payment</span>
-                        <div class="pos-payment-options" role="radiogroup" aria-label="Payment method">
-                            <label class="pos-payment-option"><input type="radio" name="posPayment" value="Cash" checked /><span>Cash</span></label>
-                            <label class="pos-payment-option"><input type="radio" name="posPayment" value="Card_POS" /><span>Card terminal</span></label>
+                        <span class="pos-field-label">Payment Method</span>
+                        <div class="pos-payment-segmented" role="radiogroup" aria-label="Payment method">
+                            <label class="pos-payment-segment">
+                                <input type="radio" name="posPayment" value="Cash" checked />
+                                <span class="pos-payment-segment-btn">Cash</span>
+                            </label>
+                            <label class="pos-payment-segment">
+                                <input type="radio" name="posPayment" value="E_Wallet" />
+                                <span class="pos-payment-segment-btn">E-Wallet</span>
+                            </label>
                         </div>
                         <div id="posCashFields" class="pos-cash-fields">
                             <label for="posCashTendered">Cash received</label>
@@ -54,7 +60,10 @@
                             <div class="pos-change-row"><span>Change</span><strong id="posChange">&#8369;0.00</strong></div>
                         </div>
                         <div id="posCardFields" class="pos-card-fields" hidden>
-                            <label class="pos-card-confirm"><input id="posCardApproved" type="checkbox" /><span>Card terminal payment approved</span></label>
+                            <label class="pos-card-confirm">
+                                <input id="posCardApproved" type="checkbox" />
+                                <span>E-Wallet payment confirmed (GCash / Maya / QR PH)</span>
+                            </label>
                             <span id="posCardError" class="inline-error-msg" role="alert" hidden></span>
                         </div>
                     </div>

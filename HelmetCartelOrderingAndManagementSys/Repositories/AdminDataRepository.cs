@@ -188,7 +188,19 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             TotalAmount = reader.GetDecimal(reader.GetOrdinal("TotalAmount")),
                             CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
                             ItemCount = reader.GetInt32(reader.GetOrdinal("ItemCount")),
-                            PaymentStatus = reader.IsDBNull(reader.GetOrdinal("PaymentStatus")) ? "Pending" : reader.GetString(reader.GetOrdinal("PaymentStatus"))
+                            PaymentStatus = reader.IsDBNull(reader.GetOrdinal("PaymentStatus")) ? "Pending" : reader.GetString(reader.GetOrdinal("PaymentStatus")),
+                            PaymentMethod = reader.IsDBNull(reader.GetOrdinal("PaymentMethod")) ? null : reader.GetString(reader.GetOrdinal("PaymentMethod")),
+                            ShippingMethod = reader.IsDBNull(reader.GetOrdinal("ShippingMethod")) ? "Pickup" : reader.GetString(reader.GetOrdinal("ShippingMethod")),
+                            ShippingFee = reader.IsDBNull(reader.GetOrdinal("ShippingFee")) ? 0.00m : reader.GetDecimal(reader.GetOrdinal("ShippingFee")),
+                            ShippingRegion = reader.IsDBNull(reader.GetOrdinal("ShippingRegion")) ? null : reader.GetString(reader.GetOrdinal("ShippingRegion")),
+                            ShippingAddress = reader.IsDBNull(reader.GetOrdinal("ShippingAddress")) ? null : reader.GetString(reader.GetOrdinal("ShippingAddress")),
+                            ShippingBarangay = reader.IsDBNull(reader.GetOrdinal("ShippingBarangay")) ? null : reader.GetString(reader.GetOrdinal("ShippingBarangay")),
+                            ShippingCity = reader.IsDBNull(reader.GetOrdinal("ShippingCity")) ? null : reader.GetString(reader.GetOrdinal("ShippingCity")),
+                            ShippingProvince = reader.IsDBNull(reader.GetOrdinal("ShippingProvince")) ? null : reader.GetString(reader.GetOrdinal("ShippingProvince")),
+                            ShippingPostalCode = reader.IsDBNull(reader.GetOrdinal("ShippingPostalCode")) ? null : reader.GetString(reader.GetOrdinal("ShippingPostalCode")),
+                            Courier = reader.IsDBNull(reader.GetOrdinal("Courier")) ? null : reader.GetString(reader.GetOrdinal("Courier")),
+                            TrackingNumber = reader.IsDBNull(reader.GetOrdinal("TrackingNumber")) ? null : reader.GetString(reader.GetOrdinal("TrackingNumber")),
+                            DeliveryNotes = reader.IsDBNull(reader.GetOrdinal("DeliveryNotes")) ? null : reader.GetString(reader.GetOrdinal("DeliveryNotes"))
                         });
                     }
                 }
@@ -196,7 +208,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             return list;
         }
 
-        public async Task<bool> UpdateOrderStatusAsync(int orderId, string newStatus, string notes = null)
+        public async Task<bool> UpdateOrderStatusAsync(int orderId, string newStatus, string notes = null, string courier = null, string trackingNumber = null)
         {
             using (var connection = (SqlConnection)_factory.CreateConnection())
             using (var command = new SqlCommand("dbo.sp_AdminUpdateOrderStatus", connection))
@@ -205,6 +217,8 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                 command.Parameters.Add(new SqlParameter("@OrderId", SqlDbType.Int) { Value = orderId });
                 command.Parameters.Add(new SqlParameter("@NewStatus", SqlDbType.NVarChar, 50) { Value = newStatus });
                 command.Parameters.Add(new SqlParameter("@Notes", SqlDbType.NVarChar, 500) { Value = (object)notes ?? DBNull.Value });
+                command.Parameters.Add(new SqlParameter("@Courier", SqlDbType.NVarChar, 50) { Value = (object)courier ?? DBNull.Value });
+                command.Parameters.Add(new SqlParameter("@TrackingNumber", SqlDbType.NVarChar, 100) { Value = (object)trackingNumber ?? DBNull.Value });
 
                 await connection.OpenAsync().ConfigureAwait(false);
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);

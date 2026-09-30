@@ -65,7 +65,8 @@ if (root) {
   }
 
   function paymentMethod() {
-    return root.querySelector('input[name="posPayment"]:checked')?.value || APP_CONSTANTS.PAYMENT_METHODS.CASH;
+    const val = root.querySelector('input[name="posPayment"]:checked')?.value;
+    return val === 'Cash' ? APP_CONSTANTS.PAYMENT_METHODS.CASH : APP_CONSTANTS.PAYMENT_METHODS.CARD_POS;
   }
 
   function itemFor(id) { return state.allById.get(Number(id)); }
@@ -96,9 +97,9 @@ if (root) {
       ui.name.value = typeof saved.customerName === 'string' ? saved.customerName.slice(0, 100) : '';
       ui.phone.value = typeof saved.customerPhone === 'string' ? saved.customerPhone.slice(0, 30) : '';
       ui.email.value = typeof saved.customerEmail === 'string' ? saved.customerEmail.slice(0, 256) : '';
-      const method = saved.paymentMethod === APP_CONSTANTS.PAYMENT_METHODS.CARD_POS
-        ? APP_CONSTANTS.PAYMENT_METHODS.CARD_POS : APP_CONSTANTS.PAYMENT_METHODS.CASH;
-      const radio = root.querySelector(`input[name="posPayment"][value="${method}"]`);
+      const method = (saved.paymentMethod === APP_CONSTANTS.PAYMENT_METHODS.CARD_POS || saved.paymentMethod === 'E_Wallet')
+        ? 'E_Wallet' : APP_CONSTANTS.PAYMENT_METHODS.CASH;
+      const radio = root.querySelector(`input[name="posPayment"][value="${method}"]`) || root.querySelector(`input[name="posPayment"][value="E_Wallet"]`);
       if (radio) radio.checked = true;
       renderPayment();
     } catch {
@@ -130,11 +131,15 @@ if (root) {
       const stockText = disabled ? 'Out of stock' : `${available} available`;
       const stockClass = disabled ? 'pos-stock--out' : item.stockStatus === 'low_stock' ? 'pos-stock--low' : '';
       return `<button type="button" class="pos-product-card" data-add-id="${Number(item.variantId)}" ${disabled ? 'disabled' : ''} aria-label="Add ${escapeHtml(item.brand)} ${escapeHtml(item.productName)}, ${escapeHtml(item.color)}, size ${escapeHtml(item.size)} to current sale">
-        <img class="pos-product-image" data-pos-image src="${escapeHtml(safeImage(item.mainImageUrl))}" alt="${escapeHtml(item.productName)}" loading="lazy" />
-        <span class="pos-product-brand">${escapeHtml(item.brand)}</span>
-        <span class="pos-product-name">${escapeHtml(item.productName)}</span>
-        <span class="pos-product-variant">${escapeHtml(item.color)} &middot; ${escapeHtml(item.size)}</span>
-        <span class="pos-product-sku">${escapeHtml(item.sku)}</span>
+        <div class="pos-product-media-wrap">
+          <img class="pos-product-image" data-pos-image src="${escapeHtml(safeImage(item.mainImageUrl))}" alt="${escapeHtml(item.productName)}" loading="lazy" />
+          <span class="pos-card-brand-pill" title="${escapeHtml(item.brand)}">${escapeHtml(item.brand)}</span>
+        </div>
+        <div class="pos-product-info">
+          <span class="pos-product-sku" title="${escapeHtml(item.sku)}">${escapeHtml(item.sku)}</span>
+          <span class="pos-product-name" title="${escapeHtml(item.productName)}">${escapeHtml(item.productName)}</span>
+          <span class="pos-product-variant" title="${escapeHtml(item.color)} · ${escapeHtml(item.size)}">${escapeHtml(item.color)} &middot; ${escapeHtml(item.size)}</span>
+        </div>
         <span class="pos-product-foot"><strong>${money(item.unitPrice)}</strong><span class="pos-stock ${stockClass}">${stockText}</span></span>
       </button>`;
     }).join('');
@@ -191,17 +196,15 @@ if (root) {
         <div class="pos-cart-line-content">
           <div class="pos-cart-line-header">
             <div class="pos-cart-line-title-group">
-              <span class="pos-cart-line-brand">${escapeHtml(item.brand)}</span>
-              <h4 class="pos-cart-line-name">${escapeHtml(item.productName)}</h4>
+              <span class="pos-cart-line-sku-badge" title="${escapeHtml(item.sku)}">${escapeHtml(item.sku)}</span>
+              <h4 class="pos-cart-line-name" title="${escapeHtml(item.productName)}">${escapeHtml(item.productName)}</h4>
             </div>
             <button type="button" class="pos-cart-line-remove" data-remove-id="${id}" aria-label="Remove ${escapeHtml(item.productName)}" title="Remove item">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </button>
           </div>
-          <div class="pos-cart-line-meta">
-            <span class="pos-variant-pill">${escapeHtml(item.color)}</span>
-            <span class="pos-variant-pill pos-variant-pill--size">${escapeHtml(item.size)}</span>
-            <span class="pos-cart-line-sku">${escapeHtml(item.sku)}</span>
+          <div class="pos-cart-line-single-meta" title="${escapeHtml(item.color)} · ${escapeHtml(item.size)}">
+            <span class="pos-cart-line-specs">${escapeHtml(item.color)} &middot; ${escapeHtml(item.size)}</span>
           </div>
           ${quantity > available ? `<div class="pos-stock-warning">Only ${available} available in stock</div>` : ''}
           <div class="pos-cart-line-bottom">
@@ -304,7 +307,7 @@ if (root) {
       setFieldError(ui.cash, ui.cashError, cashError);
       if (cashError) { ui.cash.focus(); return false; }
     } else {
-      const cardError = ui.cardApproved.checked ? '' : 'Confirm the card terminal approved the payment.';
+      const cardError = ui.cardApproved.checked ? '' : 'Confirm the E-Wallet payment was received.';
       setFieldError(ui.cardApproved, ui.cardError, cardError);
       if (cardError) { ui.cardApproved.focus(); return false; }
     }
@@ -319,7 +322,7 @@ if (root) {
     ).join('');
     byId('posReceiptPayment').textContent = method === APP_CONSTANTS.PAYMENT_METHODS.CASH
       ? `Cash received ${money(tendered)} · Change ${money(tendered - Number(order.totalAmount))}`
-      : 'Card terminal payment';
+      : 'E-Wallet payment (GCash / Maya / QR PH)';
     ui.receipt.hidden = false;
     byId('posNewSale').focus();
   }
@@ -383,27 +386,47 @@ if (root) {
     ui.mobileCart.focus();
   }
 
+  function flashLowStockCard(id, message) {
+    const card = ui.grid?.querySelector(`[data-add-id="${id}"]`);
+    if (!card) return;
+    card.classList.remove('has-stock-alert');
+    void card.offsetWidth; // trigger reflow for smooth animation
+    card.classList.add('has-stock-alert');
+
+    // Remove any previous tooltip
+    card.querySelector('.pos-card-stock-tooltip')?.remove();
+    const tip = document.createElement('span');
+    tip.className = 'pos-card-stock-tooltip';
+    tip.textContent = message || 'Low Stock';
+    card.appendChild(tip);
+
+    setTimeout(() => {
+      card.classList.remove('has-stock-alert');
+      tip.remove();
+    }, 2500);
+  }
+
   function addToCart(variantId) {
     const id = Number(variantId);
     const item = itemFor(id);
     if (!item) {
-      showError('Product variant could not be found.');
+      showToast('Product variant could not be found.', 'error', 'Not Found');
       return false;
     }
     const currentQty = state.cart.get(id) || 0;
     const available = Number(item.availableStock || 0);
     if (available <= 0) {
-      showError(`${item.productName} is currently out of stock.`);
-      showToast(`${item.productName} is out of stock.`, 'warning', 'Out of Stock');
+      flashLowStockCard(id, 'Out of stock');
+      showToast(`${item.brand} ${item.productName} is currently out of stock.`, 'warning', 'Out of Stock');
       return false;
     }
     if (currentQty + 1 > available) {
-      showError(`Cannot add more. Only ${available} units available in stock.`);
-      showToast(`Cannot add more. Only ${available} available.`, 'warning', 'Stock Limit');
+      flashLowStockCard(id, `Max ${available} in stock`);
+      showToast(`Cannot add more. Only ${available} units available in stock.`, 'warning', 'Stock Limit');
       return false;
     }
     state.cart.set(id, currentQty + 1);
-    showError('');
+    showError(''); // Keep header clean of item errors
     saveSale();
     renderCart();
     showToast(`${item.brand} ${item.productName} (${item.color} / ${item.size}) x1 added to Current Sale.`, 'success', 'Added to Sale');

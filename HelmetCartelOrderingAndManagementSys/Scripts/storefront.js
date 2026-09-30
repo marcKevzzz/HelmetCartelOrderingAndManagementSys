@@ -510,9 +510,29 @@ export const Storefront = {
     let selectedBrand = params.get('brand') || 'all';
 
     document.querySelectorAll('.filter-accordion-header').forEach(header => {
-      header.addEventListener('click', () => {
-        header.classList.toggle('is-collapsed');
-        header.nextElementSibling?.classList.toggle('is-hidden');
+      const sectionName = header.textContent.trim().toLowerCase();
+      const storageKey = `hc_filter_collapsed_${sectionName}`;
+      if (sessionStorage.getItem(storageKey) === 'true') {
+        header.classList.add('is-collapsed');
+        header.nextElementSibling?.classList.add('is-hidden');
+        header.setAttribute('aria-expanded', 'false');
+      } else {
+        header.setAttribute('aria-expanded', 'true');
+      }
+
+      const toggleSection = () => {
+        const isCollapsed = header.classList.toggle('is-collapsed');
+        header.nextElementSibling?.classList.toggle('is-hidden', isCollapsed);
+        header.setAttribute('aria-expanded', String(!isCollapsed));
+        sessionStorage.setItem(storageKey, String(isCollapsed));
+      };
+
+      header.addEventListener('click', toggleSection);
+      header.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggleSection();
+        }
       });
     });
 

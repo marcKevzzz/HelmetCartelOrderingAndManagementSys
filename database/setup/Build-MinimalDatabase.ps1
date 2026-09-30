@@ -5,7 +5,7 @@ This only writes a SQL file; it does not connect to or modify SQL Server.
 [CmdletBinding()]
 param(
     [ValidatePattern('^[A-Za-z][A-Za-z0-9_]{0,127}$')]
-    [string]$DatabaseName = 'HelmetCartelMinimalDB'
+    [string]$DatabaseName = 'HelmetCartelDB'
 )
 $ErrorActionPreference = 'Stop'
 $databaseRoot = Split-Path $PSScriptRoot -Parent
@@ -30,6 +30,7 @@ $files = @(
     'schema/15_catalog_enhancements.sql',
     'schema/16_pos_global_search.sql',
     'schema/17_active_catalog_visibility.sql',
+    'schema/18_delivery_fulfillment_migration.sql',
     'setup/minimal_seed.sql',
     'setup/dashboard_sample_data.sql'
 )

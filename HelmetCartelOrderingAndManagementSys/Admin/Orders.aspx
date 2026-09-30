@@ -29,6 +29,7 @@
                     <asp:LinkButton ID="btnTabAll" runat="server" CssClass="admin-tab-btn" CommandArgument="all" OnClick="FilterTab_Click">All</asp:LinkButton>
                     <asp:LinkButton ID="btnTabProcessing" runat="server" CssClass="admin-tab-btn" CommandArgument="Processing" OnClick="FilterTab_Click">Processing</asp:LinkButton>
                     <asp:LinkButton ID="btnTabReady" runat="server" CssClass="admin-tab-btn" CommandArgument="ReadyForPickup" OnClick="FilterTab_Click">Ready for Pickup</asp:LinkButton>
+                    <asp:LinkButton ID="btnTabShipped" runat="server" CssClass="admin-tab-btn" CommandArgument="Shipped" OnClick="FilterTab_Click">Shipped</asp:LinkButton>
                     <asp:LinkButton ID="btnTabCompleted" runat="server" CssClass="admin-tab-btn" CommandArgument="Completed" OnClick="FilterTab_Click">Completed</asp:LinkButton>
                     <asp:LinkButton ID="btnTabPending" runat="server" CssClass="admin-tab-btn" CommandArgument="PendingPayment" OnClick="FilterTab_Click">Pending Payment</asp:LinkButton>
                 </div>
@@ -39,7 +40,7 @@
                 </div>
             </div>
 
-            <!-- Table Top Metadata (Replaces Status Count Tag) -->
+            <!-- Table Top Metadata -->
             <div class="admin-meta-top">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="admin-meta-top-icon">
                     <circle cx="12" cy="12" r="10"></circle>
@@ -56,12 +57,13 @@
                     <col class="col-order-num" />
                     <col class="col-customer" />
                     <col class="col-contacts" />
-                    <col style="min-width: 120px;" />
-                    <col style="min-width: 75px; width: 75px;" />
+                    <col style="min-width: 140px;" />
+                    <col style="min-width: 110px;" />
+                    <col style="min-width: 65px; width: 65px;" />
                     <col class="col-price" />
                     <col class="col-status" />
-                    <col style="min-width: 120px; width: 170px;" />
-                    <col style="min-width: 140px; width: 180px;" />
+                    <col style="min-width: 130px; width: 150px;" />
+                    <col style="min-width: 140px; width: 170px;" />
                     <col class="col-actions" />
                 </colgroup>
                 <thead>
@@ -69,6 +71,7 @@
                         <th>Order #</th>
                         <th>Customer</th>
                         <th>Contact</th>
+                        <th>Fulfillment</th>
                         <th>Source</th>
                         <th>Items</th>
                         <th>Total</th>
@@ -97,6 +100,9 @@
                                     </div>
                                 </td>
                                 <td>
+                                    <%# RenderFulfillmentCell(Convert.ToString(Eval("ShippingMethod")), Convert.ToString(Eval("ShippingRegion")), Convert.ToString(Eval("Courier")), Convert.ToString(Eval("TrackingNumber"))) %>
+                                </td>
+                                <td>
                                     <%# RenderSourceBadge(Convert.ToString(Eval("OrderSource"))) %>
                                 </td>
                                 <td>
@@ -106,7 +112,7 @@
                                     <span class="admin-cell-price">&#8369;<%# Convert.ToDecimal(Eval("TotalAmount")).ToString("N2") %></span>
                                 </td>
                                 <td>
-                                    <%# RenderPaymentBadge(Convert.ToString(Eval("PaymentStatus"))) %>
+                                    <%# RenderPaymentBadge(Convert.ToString(Eval("PaymentStatus")), Convert.ToString(Eval("PaymentMethod"))) %>
                                 </td>
                                 <td>
                                     <%# RenderStatusBadge(Convert.ToString(Eval("Status"))) %>
@@ -116,20 +122,20 @@
                                 </td>
                                 <td class="admin-table-align-right">
                                     <div class="admin-actions-cell" style="justify-content: flex-end;">
-                                        <%# RenderTransitionButton(Convert.ToInt32(Eval("Id")), Convert.ToString(Eval("Status")), Convert.ToString(Eval("PaymentStatus"))) %>
+                                        <%# RenderTransitionButton(Convert.ToInt32(Eval("Id")), Convert.ToString(Eval("Status")), Convert.ToString(Eval("PaymentStatus")), Convert.ToString(Eval("ShippingMethod")), Convert.ToDecimal(Eval("TotalAmount")), Convert.ToString(Eval("PaymentMethod")), Convert.ToString(Eval("OrderNumber")), Convert.ToString(Eval("CustomerName")), Convert.ToString(Eval("ShippingCity"))) %>
                                     </div>
                                 </td>
                             </tr>
                         </ItemTemplate>
                         <FooterTemplate>
-                            <%# rptOrders.Items.Count == 0 ? "<tr><td colspan='10'><div class='admin-empty-state'><div class='admin-empty-title'>No Orders Found</div><p>No orders match the current status filter or search criteria.</p></div></td></tr>" : "" %>
+                            <%# rptOrders.Items.Count == 0 ? "<tr><td colspan='11'><div class='admin-empty-state'><div class='admin-empty-title'>No Orders Found</div><p>No orders match the current status filter or search criteria.</p></div></td></tr>" : "" %>
                         </FooterTemplate>
                     </asp:Repeater>
                 </tbody>
             </table>
         </div>
 
-        <!-- Centered Pagination (Requirement 3: 1 2 ... 8 9 or 1 2 3 4) -->
+        <!-- Centered Pagination -->
         <asp:Panel ID="pnlOrdersPagination" runat="server" CssClass="admin-pagination-container" Visible="false">
             <div class="admin-pagination">
                 <asp:LinkButton ID="lnkOrdersPrev" runat="server" CssClass="admin-pagination-btn" OnClick="OrdersPage_Change" CommandArgument="prev">
@@ -158,4 +164,114 @@
             </div>
         </asp:Panel>
     </div>
+
+    <!-- Admin Order Dispatch Modal -->
+    <div class="admin-modal-backdrop" id="dispatchModalBackdrop" style="display: none;">
+        <div class="admin-modal admin-modal--sm" role="dialog" aria-modal="true" aria-labelledby="dispatchModalTitle">
+            <div class="admin-modal-header">
+                <h3 class="admin-modal-title" id="dispatchModalTitle">Dispatch Delivery Order</h3>
+                <button type="button" class="admin-modal-close-btn" onclick="closeDispatchModal()" aria-label="Close modal">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <input type="hidden" id="dispatchOrderId" />
+                <p class="admin-cell-mono-muted" id="dispatchOrderSummaryText">Order Reference</p>
+
+                <div class="admin-form-group" style="margin-top: 12px;">
+                    <label class="admin-form-label" for="dispatchCourier">Courier Partner *</label>
+                    <select id="dispatchCourier" class="admin-form-select">
+                        <option value="J&amp;T Express" selected>J&amp;T Express</option>
+                        <option value="Lalamove">Lalamove</option>
+                        <option value="Grab Express">Grab Express</option>
+                        <option value="Ninjavan">Ninjavan</option>
+                        <option value="Flash Express">Flash Express</option>
+                        <option value="Other">Other / In-House Courier</option>
+                    </select>
+                </div>
+
+                <div class="admin-form-group" style="margin-top: 12px;">
+                    <label class="admin-form-label" for="dispatchTrackingNumber">Waybill / Tracking Number *</label>
+                    <input type="text" id="dispatchTrackingNumber" class="admin-form-input" placeholder="e.g. JT782910482910" />
+                    <span class="inline-error-msg" id="err-dispatch-tracking" style="display: none; color: var(--color-accent-red); font-size: 0.8rem; margin-top: 4px;"></span>
+                </div>
+
+                <div class="admin-form-group" style="margin-top: 12px;">
+                    <label class="admin-form-label" for="dispatchNotes">Dispatch Notes (Optional)</label>
+                    <input type="text" id="dispatchNotes" class="admin-form-input" placeholder="e.g. Handed to rider, parcel sealed" />
+                </div>
+            </div>
+            <div class="admin-modal-footer admin-modal-actions-right" style="margin-top: 16px;">
+                <button type="button" class="btn-pill btn-pill--outline" onclick="closeDispatchModal()">Cancel</button>
+                <button type="button" class="btn-pill btn-pill--primary" id="btnConfirmDispatch" onclick="confirmDispatch()">
+                    <span>Confirm Dispatch</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openDispatchModal(orderId, orderNo, customerName, city) {
+            document.getElementById('dispatchOrderId').value = orderId;
+            document.getElementById('dispatchOrderSummaryText').textContent = `Order: ${orderNo} • Customer: ${customerName} • Destination: ${city}`;
+            document.getElementById('dispatchTrackingNumber').value = '';
+            document.getElementById('dispatchNotes').value = '';
+            const errSpan = document.getElementById('err-dispatch-tracking');
+            if (errSpan) {
+                errSpan.textContent = '';
+                errSpan.style.display = 'none';
+            }
+            document.getElementById('dispatchModalBackdrop').style.display = 'flex';
+        }
+
+        function closeDispatchModal() {
+            document.getElementById('dispatchModalBackdrop').style.display = 'none';
+        }
+
+        async function confirmDispatch() {
+            const orderId = document.getElementById('dispatchOrderId').value;
+            const courier = document.getElementById('dispatchCourier').value;
+            const tracking = document.getElementById('dispatchTrackingNumber').value.trim();
+            const notes = document.getElementById('dispatchNotes').value.trim();
+
+            if (!tracking) {
+                const errSpan = document.getElementById('err-dispatch-tracking');
+                if (errSpan) {
+                    errSpan.textContent = 'Waybill or tracking number is required.';
+                    errSpan.style.display = 'block';
+                }
+                document.getElementById('dispatchTrackingNumber').focus();
+                return;
+            }
+
+            const btn = document.getElementById('btnConfirmDispatch');
+            btn.disabled = true;
+            btn.innerHTML = '<span>Dispatching...</span>';
+
+            try {
+                const token = localStorage.getItem('hc_auth_token') || sessionStorage.getItem('hc_auth_token');
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = 'Bearer ' + token;
+
+                const response = await fetch(`/api/v1/admin/orders/${orderId}/dispatch`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({ courier: courier, trackingNumber: tracking, notes: notes })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.message || 'Failed to dispatch order.');
+                }
+
+                closeDispatchModal();
+                if (window.AdminToast) {
+                    AdminToast.show(`Order dispatched via ${courier} (${tracking})`, 'success');
+                }
+                setTimeout(() => window.location.reload(), 600);
+            } catch (err) {
+                alert(err.message || 'Dispatch error');
+                btn.disabled = false;
+                btn.innerHTML = '<span>Confirm Dispatch</span>';
+            }
+        }
+    </script>
 </asp:Content>

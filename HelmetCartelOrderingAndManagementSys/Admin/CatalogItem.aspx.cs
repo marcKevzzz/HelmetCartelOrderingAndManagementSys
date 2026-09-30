@@ -490,18 +490,34 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                         }
                     }
 
-                    // If new variant and initial stock specified, record initial stock
+                    // If new variant and initial stock specified, record initial stock only if inventory is fresh (stock is 0)
                     if (variantId == 0 && savedVariantId > 0 && initialStock > 0)
                     {
-                        using (var cmdStock = new SqlCommand("dbo.sp_AdminAdjustStock", connection))
+                        bool isFreshInventory = false;
+                        using (var cmdCheck = new SqlCommand("SELECT CurrentStock FROM dbo.Inventories WHERE VariantId = @VId", connection))
                         {
-                            cmdStock.CommandType = CommandType.StoredProcedure;
-                            cmdStock.Parameters.Add(new SqlParameter("@VariantId", SqlDbType.Int) { Value = savedVariantId });
-                            cmdStock.Parameters.Add(new SqlParameter("@QuantityChanged", SqlDbType.Int) { Value = initialStock });
-                            cmdStock.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = DBNull.Value });
-                            cmdStock.Parameters.Add(new SqlParameter("@ReferenceNumber", SqlDbType.NVarChar, 100) { Value = "INITIAL_SETUP" });
-                            cmdStock.Parameters.Add(new SqlParameter("@Notes", SqlDbType.NVarChar, 500) { Value = "Initial stock entry on catalog creation" });
-                            await cmdStock.ExecuteNonQueryAsync().ConfigureAwait(false);
+                            cmdCheck.Parameters.Add(new SqlParameter("@VId", SqlDbType.Int) { Value = savedVariantId });
+                            var curVal = await cmdCheck.ExecuteScalarAsync().ConfigureAwait(false);
+                            if (curVal != null && curVal != DBNull.Value && Convert.ToInt32(curVal) == 0)
+                            {
+                                isFreshInventory = true;
+                            }
+                        }
+
+                        if (isFreshInventory)
+                        {
+                            using (var cmdStock = new SqlCommand("dbo.sp_AdminAdjustStock", connection))
+                            {
+                                cmdStock.CommandType = CommandType.StoredProcedure;
+                                cmdStock.Parameters.Add(new SqlParameter("@VariantId", SqlDbType.Int) { Value = savedVariantId });
+                                cmdStock.Parameters.Add(new SqlParameter("@QuantityChanged", SqlDbType.Int) { Value = initialStock });
+                                cmdStock.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = DBNull.Value });
+                                cmdStock.Parameters.Add(new SqlParameter("@ReferenceNumber", SqlDbType.NVarChar, 100) { Value = "INITIAL_SETUP" });
+                                cmdStock.Parameters.Add(new SqlParameter("@Notes", SqlDbType.NVarChar, 500) { Value = "Initial stock entry on catalog creation" });
+                                var newStockParam = new SqlParameter("@NewStock", SqlDbType.Int) { Direction = ParameterDirection.Output };
+                                cmdStock.Parameters.Add(newStockParam);
+                                await cmdStock.ExecuteNonQueryAsync().ConfigureAwait(false);
+                            }
                         }
                     }
                 }

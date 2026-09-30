@@ -88,6 +88,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2. Keyboard Shortcut (Ctrl+K or Cmd+K) to focus search
   const searchInput = document.getElementById('adminGlobalSearch') || document.querySelector('.admin-topbar-search-input');
   const searchDropdown = document.getElementById('adminSearchDropdown');
+  const searchClear = document.getElementById('adminSearchClear');
+  const shortcutPill = document.getElementById('adminSearchShortcut') || document.querySelector('.admin-topbar-shortcut-pill');
+
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  if (shortcutPill) {
+    shortcutPill.textContent = isMac ? '\u2318+K' : 'Ctrl+K';
+  }
+
+  const syncAdminSearchButtons = () => {
+    const hasVal = !!(searchInput && searchInput.value.trim().length > 0);
+    if (searchClear) searchClear.style.display = hasVal ? 'inline-flex' : 'none';
+    if (shortcutPill) shortcutPill.style.display = hasVal ? 'none' : 'inline-flex';
+  };
 
   if (searchInput) {
     const urlParams = new URLSearchParams(window.location.search);
@@ -95,13 +108,45 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activeSearchQuery && !searchInput.value) {
       searchInput.value = activeSearchQuery;
     }
+    syncAdminSearchButtons();
+  }
+
+  if (searchClear && searchInput) {
+    searchClear.addEventListener('click', () => {
+      searchInput.value = '';
+      syncAdminSearchButtons();
+      if (searchDropdown) {
+        searchDropdown.style.display = 'none';
+        searchDropdown.innerHTML = '';
+      }
+      // Dispatch input event to refresh table/POS search
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+      // Also reset any filter dropdowns on the active page (POS, Inventory, Catalog, Orders)
+      const filterSelectors = ['#posBrand', '#posCategory', '#filterBrand', '#filterCategory', '#filterStatus', '#filterStockStatus', '#filterSource'];
+      let hadFilters = false;
+      filterSelectors.forEach(sel => {
+        const el = document.querySelector(sel);
+        if (el && el.value !== '') {
+          el.value = '';
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          hadFilters = true;
+        }
+      });
+
+      searchInput.focus();
+    });
   }
 
   window.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-      e.preventDefault();
-      searchInput?.focus();
-      searchInput?.select();
+      const activeEl = document.activeElement;
+      const isOtherInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl !== searchInput;
+      if (!isOtherInput) {
+        e.preventDefault();
+        searchInput?.focus();
+        searchInput?.select();
+      }
     }
   });
 
@@ -177,6 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     searchInput.addEventListener('input', (e) => {
+      syncAdminSearchButtons();
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => performSearch(e.target.value), 220);
     });
@@ -528,6 +574,14 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         updateCalculatedStock();
         txtDelta.oninput = updateCalculatedStock;
+      }
+      window.isStockAdjustSubmitting = false;
+      const submitBtn = document.getElementById('MainContent_btnSubmitStockAdjust') || document.getElementById('btnSubmitStockAdjust');
+      if (submitBtn) {
+        submitBtn.style.pointerEvents = '';
+        submitBtn.style.opacity = '';
+        if (submitBtn.tagName === 'INPUT') submitBtn.value = 'Add Stock';
+        else submitBtn.textContent = 'Add Stock';
       }
       stockModalSnapshot = getStockModalSnapshot();
       stockModalDirty = false;

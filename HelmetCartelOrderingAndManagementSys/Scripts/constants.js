@@ -25,17 +25,44 @@ export const APP_CONSTANTS = Object.freeze({
     PENDING_PAYMENT: 'PendingPayment',
     PROCESSING: 'Processing',
     READY_FOR_PICKUP: 'ReadyForPickup',
+    SHIPPED: 'Shipped',
+    DELIVERED: 'Delivered',
     COMPLETED: 'Completed',
     CANCELLED: 'Cancelled'
+  },
+
+  SHIPPING_METHODS: {
+    PICKUP: 'Pickup',
+    DELIVERY: 'Delivery'
+  },
+
+  COURIERS: {
+    JT: 'J&T Express',
+    LBC: 'LBC Express',
+    FLASH: 'Flash Express',
+    LALAMOVE: 'Lalamove',
+    GRAB: 'Grab Express',
+    OTHER: 'Other Courier'
+  },
+
+  SHIPPING_TIERS: {
+    NCR: { name: 'Metro Manila (NCR)', fee: 150, eta: '1 - 2 Business Days' },
+    GMA: { name: 'Greater Manila Area', fee: 250, eta: '2 - 3 Business Days' },
+    LUZON: { name: 'Rest of Luzon', fee: 350, eta: '3 - 5 Business Days' },
+    VISAYAS: { name: 'Visayas', fee: 450, eta: '5 - 7 Business Days' },
+    MINDANAO: { name: 'Mindanao & Island Provinces', fee: 500, eta: '5 - 8 Business Days' },
+    PICKUP: { name: 'Store Pickup (QC Hub)', fee: 0, eta: 'Ready in 1 - 2 Hours' }
   },
 
   PAYMENT_METHODS: {
     HITPAY: 'HitPay',
     CASH: 'Cash',
-    CARD_POS: 'Card_POS'
+    CARD_POS: 'Card_POS',
+    CASH_ON_DELIVERY: 'CashOnDelivery'
   },
 
   PAYMENT_STATUS: {
+    PENDING: 'Pending',
     COMPLETED: 'Completed'
   },
 

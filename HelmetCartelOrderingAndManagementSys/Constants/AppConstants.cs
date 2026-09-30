@@ -20,6 +20,8 @@ namespace HelmetCartelOrderingAndManagementSys.Constants
             public const string PendingPayment = "PendingPayment";
             public const string Processing = "Processing";
             public const string ReadyForPickup = "ReadyForPickup";
+            public const string Shipped = "Shipped";
+            public const string Delivered = "Delivered";
             public const string Completed = "Completed";
             public const string Cancelled = "Cancelled";
         }
@@ -30,11 +32,44 @@ namespace HelmetCartelOrderingAndManagementSys.Constants
             public const string InStorePos = "INSTORE_POS";
         }
 
+        public static class ShippingMethods
+        {
+            public const string Pickup = "Pickup";
+            public const string Delivery = "Delivery";
+        }
+
+        public static class Couriers
+        {
+            public const string JAndT = "J&T Express";
+            public const string Lbc = "LBC Express";
+            public const string Flash = "Flash Express";
+            public const string Lalamove = "Lalamove";
+            public const string Grab = "Grab Express";
+            public const string Other = "Other Courier";
+        }
+
+        public static class ShippingTiers
+        {
+            public const string MetroManila = "Metro Manila (NCR)";
+            public const string GreaterManila = "Greater Manila Area";
+            public const string RestOfLuzon = "Rest of Luzon";
+            public const string Visayas = "Visayas";
+            public const string Mindanao = "Mindanao & Island Provinces";
+
+            public const decimal FeeMetroManila = 150.00m;
+            public const decimal FeeGreaterManila = 250.00m;
+            public const decimal FeeRestOfLuzon = 350.00m;
+            public const decimal FeeVisayas = 450.00m;
+            public const decimal FeeMindanao = 500.00m;
+            public const decimal FeePickup = 0.00m;
+        }
+
         public static class PaymentGateways
         {
             public const string HitPay = "HitPay";
             public const string Cash = "Cash";
             public const string CardPos = "Card_POS";
+            public const string CashOnDelivery = "CashOnDelivery";
         }
 
         public static class PaymentStatus

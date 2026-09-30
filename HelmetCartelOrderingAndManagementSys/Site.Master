@@ -73,8 +73,9 @@
                         </svg>
                     </span>
                     <input type="text" class="nav-search__input" id="nav-search-input" placeholder="Search for helmets, visors, gear..." autocomplete="off" />
+                    <span class="nav-search__shortcut" id="nav-search-shortcut">&#8984;+K</span>
                     <button type="button" class="nav-search__clear" id="nav-search-clear" aria-label="Clear search query">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>

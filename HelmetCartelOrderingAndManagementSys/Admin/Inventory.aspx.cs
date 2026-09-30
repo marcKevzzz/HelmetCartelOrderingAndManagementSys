@@ -389,6 +389,18 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             string reference = string.IsNullOrWhiteSpace(txtAdjustReference.Value) ? "STOCK-IN" : txtAdjustReference.Value.Trim();
             string notes = $"Stock In ({reason}): {reference}";
 
+            // Server-side duplicate submission / double-click protection (3.5s window)
+            string adjustFingerprint = $"StockIn_{variantId}_{delta}_{reason}_{reference}";
+            if (HttpContext.Current?.Cache != null)
+            {
+                if (HttpContext.Current.Cache[adjustFingerprint] != null)
+                {
+                    System.Diagnostics.Trace.TraceWarning($"Ignoring duplicate stock-in request for variant {variantId} within debounce window.");
+                    return;
+                }
+                HttpContext.Current.Cache.Insert(adjustFingerprint, true, null, DateTime.UtcNow.AddSeconds(3.5), System.Web.Caching.Cache.NoSlidingExpiration);
+            }
+
             RegisterAsyncTask(new PageAsyncTask(async () =>
             {
                 try

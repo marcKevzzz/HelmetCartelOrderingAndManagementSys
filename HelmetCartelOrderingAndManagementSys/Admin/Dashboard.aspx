@@ -112,7 +112,6 @@
                     <h2 class="admin-chart-title">Recent Activity Feed</h2>
                     <span class="admin-chart-subtitle">Live audit logs of orders placed, status updates, and inventory movements</span>
                 </div>
-                <a href="/Admin/Orders.aspx" class="admin-nav-link admin-nav-link--inline">All Orders &rarr;</a>
             </div>
             <ul class="admin-activity-list">
                 <asp:Repeater ID="rptRecentActivity" runat="server">
@@ -127,8 +126,10 @@
                             </div>
                             <div class="admin-activity-content">
                                 <div class="admin-activity-heading">
-                                    <span class="admin-activity-actor"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "actor"))) %></span>
-                                    <span class="admin-activity-type"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "activityType"))) %></span>
+                                    <div class="admin-activity-heading-left">
+                                        <span class="admin-activity-actor"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "actor"))) %></span>
+                                        <span class="admin-activity-type"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "activityType"))) %></span>
+                                    </div>
                                     <span class="admin-activity-time"><%# FormatActivityTime(GetActivityValue(Container.DataItem, "createdAt")) %></span>
                                 </div>
                                 <div class="admin-activity-detail-card">

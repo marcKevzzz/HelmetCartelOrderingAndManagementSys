@@ -165,6 +165,18 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public System.DateTime CreatedAt { get; set; }
         public int ItemCount { get; set; }
         public string PaymentStatus { get; set; }
+        public string PaymentMethod { get; set; }
+        public string ShippingMethod { get; set; } = "Pickup";
+        public decimal ShippingFee { get; set; }
+        public string ShippingRegion { get; set; }
+        public string ShippingAddress { get; set; }
+        public string ShippingBarangay { get; set; }
+        public string ShippingCity { get; set; }
+        public string ShippingProvince { get; set; }
+        public string ShippingPostalCode { get; set; }
+        public string Courier { get; set; }
+        public string TrackingNumber { get; set; }
+        public string DeliveryNotes { get; set; }
     }
 
     public sealed class AdminCatalogItemDto

@@ -2,7 +2,7 @@
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
     <link rel="stylesheet" href="<%= ResolveUrl("~/Content/css/storefront.css?v=7") %>" />
-    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/css/checkout.css?v=2") %>" />
+    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/css/checkout.css?v=3") %>" />
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
@@ -26,7 +26,7 @@
                 <div class="step-circle" id="step-circle-1">1</div>
                 <div class="step-meta">
                     <span class="step-label">Step 1</span>
-                    <span class="step-title">Customer &amp; Pickup</span>
+                    <span class="step-title">Customer &amp; Fulfillment</span>
                 </div>
             </div>
             <div class="step-connector" id="step-connector-1"></div>
@@ -51,11 +51,12 @@
         <div class="checkout-grid" id="checkout-interactive-grid">
             <!-- Left Main Column: Step Panels -->
             <div class="checkout-main">
-                <!-- STEP 1: Customer Contact & Store Pickup -->
+                <!-- STEP 1: Customer Contact & Fulfillment Method -->
                 <div class="checkout-panel is-active" id="panel-step-1">
-                    <h2 class="checkout-panel__title">Customer &amp; In-Store Pickup Details</h2>
-                    <p class="checkout-panel__subtitle">Enter your contact details to reserve your helmet for direct store collection.</p>
+                    <h2 class="checkout-panel__title">Customer &amp; Fulfillment Details</h2>
+                    <p class="checkout-panel__subtitle">Enter your contact info and choose store pickup or door-to-door courier delivery.</p>
 
+                    <!-- Contact Details -->
                     <div class="form-section">
                         <h3 class="form-section-title">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -90,24 +91,100 @@
                         </div>
                     </div>
 
+                    <!-- Fulfillment Method Selection -->
                     <div class="form-section">
                         <h3 class="form-section-title">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                                <circle cx="12" cy="10" r="3"></circle>
+                                <rect x="1" y="3" width="15" height="13"></rect>
+                                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                                <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                                <circle cx="18.5" cy="18.5" r="2.5"></circle>
                             </svg>
-                            Store Collection Location
+                            Fulfillment Method
                         </h3>
                         <div class="shipping-options-list">
-                            <div class="shipping-card is-selected" data-shipping-method="pickup" data-shipping-cost="0">
+                            <!-- In-Store Pickup -->
+                            <div class="shipping-card is-selected" id="option-fulfillment-pickup" data-fulfillment="pickup" data-shipping-cost="0">
                                 <div class="shipping-card__left">
                                     <div class="shipping-card__radio"></div>
                                     <div>
-                                        <div class="shipping-card__title">Helmet Cartel Flagship Hub (Quezon City)</div>
-                                        <div class="shipping-card__desc">128 Commonwealth Ave, QC &bull; Mon - Sat: 9:00 AM - 7:00 PM &bull; Complimentary helmet fitting &amp; visor check</div>
+                                        <div class="shipping-card__title">In-Store Pickup <span class="shipping-card__badge">Flagship Store</span></div>
+                                        <div class="shipping-card__desc">Helmet Cartel Flagship Hub &bull; 128 Commonwealth Ave, QC &bull; Free helmet fitting &amp; visor check</div>
                                     </div>
                                 </div>
                                 <div class="shipping-card__price">FREE</div>
+                            </div>
+
+                            <!-- Courier Delivery -->
+                            <div class="shipping-card" id="option-fulfillment-delivery" data-fulfillment="delivery" data-shipping-cost="150">
+                                <div class="shipping-card__left">
+                                    <div class="shipping-card__radio"></div>
+                                    <div>
+                                        <div class="shipping-card__title">Door-to-Door Courier Delivery <span class="shipping-card__badge">Nationwide</span></div>
+                                        <div class="shipping-card__desc">Insured nationwide delivery via J&amp;T Express, Lalamove, or Grab Express</div>
+                                    </div>
+                                </div>
+                                <div class="shipping-card__price" id="card-delivery-price-text">&#8369;150</div>
+                            </div>
+                        </div>
+
+                        <!-- Delivery Address Form (Visible when Delivery is selected) -->
+                        <div class="delivery-address-section is-hidden" id="delivery-address-section">
+                            <h4 class="form-section-title">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                    <circle cx="12" cy="10" r="3"></circle>
+                                </svg>
+                                Delivery Destination &amp; Philippine Shipping Address
+                            </h4>
+
+                            <div class="form-group">
+                                <label class="form-label" for="ship-region">Delivery Region / Destination *</label>
+                                <select class="form-select" id="ship-region">
+                                    <option value="NCR" data-fee="150" data-eta="1-2 Business Days" selected>Metro Manila (NCR) &mdash; &#8369;150 (1&ndash;2 Business Days)</option>
+                                    <option value="GMA" data-fee="250" data-eta="2-3 Business Days">Greater Manila Area (Cavite, Laguna, Rizal, Bulacan) &mdash; &#8369;250 (2&ndash;3 Days)</option>
+                                    <option value="Luzon" data-fee="350" data-eta="3-5 Business Days">Rest of Luzon &mdash; &#8369;350 (3&ndash;5 Days)</option>
+                                    <option value="Visayas" data-fee="450" data-eta="5-7 Business Days">Visayas (Cebu, Iloilo, Bacolod, etc.) &mdash; &#8369;450 (5&ndash;7 Days)</option>
+                                    <option value="Mindanao" data-fee="500" data-eta="5-8 Business Days">Mindanao (Davao, CDO, GenSan, etc.) &mdash; &#8369;500 (5&ndash;8 Days)</option>
+                                </select>
+                                <span class="inline-error-msg" id="err-ship-region"></span>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="ship-address">Street Address / House / Unit / Building *</label>
+                                <input type="text" class="form-input" id="ship-address" placeholder="Unit 4B, Emerald Tower, 15 F. Ortigas Jr. Rd" />
+                                <span class="inline-error-msg" id="err-ship-address"></span>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label" for="ship-barangay">Barangay *</label>
+                                    <input type="text" class="form-input" id="ship-barangay" placeholder="San Antonio" />
+                                    <span class="inline-error-msg" id="err-ship-barangay"></span>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="ship-city">City / Municipality *</label>
+                                    <input type="text" class="form-input" id="ship-city" placeholder="Pasig City" />
+                                    <span class="inline-error-msg" id="err-ship-city"></span>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label" for="ship-province">Province *</label>
+                                    <input type="text" class="form-input" id="ship-province" placeholder="Metro Manila" />
+                                    <span class="inline-error-msg" id="err-ship-province"></span>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="ship-postal-code">Postal / ZIP Code *</label>
+                                    <input type="text" class="form-input" id="ship-postal-code" placeholder="1600" maxlength="10" />
+                                    <span class="inline-error-msg" id="err-ship-postal-code"></span>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="ship-notes">Delivery Landmarks / Rider Instructions (Optional)</label>
+                                <input type="text" class="form-input" id="ship-notes" placeholder="Near Petron station, black gate, leave at guard lobby if not home" />
                             </div>
                         </div>
                     </div>
@@ -132,7 +209,7 @@
                 <!-- STEP 2: Payment Method -->
                 <div class="checkout-panel" id="panel-step-2">
                     <h2 class="checkout-panel__title">Choose Payment Method</h2>
-                    <p class="checkout-panel__subtitle">All payments are encrypted, PCI-DSS compliant, and protected by HitPay escrow security.</p>
+                    <p class="checkout-panel__subtitle">All online payments are encrypted and protected by HitPay escrow security.</p>
 
                     <div class="payment-methods-grid">
                         <!-- Option 1: HitPay E-Wallets & QR PH -->
@@ -158,52 +235,40 @@
                             </div>
                         </div>
 
-                        <!-- Option 2: Credit / Debit Card -->
-                        <div class="payment-method-card" data-payment="card">
+                        <!-- Option 2: Cash on Delivery (COD) - For Delivery Orders -->
+                        <div class="payment-method-card is-hidden" id="payment-cod-card" data-payment="cod">
                             <div class="payment-method-header">
                                 <div class="payment-method-title-wrap">
                                     <div class="shipping-card__radio"></div>
                                     <div>
-                                        <div class="shipping-card__title">Credit / Debit Card</div>
-                                        <div class="shipping-card__desc">Visa, Mastercard, JCB, American Express</div>
+                                        <div class="shipping-card__title">Cash on Delivery (COD)</div>
+                                        <div class="shipping-card__desc">Pay exact cash to the courier rider upon parcel handover</div>
                                     </div>
                                 </div>
-                                <div class="payment-icons">
-                                    <span class="payment-icon-pill">VISA</span>
-                                    <span class="payment-icon-pill">MC</span>
-                                </div>
+                                <span class="delivery-badge-pill">COD Available</span>
                             </div>
                             <div class="payment-method-details">
-                                <div class="form-row form-row--full">
-                                    <div class="form-group">
-                                        <label class="form-label" for="card-holder">Name on Card *</label>
-                                        <input type="text" class="form-input" id="card-holder" placeholder="Juan Dela Cruz" />
-                                        <span class="inline-error-msg" id="err-card-holder"></span>
-                                    </div>
-                                </div>
-                                <div class="form-row form-row--full">
-                                    <div class="form-group">
-                                        <label class="form-label" for="card-number">Card Number *</label>
-                                        <input type="text" class="form-input" id="card-number" placeholder="4111 2222 3333 4444" maxlength="19" />
-                                        <span class="inline-error-msg" id="err-card-number"></span>
-                                    </div>
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label class="form-label" for="card-exp">Expiration (MM/YY) *</label>
-                                        <input type="text" class="form-input" id="card-exp" placeholder="MM/YY" maxlength="5" />
-                                        <span class="inline-error-msg" id="err-card-exp"></span>
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label" for="card-cvv">CVV / CVC *</label>
-                                        <input type="password" class="form-input" id="card-cvv" placeholder="123" maxlength="4" />
-                                        <span class="inline-error-msg" id="err-card-cvv"></span>
-                                    </div>
-                                </div>
+                                <p class="shipping-card__desc">Prepare the exact amount in Philippine Peso (&#8369;) including delivery fee. The courier rider will provide a physical delivery waybill receipt upon payment.</p>
                             </div>
                         </div>
 
-                        <!-- Option 3: Bank Transfer -->
+                        <!-- Option 3: Cash on In-Store Pickup - For Pickup Orders -->
+                        <div class="payment-method-card" id="payment-cash-card" data-payment="cash">
+                            <div class="payment-method-header">
+                                <div class="payment-method-title-wrap">
+                                    <div class="shipping-card__radio"></div>
+                                    <div>
+                                        <div class="shipping-card__title">Cash on In-Store Pickup</div>
+                                        <div class="shipping-card__desc">Pay in cash or POS card terminal upon collecting your helmet</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="payment-method-details">
+                                <p class="shipping-card__desc">Pick up at Helmet Cartel Hub, 128 Commonwealth Ave, QC. Present your order confirmation code to staff.</p>
+                            </div>
+                        </div>
+
+                        <!-- Option 4: Direct Bank Transfer / OTC -->
                         <div class="payment-method-card" data-payment="bank">
                             <div class="payment-method-header">
                                 <div class="payment-method-title-wrap">
@@ -223,22 +288,6 @@
                                 <p class="shipping-card__desc">Deposit directly into our verified corporate account. Bank details and upload instructions will be emailed with your order confirmation.</p>
                             </div>
                         </div>
-
-                        <!-- Option 4: Cash on In-Store Pickup -->
-                        <div class="payment-method-card" data-payment="cash">
-                            <div class="payment-method-header">
-                                <div class="payment-method-title-wrap">
-                                    <div class="shipping-card__radio"></div>
-                                    <div>
-                                        <div class="shipping-card__title">Cash on In-Store Pickup</div>
-                                        <div class="shipping-card__desc">Pay in cash or POS card terminal upon collecting your helmet</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="payment-method-details">
-                                <p class="shipping-card__desc">Pick up at Helmet Cartel Hub, 108 Katipunan Ave, Quezon City. Present your order confirmation code to staff.</p>
-                            </div>
-                        </div>
                     </div>
 
                     <div class="checkout-panel-actions">
@@ -246,7 +295,7 @@
                             <svg class="shop-breadcrumb__icon icon--back" viewBox="0 0 24 24" fill="none" stroke-width="2">
                                 <polyline points="9 18 15 12 9 6"></polyline>
                             </svg>
-                            <span>Back to Customer &amp; Pickup</span>
+                            <span>Back to Customer &amp; Fulfillment</span>
                         </button>
                         <button type="button" class="btn btn--primary" id="btn-goto-step-3">
                             <span>Continue to Review</span>
@@ -263,15 +312,14 @@
                     <h2 class="checkout-panel__title">Review &amp; Confirm Order</h2>
                     <p class="checkout-panel__subtitle">Please double-check your customer details and selected gear before placing your order.</p>
 
-                    <!-- Shipping Summary Block -->
+                    <!-- Fulfillment Summary Block -->
                     <div class="review-block">
                         <div class="review-block__header">
-                            <span class="review-block__title">Customer &amp; Pickup Hub</span>
+                            <span class="review-block__title">Customer &amp; Fulfillment</span>
                             <span class="review-block__edit" id="btn-edit-shipping">Edit</span>
                         </div>
                         <div class="review-block__content" id="review-shipping-summary">
-                            Juan Dela Cruz &bull; +63 917 123 4567<br />
-                            <strong>Pickup Hub:</strong> Helmet Cartel Flagship Hub &bull; 128 Commonwealth Ave, QC &bull; FREE
+                            <!-- Populated dynamically via JS -->
                         </div>
                     </div>
 
@@ -337,7 +385,7 @@
                         <span id="sidebar-subtotal">&#8369;0</span>
                     </div>
                     <div class="summary-calc-row">
-                        <span>Fulfillment</span>
+                        <span>Fulfillment Fee</span>
                         <span id="sidebar-shipping">FREE (In-Store Pickup)</span>
                     </div>
                     <div class="summary-calc-row">
@@ -392,21 +440,21 @@
                     <span id="receipt-payment">HitPay (GCash Verified)</span>
                 </div>
                 <div class="receipt-row">
-                    <span>Pickup Location</span>
+                    <span id="receipt-address-label">Fulfillment Address</span>
                     <span id="receipt-address">Helmet Cartel Hub &bull; 128 Commonwealth Ave, QC</span>
                 </div>
                 <div class="receipt-row">
-                    <span>Collection Status</span>
+                    <span>Fulfillment Status &amp; ETA</span>
                     <span id="receipt-eta" class="receipt-eta">Ready for Store Pickup in 1-2 Hours</span>
                 </div>
                 <div class="receipt-row receipt-row--bold">
-                    <span>Total Paid</span>
+                    <span>Total Amount</span>
                     <span id="receipt-total">&#8369;34,750</span>
                 </div>
             </div>
 
             <!-- Order Timeline Tracker -->
-            <div class="order-tracker">
+            <div class="order-tracker" id="order-tracker-container">
                 <div class="tracker-line"></div>
                 <div class="tracker-node is-done">
                     <div class="tracker-icon">
@@ -420,17 +468,17 @@
                     </div>
                     <span class="tracker-text">QC &amp; Packing</span>
                 </div>
-                <div class="tracker-node">
+                <div class="tracker-node" id="tracker-step-3">
                     <div class="tracker-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="2"></circle></svg>
                     </div>
-                    <span class="tracker-text">Ready for Pickup</span>
+                    <span class="tracker-text" id="tracker-step-3-text">Ready for Pickup</span>
                 </div>
-                <div class="tracker-node">
+                <div class="tracker-node" id="tracker-step-4">
                     <div class="tracker-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                     </div>
-                    <span class="tracker-text">Collected</span>
+                    <span class="tracker-text" id="tracker-step-4-text">Collected</span>
                 </div>
             </div>
 
@@ -461,9 +509,19 @@
         import { RealtimeManager } from '<%= ResolveUrl("~/Scripts/realtime.js") %>';
 
         let currentStep = 1;
+        let selectedFulfillment = 'pickup'; // 'pickup' | 'delivery'
         let selectedShippingCost = 0;
-        let selectedShippingName = "In-Store Pickup (FREE)";
-        let selectedPaymentMethod = "HitPay Online Checkout (GCash / Maya / QR PH)";
+        let selectedPaymentMethodName = "HitPay Online Checkout (GCash / Maya / QR PH)";
+        let selectedPaymentKey = "hitpay";
+
+        // Regional Tiers Data
+        const REGION_TIERS = {
+            'NCR': { fee: 150, eta: '1-2 Business Days', name: 'Metro Manila (NCR)' },
+            'GMA': { fee: 250, eta: '2-3 Business Days', name: 'Greater Manila Area (Cavite, Laguna, Rizal, Bulacan)' },
+            'Luzon': { fee: 350, eta: '3-5 Business Days', name: 'Rest of Luzon' },
+            'Visayas': { fee: 450, eta: '5-7 Business Days', name: 'Visayas' },
+            'Mindanao': { fee: 500, eta: '5-8 Business Days', name: 'Mindanao' }
+        };
 
         // Determine Checkout Items
         function getCheckoutItems() {
@@ -490,10 +548,15 @@
             const { subtotal, total, estimatedTax } = calculateTotals();
 
             document.getElementById('sidebar-subtotal').innerHTML = `&#8369;${subtotal.toLocaleString()}`;
-            document.getElementById('sidebar-shipping').innerHTML = selectedShippingCost === 0 ? 'FREE' : `&#8369;${selectedShippingCost.toLocaleString()}`;
+            if (selectedFulfillment === 'pickup') {
+                document.getElementById('sidebar-shipping').innerHTML = 'FREE (Pickup)';
+            } else {
+                const regKey = document.getElementById('ship-region')?.value || 'NCR';
+                const regName = REGION_TIERS[regKey]?.name || 'Delivery';
+                document.getElementById('sidebar-shipping').innerHTML = `&#8369;${selectedShippingCost.toLocaleString()} (${regKey})`;
+            }
             document.getElementById('sidebar-tax').innerHTML = `&#8369;${estimatedTax.toLocaleString()}`;
             document.getElementById('sidebar-total').innerHTML = `&#8369;${total.toLocaleString()}`;
-
         }
 
         function renderReviewItems() {
@@ -512,19 +575,37 @@
                 </div>
             `).join('');
 
-            // Also update review summary text blocks
+            // Update review summary text blocks
             const firstName = document.getElementById('ship-first-name')?.value.trim() || '';
             const lastName = document.getElementById('ship-last-name')?.value.trim() || '';
             const fullName = `${firstName} ${lastName}`.trim();
             const phone = document.getElementById('ship-phone')?.value.trim() || '';
             const email = document.getElementById('ship-email')?.value.trim() || '';
 
-            document.getElementById('review-shipping-summary').innerHTML = `
-                ${escapeHtml(fullName)} &bull; ${escapeHtml(phone)} ${email ? `&bull; ${escapeHtml(email)}` : ''}<br />
-                <strong>Pickup Hub:</strong> Helmet Cartel Flagship Hub &bull; 128 Commonwealth Ave, QC &bull; <strong>FREE</strong>
-            `;
+            if (selectedFulfillment === 'pickup') {
+                document.getElementById('review-shipping-summary').innerHTML = `
+                    <strong>${escapeHtml(fullName)}</strong> &bull; ${escapeHtml(phone)} ${email ? `&bull; ${escapeHtml(email)}` : ''}<br />
+                    <strong>Pickup Hub:</strong> Helmet Cartel Flagship Hub &bull; 128 Commonwealth Ave, QC &bull; <strong>FREE</strong>
+                `;
+            } else {
+                const regKey = document.getElementById('ship-region')?.value || 'NCR';
+                const regData = REGION_TIERS[regKey] || REGION_TIERS['NCR'];
+                const addr = document.getElementById('ship-address')?.value.trim() || '';
+                const brgy = document.getElementById('ship-barangay')?.value.trim() || '';
+                const city = document.getElementById('ship-city')?.value.trim() || '';
+                const prov = document.getElementById('ship-province')?.value.trim() || '';
+                const zip = document.getElementById('ship-postal-code')?.value.trim() || '';
+                const notes = document.getElementById('ship-notes')?.value.trim() || '';
 
-            document.getElementById('review-payment-summary').innerHTML = escapeHtml(selectedPaymentMethod);
+                document.getElementById('review-shipping-summary').innerHTML = `
+                    <strong>${escapeHtml(fullName)}</strong> &bull; ${escapeHtml(phone)} ${email ? `&bull; ${escapeHtml(email)}` : ''}<br />
+                    <strong>Delivery Address:</strong> ${escapeHtml(addr)}, Brgy. ${escapeHtml(brgy)}, ${escapeHtml(city)}, ${escapeHtml(prov)} ${escapeHtml(zip)}<br />
+                    <strong>Region:</strong> ${escapeHtml(regData.name)} &bull; <strong>Fee:</strong> &#8369;${selectedShippingCost.toLocaleString()} (${escapeHtml(regData.eta)})
+                    ${notes ? `<br /><em>Notes: ${escapeHtml(notes)}</em>` : ''}
+                `;
+            }
+
+            document.getElementById('review-payment-summary').innerHTML = escapeHtml(selectedPaymentMethodName);
         }
 
         // Inline Field Error Management
@@ -591,58 +672,55 @@
                 setFieldError('ship-phone', '');
             }
 
-            return isValid;
-        }
-
-        function validateStep2() {
-            const selectedCard = document.querySelector('.payment-method-card.is-selected');
-            const paymentType = selectedCard?.getAttribute('data-payment');
-
-            if (paymentType === 'card') {
-                let isValid = true;
-                const holder = document.getElementById('card-holder').value.trim();
-                const number = document.getElementById('card-number').value.replace(/\s+/g, '');
-                const exp = document.getElementById('card-exp').value.trim();
-                const cvv = document.getElementById('card-cvv').value.trim();
-
-                if (!holder) {
-                    setFieldError('card-holder', 'Cardholder name is required.');
+            if (selectedFulfillment === 'delivery') {
+                const addr = document.getElementById('ship-address').value.trim();
+                if (!addr) {
+                    setFieldError('ship-address', 'Street address is required for delivery.');
                     isValid = false;
                 } else {
-                    setFieldError('card-holder', '');
+                    setFieldError('ship-address', '');
                 }
 
-                if (!number || number.length < 13) {
-                    setFieldError('card-number', 'Enter a valid 16-digit card number.');
+                const brgy = document.getElementById('ship-barangay').value.trim();
+                if (!brgy) {
+                    setFieldError('ship-barangay', 'Barangay is required.');
                     isValid = false;
                 } else {
-                    setFieldError('card-number', '');
+                    setFieldError('ship-barangay', '');
                 }
 
-                if (!exp || !/^\d{2}\/\d{2}$/.test(exp)) {
-                    setFieldError('card-exp', 'Use MM/YY format.');
+                const city = document.getElementById('ship-city').value.trim();
+                if (!city) {
+                    setFieldError('ship-city', 'City / Municipality is required.');
                     isValid = false;
                 } else {
-                    setFieldError('card-exp', '');
+                    setFieldError('ship-city', '');
                 }
 
-                if (!cvv || cvv.length < 3) {
-                    setFieldError('card-cvv', 'Enter 3 or 4 digits.');
+                const prov = document.getElementById('ship-province').value.trim();
+                if (!prov) {
+                    setFieldError('ship-province', 'Province is required.');
                     isValid = false;
                 } else {
-                    setFieldError('card-cvv', '');
+                    setFieldError('ship-province', '');
                 }
 
-                return isValid;
+                const zip = document.getElementById('ship-postal-code').value.trim();
+                if (!zip) {
+                    setFieldError('ship-postal-code', 'Postal code is required.');
+                    isValid = false;
+                } else {
+                    setFieldError('ship-postal-code', '');
+                }
             }
 
-            return true;
+            return isValid;
         }
 
         // Live input listeners for clearing errors on change
         [
             'ship-first-name', 'ship-last-name', 'ship-email', 'ship-phone',
-            'card-holder', 'card-number', 'card-exp', 'card-cvv'
+            'ship-address', 'ship-barangay', 'ship-city', 'ship-province', 'ship-postal-code'
         ].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
@@ -660,6 +738,80 @@
                 });
             }
         });
+
+        // Fulfillment Selection Toggle (Pickup vs Delivery)
+        function updateFulfillmentUI() {
+            const deliverySection = document.getElementById('delivery-address-section');
+            const pickupCard = document.getElementById('option-fulfillment-pickup');
+            const deliveryCard = document.getElementById('option-fulfillment-delivery');
+            const codCard = document.getElementById('payment-cod-card');
+            const cashCard = document.getElementById('payment-cash-card');
+
+            if (selectedFulfillment === 'pickup') {
+                pickupCard.classList.add('is-selected');
+                deliveryCard.classList.remove('is-selected');
+                deliverySection.classList.add('is-hidden');
+                selectedShippingCost = 0;
+
+                // Adjust Payment Options for Pickup
+                if (codCard) codCard.classList.add('is-hidden');
+                if (cashCard) cashCard.classList.remove('is-hidden');
+
+                // If COD was selected previously, switch back to HitPay
+                if (selectedPaymentKey === 'cod') {
+                    selectPaymentCard('hitpay');
+                }
+            } else {
+                pickupCard.classList.remove('is-selected');
+                deliveryCard.classList.add('is-selected');
+                deliverySection.classList.remove('is-hidden');
+
+                // Read current region fee
+                const regKey = document.getElementById('ship-region')?.value || 'NCR';
+                selectedShippingCost = REGION_TIERS[regKey]?.fee || 150;
+                document.getElementById('card-delivery-price-text').innerHTML = `&#8369;${selectedShippingCost.toLocaleString()}`;
+
+                // Adjust Payment Options for Delivery
+                if (cashCard) cashCard.classList.add('is-hidden');
+                if (codCard) codCard.classList.remove('is-hidden');
+
+                // If Cash on Pickup was selected previously, switch to COD
+                if (selectedPaymentKey === 'cash') {
+                    selectPaymentCard('cod');
+                }
+            }
+
+            renderSidebar();
+        }
+
+        document.getElementById('option-fulfillment-pickup').addEventListener('click', () => {
+            selectedFulfillment = 'pickup';
+            updateFulfillmentUI();
+        });
+
+        document.getElementById('option-fulfillment-delivery').addEventListener('click', () => {
+            selectedFulfillment = 'delivery';
+            updateFulfillmentUI();
+        });
+
+        // Region dropdown listener
+        document.getElementById('ship-region').addEventListener('change', (e) => {
+            const regKey = e.target.value;
+            const tier = REGION_TIERS[regKey] || REGION_TIERS['NCR'];
+            selectedShippingCost = tier.fee;
+            document.getElementById('card-delivery-price-text').innerHTML = `&#8369;${tier.fee.toLocaleString()}`;
+            renderSidebar();
+        });
+
+        function selectPaymentCard(paymentKey) {
+            document.querySelectorAll('.payment-method-card').forEach(c => c.classList.remove('is-selected'));
+            const target = document.querySelector(`.payment-method-card[data-payment="${paymentKey}"]`);
+            if (target) {
+                target.classList.add('is-selected');
+                selectedPaymentKey = paymentKey;
+                selectedPaymentMethodName = target.querySelector('.shipping-card__title')?.textContent || 'Online Payment';
+            }
+        }
 
         function setStep(step) {
             currentStep = step;
@@ -712,52 +864,31 @@
             });
         });
 
-        // Step 1: Shipping Cards Selection
-        document.querySelectorAll('.shipping-card').forEach(card => {
-            card.addEventListener('click', () => {
-                document.querySelectorAll('.shipping-card').forEach(c => c.classList.remove('is-selected'));
-                card.classList.add('is-selected');
-
-                selectedShippingCost = parseInt(card.getAttribute('data-shipping-cost'), 10);
-                const title = card.querySelector('.shipping-card__title')?.textContent || 'Courier Delivery';
-                const cost = selectedShippingCost === 0 ? 'FREE' : `₱${selectedShippingCost}`;
-                selectedShippingName = `${title} (${cost})`;
-
-                renderSidebar();
-            });
-        });
-
         // Step 1 Continue Button
         document.getElementById('btn-goto-step-2').addEventListener('click', () => {
             if (!validateStep1()) {
-                RealtimeManager.showToast('Please check the highlighted errors above.', 'alert');
+                RealtimeManager.showToast('Please complete all required fields.', 'alert');
                 return;
             }
 
             setStep(2);
-            RealtimeManager.showToast('Customer & pickup details saved. Select payment method.', 'info');
+            RealtimeManager.showToast('Customer & fulfillment details saved. Select payment method.', 'info');
         });
 
         // Step 2: Payment Method Card Selection
         document.querySelectorAll('.payment-method-card').forEach(card => {
-            card.addEventListener('click', (e) => {
-                // Ignore click if typing in card sub-inputs
-                if (e.target.closest('input')) return;
-
+            card.addEventListener('click', () => {
                 document.querySelectorAll('.payment-method-card').forEach(c => c.classList.remove('is-selected'));
                 card.classList.add('is-selected');
 
-                selectedPaymentMethod = card.querySelector('.shipping-card__title')?.textContent || 'HitPay Online Payment';
+                selectedPaymentKey = card.getAttribute('data-payment');
+                selectedPaymentMethodName = card.querySelector('.shipping-card__title')?.textContent || 'Online Payment';
             });
         });
 
         // Step 2 Buttons
         document.getElementById('btn-back-to-step-1').addEventListener('click', () => setStep(1));
         document.getElementById('btn-goto-step-3').addEventListener('click', () => {
-            if (!validateStep2()) {
-                RealtimeManager.showToast('Please check the highlighted card errors.', 'alert');
-                return;
-            }
             setStep(3);
             RealtimeManager.showToast('Review your order before final confirmation.', 'info');
         });
@@ -791,24 +922,41 @@
                 textSpan.textContent = 'Place Order & Pay';
                 return;
             }
+
             const fName = document.getElementById('ship-first-name')?.value.trim() || 'Customer';
             const lName = document.getElementById('ship-last-name')?.value.trim() || '';
             const email = document.getElementById('ship-email')?.value.trim() || 'customer@helmetcartel.com';
             const phone = document.getElementById('ship-phone')?.value.trim() || '+63 917 123 4567';
 
-            const selectedCard = document.querySelector('.payment-method-card.is-selected');
-            const paymentKey = selectedCard?.getAttribute('data-payment');
-            let paymentMethod = 'Cash';
-            if (paymentKey === 'hitpay') paymentMethod = 'HitPay';
-            else if (paymentKey === 'card') paymentMethod = 'Card_POS';
-            else if (paymentKey === 'cash' || paymentKey === 'bank') paymentMethod = 'Cash';
+            let paymentGateway = 'HitPay';
+            if (selectedPaymentKey === 'cod') paymentGateway = 'CashOnDelivery';
+            else if (selectedPaymentKey === 'cash' || selectedPaymentKey === 'bank') paymentGateway = 'Cash';
+
+            const isDelivery = selectedFulfillment === 'delivery';
+            const regionKey = isDelivery ? (document.getElementById('ship-region')?.value || 'NCR') : null;
+            const regionName = regionKey ? (REGION_TIERS[regionKey]?.name || regionKey) : null;
+            const addr = isDelivery ? document.getElementById('ship-address')?.value.trim() : null;
+            const brgy = isDelivery ? document.getElementById('ship-barangay')?.value.trim() : null;
+            const city = isDelivery ? document.getElementById('ship-city')?.value.trim() : null;
+            const prov = isDelivery ? document.getElementById('ship-province')?.value.trim() : null;
+            const zip = isDelivery ? document.getElementById('ship-postal-code')?.value.trim() : null;
+            const notes = isDelivery ? document.getElementById('ship-notes')?.value.trim() : null;
 
             const payload = {
                 customerName: `${fName} ${lName}`.trim(),
                 customerEmail: email,
                 customerPhone: phone,
-                paymentMethod: paymentMethod,
-                notes: 'Store Collection at Flagship Hub (QC)',
+                paymentMethod: paymentGateway,
+                shippingMethod: isDelivery ? 'Delivery' : 'Pickup',
+                shippingFee: isDelivery ? selectedShippingCost : 0,
+                shippingRegion: regionName,
+                shippingAddress: addr,
+                shippingBarangay: brgy,
+                shippingCity: city,
+                shippingProvince: prov,
+                shippingPostalCode: zip,
+                deliveryNotes: notes,
+                notes: isDelivery ? `Door-to-Door Delivery (${regionKey})` : 'Store Pickup at Flagship Hub (QC)',
                 items: checkoutItems.map(item => ({
                     variantId: Number(item.variantId),
                     quantity: Number(item.quantity)
@@ -834,12 +982,30 @@
                     day: 'numeric',
                     year: 'numeric'
                 }) + ' - ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                document.getElementById('receipt-payment').textContent = selectedPaymentMethod;
-                document.getElementById('receipt-address').textContent = `${fName} ${lName} (${phone}) • Flagship Hub QC`;
+                document.getElementById('receipt-payment').textContent = selectedPaymentMethodName;
                 document.getElementById('receipt-total').innerHTML = `&#8369;${totalPaid.toLocaleString()}`;
 
+                if (isDelivery) {
+                    document.getElementById('receipt-address-label').textContent = 'Delivery Address';
+                    document.getElementById('receipt-address').textContent = `${addr}, Brgy. ${brgy}, ${city}, ${prov} ${zip}`;
+                    const eta = REGION_TIERS[regionKey]?.eta || '2-4 Days';
+                    document.getElementById('receipt-eta').textContent = `Dispatched via Courier (Est. ${eta})`;
+
+                    // Update Tracker for Delivery
+                    document.getElementById('tracker-step-3-text').textContent = 'In Transit / Dispatched';
+                    document.getElementById('tracker-step-4-text').textContent = 'Delivered';
+                } else {
+                    document.getElementById('receipt-address-label').textContent = 'Pickup Location';
+                    document.getElementById('receipt-address').textContent = 'Helmet Cartel Flagship Hub • 128 Commonwealth Ave, QC';
+                    document.getElementById('receipt-eta').textContent = 'Ready for Store Pickup in 1-2 Hours';
+
+                    // Update Tracker for Pickup
+                    document.getElementById('tracker-step-3-text').textContent = 'Ready for Pickup';
+                    document.getElementById('tracker-step-4-text').textContent = 'Collected';
+                }
+
                 // If HitPay checkout URL provided and user selected HitPay, redirect:
-                if (paymentMethod === 'HitPay' && orderData?.checkoutUrl) {
+                if (paymentGateway === 'HitPay' && orderData?.checkoutUrl) {
                     RealtimeManager.showToast('Redirecting to HitPay secure checkout...', 'info');
                     setTimeout(() => window.location.href = orderData.checkoutUrl, 800);
                     return;
@@ -871,6 +1037,7 @@
         }
 
         // Initialize view
+        updateFulfillmentUI();
         renderSidebar();
         CartManager.refreshItems().then(() => {
             renderSidebar();

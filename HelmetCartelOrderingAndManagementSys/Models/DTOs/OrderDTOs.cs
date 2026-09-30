@@ -8,10 +8,19 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string CustomerName { get; set; }
         public string CustomerEmail { get; set; }
         public string CustomerPhone { get; set; }
-        public string PaymentMethod { get; set; } // "HitPay", "Cash", "Card_POS"
+        public string PaymentMethod { get; set; } // "HitPay", "Cash", "Card_POS", "CashOnDelivery"
         public decimal? CashTendered { get; set; }
         public bool CardTerminalApproved { get; set; }
         public string Notes { get; set; }
+        public string ShippingMethod { get; set; } = "Pickup"; // "Pickup", "Delivery"
+        public decimal ShippingFee { get; set; } = 0.00m;
+        public string ShippingRegion { get; set; }
+        public string ShippingAddress { get; set; }
+        public string ShippingBarangay { get; set; }
+        public string ShippingCity { get; set; }
+        public string ShippingProvince { get; set; }
+        public string ShippingPostalCode { get; set; }
+        public string DeliveryNotes { get; set; }
         public List<OrderItemRequestDto> Items { get; set; } = new List<OrderItemRequestDto>();
     }
 
@@ -33,6 +42,19 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public decimal Subtotal { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal TotalAmount { get; set; }
+        public string ShippingMethod { get; set; } = "Pickup";
+        public decimal ShippingFee { get; set; } = 0.00m;
+        public string ShippingRegion { get; set; }
+        public string ShippingAddress { get; set; }
+        public string ShippingBarangay { get; set; }
+        public string ShippingCity { get; set; }
+        public string ShippingProvince { get; set; }
+        public string ShippingPostalCode { get; set; }
+        public string Courier { get; set; }
+        public string TrackingNumber { get; set; }
+        public string DeliveryNotes { get; set; }
+        public string PaymentMethod { get; set; }
+        public string PaymentStatus { get; set; }
         public string CheckoutUrl { get; set; }
         public DateTime CreatedAt { get; set; }
         public List<OrderItemSummaryDto> Items { get; set; } = new List<OrderItemSummaryDto>();
@@ -54,6 +76,15 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
     public class UpdateOrderStatusDto
     {
         public string Status { get; set; }
+        public string Notes { get; set; }
+        public string Courier { get; set; }
+        public string TrackingNumber { get; set; }
+    }
+
+    public class DispatchOrderRequestDto
+    {
+        public string Courier { get; set; }
+        public string TrackingNumber { get; set; }
         public string Notes { get; set; }
     }
 }

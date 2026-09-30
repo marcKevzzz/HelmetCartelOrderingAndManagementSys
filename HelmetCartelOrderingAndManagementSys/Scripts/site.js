@@ -259,10 +259,22 @@ export const SiteController = {
   initSearchSuggestions() {
     const input = document.getElementById('nav-search-input');
     const clearBtn = document.getElementById('nav-search-clear');
+    const shortcutBadge = document.getElementById('nav-search-shortcut');
     const dropdown = document.getElementById('nav-search-dropdown');
     const container = document.getElementById('nav-search-container');
 
     if (!input || !dropdown) return;
+
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    if (shortcutBadge) {
+      shortcutBadge.textContent = isMac ? '\u2318+K' : 'Ctrl+K';
+    }
+
+    const syncSearchButtons = () => {
+      const hasValue = !!input.value;
+      if (clearBtn) clearBtn.classList.toggle('is-visible', hasValue);
+      if (shortcutBadge) shortcutBadge.classList.toggle('is-hidden', hasValue);
+    };
 
     let activeIndex = -1;
     let requestId = 0;
@@ -382,14 +394,14 @@ export const SiteController = {
 
     input.addEventListener('input', () => {
       const val = input.value;
-      clearBtn?.classList.toggle('is-visible', val.length > 0);
+      syncSearchButtons();
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => showSuggestions(val), 180);
     });
 
     clearBtn?.addEventListener('click', () => {
       input.value = '';
-      clearBtn.classList.remove('is-visible');
+      syncSearchButtons();
       input.focus();
       showSuggestions('');
     });
@@ -397,9 +409,25 @@ export const SiteController = {
     const initialQuery = new URLSearchParams(window.location.search).get('q');
     if (initialQuery && window.location.pathname.toLowerCase().includes('/shop.aspx')) {
       input.value = initialQuery;
-      clearBtn?.classList.add('is-visible');
+      syncSearchButtons();
       this.saveSearchHistory(initialQuery);
+    } else {
+      syncSearchButtons();
     }
+
+    // Global Ctrl+K / Cmd+K shortcut to focus storefront search
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        // Only if not typing in another input or textarea (except search input)
+        const activeEl = document.activeElement;
+        const isOtherInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl !== input;
+        if (!isOtherInput) {
+          e.preventDefault();
+          input.focus();
+          input.select();
+        }
+      }
+    });
 
     // Keyboard navigation
     input.addEventListener('keydown', (e) => {
