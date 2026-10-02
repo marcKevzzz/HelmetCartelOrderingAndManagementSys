@@ -1,5 +1,7 @@
+using System;
 using System.Threading.Tasks;
 using System.Web.Http;
+using HelmetCartelOrderingAndManagementSys.Constants;
 using HelmetCartelOrderingAndManagementSys.Infrastructure;
 using HelmetCartelOrderingAndManagementSys.Models.DTOs;
 using HelmetCartelOrderingAndManagementSys.Repositories;
@@ -40,13 +42,41 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                 return BadRequest("Invalid order payload.");
             }
 
-            var result = await _orderService.CreateOnlineOrderAsync(request).ConfigureAwait(false);
-            if (!result.Success)
+            try
             {
-                return Content(System.Net.HttpStatusCode.Conflict, result);
+                int? userId = GetAuthenticatedUserId();
+                var result = await _orderService.CreateOnlineOrderAsync(request, userId).ConfigureAwait(false);
+                if (!result.Success)
+                {
+                    return Content(System.Net.HttpStatusCode.Conflict, result);
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError($"[CreateOnlineOrder] Exception: {ex}");
+                return Content(System.Net.HttpStatusCode.InternalServerError,
+                    ApiResponse<OrderSummaryDto>.Fail(ex.Message, AppConstants.ErrorCodes.DatabaseError));
+            }
+        }
+
+        [HttpGet]
+        [Route("track/{orderNumber}")]
+        public async Task<IHttpActionResult> TrackOrder(string orderNumber)
+        {
+            if (string.IsNullOrWhiteSpace(orderNumber))
+            {
+                return BadRequest("Order number is required.");
             }
 
-            return Ok(result);
+            var order = await _orderService.GetOrderByOrderNumberAsync(orderNumber.Trim()).ConfigureAwait(false);
+            if (order == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(ApiResponse<OrderSummaryDto>.Ok(order));
         }
 
         [HttpPost]
@@ -112,6 +142,26 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                 return Ok(ApiResponse<object>.Ok(rows));
             }
             catch (SqlException e) { return BadRequest(e.Message); }
+        }
+
+        private int? GetAuthenticatedUserId()
+        {
+            var authHeader = Request.Headers.Authorization;
+            if (authHeader != null && string.Equals(authHeader.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase))
+            {
+                var token = authHeader.Parameter;
+                var user = new JwtTokenProvider().ValidateToken(token);
+                if (user != null) return user.Id;
+            }
+
+            var cookieToken = System.Web.HttpContext.Current?.Request?.Cookies?[AppConstants.JwtConfiguration.AuthCookieName]?.Value;
+            if (!string.IsNullOrEmpty(cookieToken))
+            {
+                var user = new JwtTokenProvider().ValidateToken(cookieToken);
+                if (user != null) return user.Id;
+            }
+
+            return null;
         }
     }
 }

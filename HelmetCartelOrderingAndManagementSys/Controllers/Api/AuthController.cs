@@ -136,6 +136,183 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
             return Ok(ApiResponse<List<UserOrderSummaryDto>>.Ok(orders));
         }
 
+        [HttpGet]
+        [Route("my-orders/{id:int}")]
+        public async Task<IHttpActionResult> GetUserOrderDetails(int id)
+        {
+            var user = GetAuthenticatedUser();
+            if (user == null)
+            {
+                return Ok(ApiResponse<OrderSummaryDto>.Fail("Unauthorized or expired session.", AppConstants.ErrorCodes.UnauthorizedAccess));
+            }
+
+            var order = await _authService.GetUserOrderDetailsAsync(user.Id, id, null).ConfigureAwait(false);
+            if (order == null)
+            {
+                return Ok(ApiResponse<OrderSummaryDto>.Fail("Order not found or unauthorized.", AppConstants.ErrorCodes.OrderNotFound));
+            }
+
+            return Ok(ApiResponse<OrderSummaryDto>.Ok(order));
+        }
+
+        [HttpGet]
+        [Route("my-orders/by-number/{orderNumber}")]
+        public async Task<IHttpActionResult> GetUserOrderByNumber(string orderNumber)
+        {
+            var user = GetAuthenticatedUser();
+            if (user == null)
+            {
+                return Ok(ApiResponse<OrderSummaryDto>.Fail("Unauthorized or expired session.", AppConstants.ErrorCodes.UnauthorizedAccess));
+            }
+
+            var order = await _authService.GetUserOrderDetailsAsync(user.Id, null, orderNumber).ConfigureAwait(false);
+            if (order == null)
+            {
+                return Ok(ApiResponse<OrderSummaryDto>.Fail("Order not found or unauthorized.", AppConstants.ErrorCodes.OrderNotFound));
+            }
+
+            return Ok(ApiResponse<OrderSummaryDto>.Ok(order));
+        }
+
+        [HttpGet]
+        [Route("my-payments")]
+        public async Task<IHttpActionResult> GetUserPayments()
+        {
+            var user = GetAuthenticatedUser();
+            if (user == null)
+            {
+                return Ok(ApiResponse<List<UserPaymentHistoryDto>>.Fail("Unauthorized or expired session.", AppConstants.ErrorCodes.UnauthorizedAccess));
+            }
+
+            var payments = await _authService.GetUserPaymentsAsync(user.Id).ConfigureAwait(false);
+            return Ok(ApiResponse<List<UserPaymentHistoryDto>>.Ok(payments));
+        }
+
+        [HttpPut]
+        [Route("profile")]
+        public async Task<IHttpActionResult> UpdateProfile([FromBody] UpdateProfileRequestDto request)
+        {
+            var user = GetAuthenticatedUser();
+            if (user == null)
+            {
+                return Ok(ApiResponse<UserProfileDto>.Fail("Unauthorized or expired session.", AppConstants.ErrorCodes.UnauthorizedAccess));
+            }
+
+            if (request == null)
+            {
+                return Ok(ApiResponse<UserProfileDto>.Fail("Invalid profile data.", "INVALID_INPUT"));
+            }
+
+            try
+            {
+                var updated = await _authService.UpdateProfileAsync(user.Id, request).ConfigureAwait(false);
+                return Ok(ApiResponse<UserProfileDto>.Ok(updated, "Profile updated successfully."));
+            }
+            catch (ArgumentException aex)
+            {
+                return Ok(ApiResponse<UserProfileDto>.Fail(aex.Message, "VALIDATION_FAILED"));
+            }
+            catch (Exception ex)
+            {
+                return Ok(ApiResponse<UserProfileDto>.Fail(ex.Message, "UPDATE_FAILED"));
+            }
+        }
+
+        [HttpPut]
+        [Route("change-password")]
+        public async Task<IHttpActionResult> ChangePassword([FromBody] ChangePasswordRequestDto request)
+        {
+            var user = GetAuthenticatedUser();
+            if (user == null)
+            {
+                return Ok(ApiResponse<bool>.Fail("Unauthorized or expired session.", AppConstants.ErrorCodes.UnauthorizedAccess));
+            }
+
+            if (request == null)
+            {
+                return Ok(ApiResponse<bool>.Fail("Invalid password change request.", "INVALID_INPUT"));
+            }
+
+            try
+            {
+                var success = await _authService.ChangePasswordAsync(user.Id, request).ConfigureAwait(false);
+                return Ok(ApiResponse<bool>.Ok(success, "Password changed successfully."));
+            }
+            catch (ArgumentException aex)
+            {
+                return Ok(ApiResponse<bool>.Fail(aex.Message, "VALIDATION_FAILED"));
+            }
+            catch (Exception ex)
+            {
+                return Ok(ApiResponse<bool>.Fail(ex.Message, "PASSWORD_CHANGE_FAILED"));
+            }
+        }
+
+        [HttpGet]
+        [Route("addresses")]
+        public async Task<IHttpActionResult> GetAddresses()
+        {
+            var user = GetAuthenticatedUser();
+            if (user == null)
+            {
+                return Ok(ApiResponse<List<UserAddressDto>>.Fail("Unauthorized or expired session.", AppConstants.ErrorCodes.UnauthorizedAccess));
+            }
+
+            var addresses = await _authService.GetUserAddressesAsync(user.Id).ConfigureAwait(false);
+            return Ok(ApiResponse<List<UserAddressDto>>.Ok(addresses));
+        }
+
+        [HttpPost]
+        [Route("addresses")]
+        public async Task<IHttpActionResult> SaveAddress([FromBody] SaveUserAddressRequestDto request)
+        {
+            var user = GetAuthenticatedUser();
+            if (user == null)
+            {
+                return Ok(ApiResponse<UserAddressDto>.Fail("Unauthorized or expired session.", AppConstants.ErrorCodes.UnauthorizedAccess));
+            }
+
+            if (request == null)
+            {
+                return Ok(ApiResponse<UserAddressDto>.Fail("Address data is required.", "INVALID_INPUT"));
+            }
+
+            try
+            {
+                var saved = await _authService.SaveUserAddressAsync(user.Id, request).ConfigureAwait(false);
+                return Ok(ApiResponse<UserAddressDto>.Ok(saved, "Address saved successfully."));
+            }
+            catch (ArgumentException aex)
+            {
+                return Ok(ApiResponse<UserAddressDto>.Fail(aex.Message, "VALIDATION_FAILED"));
+            }
+            catch (Exception ex)
+            {
+                return Ok(ApiResponse<UserAddressDto>.Fail(ex.Message, "SAVE_ADDRESS_FAILED"));
+            }
+        }
+
+        [HttpDelete]
+        [Route("addresses/{id:int}")]
+        public async Task<IHttpActionResult> DeleteAddress(int id)
+        {
+            var user = GetAuthenticatedUser();
+            if (user == null)
+            {
+                return Ok(ApiResponse<bool>.Fail("Unauthorized or expired session.", AppConstants.ErrorCodes.UnauthorizedAccess));
+            }
+
+            try
+            {
+                var success = await _authService.DeleteUserAddressAsync(user.Id, id).ConfigureAwait(false);
+                return Ok(ApiResponse<bool>.Ok(success, "Address deleted successfully."));
+            }
+            catch (Exception ex)
+            {
+                return Ok(ApiResponse<bool>.Fail(ex.Message, "DELETE_ADDRESS_FAILED"));
+            }
+        }
+
         private static void SetAuthenticationCookie(AuthResponseDto result, System.Web.HttpContext context)
         {
             if (context == null) return;
@@ -152,13 +329,20 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
         private UserProfileDto GetAuthenticatedUser()
         {
             var authHeader = Request.Headers.Authorization;
-            if (authHeader == null || !string.Equals(authHeader.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase))
+            if (authHeader != null && string.Equals(authHeader.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase))
             {
-                return null;
+                var token = authHeader.Parameter;
+                var user = _jwtTokenProvider.ValidateToken(token);
+                if (user != null) return user;
             }
 
-            var token = authHeader.Parameter;
-            return _jwtTokenProvider.ValidateToken(token);
+            var cookieToken = System.Web.HttpContext.Current?.Request?.Cookies?[AppConstants.JwtConfiguration.AuthCookieName]?.Value;
+            if (!string.IsNullOrEmpty(cookieToken))
+            {
+                return _jwtTokenProvider.ValidateToken(cookieToken);
+            }
+
+            return null;
         }
     }
 }

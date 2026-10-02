@@ -16,6 +16,7 @@ namespace HelmetCartelOrderingAndManagementSys
             config.Formatters.JsonFormatter.SerializerSettings.ReferenceLoopHandling = 
                 Newtonsoft.Json.ReferenceLoopHandling.Ignore;
             config.Formatters.Remove(config.Formatters.XmlFormatter);
+            config.IncludeErrorDetailPolicy = IncludeErrorDetailPolicy.Always;
 
             // Web API routes
             config.MapHttpAttributeRoutes();

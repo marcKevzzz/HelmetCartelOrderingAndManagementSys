@@ -48,6 +48,63 @@ export const ApiClient = {
     return this.post('/api/v1/orders', orderData);
   },
 
+  async getProfile() {
+    return this.get(APP_CONSTANTS.ENDPOINTS.AUTH_ME);
+  },
+
+  async updateProfile(data) {
+    return this.put(APP_CONSTANTS.ENDPOINTS.AUTH_PROFILE, data);
+  },
+
+  async changePassword(data) {
+    return this.put(APP_CONSTANTS.ENDPOINTS.AUTH_CHANGE_PASSWORD, data);
+  },
+
+  async getUserOrders() {
+    return this.get(APP_CONSTANTS.ENDPOINTS.AUTH_MY_ORDERS);
+  },
+
+  async getUserOrderDetails(id) {
+    return this.get(APP_CONSTANTS.ENDPOINTS.AUTH_MY_ORDER_DETAILS(id));
+  },
+
+  async getUserPayments() {
+    return this.get(APP_CONSTANTS.ENDPOINTS.AUTH_MY_PAYMENTS);
+  },
+
+  async getUserAddresses() {
+    return this.get(APP_CONSTANTS.ENDPOINTS.AUTH_ADDRESSES);
+  },
+
+  async saveUserAddress(data) {
+    return this.post(APP_CONSTANTS.ENDPOINTS.AUTH_ADDRESSES, data);
+  },
+
+  async deleteUserAddress(id) {
+    return this.request(APP_CONSTANTS.ENDPOINTS.AUTH_ADDRESS_BY_ID(id), { method: 'DELETE' });
+  },
+
+  isAuthenticated() {
+    return !!localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.AUTH_TOKEN);
+  },
+
+  getCurrentUser() {
+    try {
+      const stored = localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.USER_PROFILE);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  async trackOrder(orderNumber) {
+    return this.get(APP_CONSTANTS.ENDPOINTS.ORDER_TRACK(orderNumber));
+  },
+
+  async logout() {
+    return this.post(APP_CONSTANTS.ENDPOINTS.AUTH_LOGOUT);
+  },
+
   async request(url, options = {}) {
     const token = localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.AUTH_TOKEN);
     const headers = {

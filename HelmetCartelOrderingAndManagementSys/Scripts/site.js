@@ -10,6 +10,66 @@ import { RealtimeManager } from './realtime.js';
 import { ApiClient } from './api.js';
 import { APP_CONSTANTS } from './constants.js';
 
+export const AuthPromptModal = {
+  overlay: null,
+  titleEl: null,
+  descEl: null,
+  signinBtn: null,
+  cancelBtn: null,
+  closeBtn: null,
+
+  init() {
+    this.overlay = document.getElementById('auth-prompt-modal-overlay');
+    if (!this.overlay) return;
+
+    this.titleEl = document.getElementById('auth-modal-title');
+    this.descEl = document.getElementById('auth-modal-desc');
+    this.signinBtn = document.getElementById('auth-modal-signin-btn') || document.getElementById('authModalSigninBtn');
+    this.cancelBtn = document.getElementById('auth-modal-cancel-btn');
+    this.closeBtn = document.getElementById('auth-modal-close-btn');
+
+    this.closeBtn?.addEventListener('click', () => this.hide());
+    this.cancelBtn?.addEventListener('click', () => this.hide());
+    this.overlay.addEventListener('click', (e) => {
+      if (e.target === this.overlay) this.hide();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.overlay?.classList.contains('is-active')) {
+        this.hide();
+      }
+    });
+  },
+
+  show({ title, message, returnUrl } = {}) {
+    if (!this.overlay) this.init();
+    if (!this.overlay) return;
+
+    if (this.titleEl && title) this.titleEl.textContent = title;
+    if (this.descEl && message) this.descEl.textContent = message;
+
+    if (this.signinBtn) {
+      const url = returnUrl || window.location.pathname + window.location.search;
+      this.signinBtn.href = `${APP_CONSTANTS.ROUTES.AUTH}?returnUrl=${encodeURIComponent(url)}`;
+    }
+
+    this.overlay.classList.add('is-active');
+    this.overlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+  },
+
+  hide() {
+    if (!this.overlay) return;
+    this.overlay.classList.remove('is-active');
+    this.overlay.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+  }
+};
+
+window.AuthPromptModal = AuthPromptModal;
+window.showAuthPromptModal = (opts) => AuthPromptModal.show(opts);
+window.hideAuthPromptModal = () => AuthPromptModal.hide();
+
 export const SiteController = {
   getSearchHistory() {
     try {
@@ -65,6 +125,8 @@ export const SiteController = {
     this.initMobileNav();
     this.initSearchSuggestions();
     this.initCartDrawer();
+    this.initNavUser();
+    AuthPromptModal.init();
     CartManager.updateCartBadge();
     FavoritesManager.updateFavoritesBadge();
   },
@@ -74,7 +136,7 @@ export const SiteController = {
      ========================================================================== */
   initMegaMenu() {
     const triggerWrap = document.querySelector('.nav-item--has-mega');
-    const triggerLink = document.getElementById('shop-mega-trigger');
+    const triggerLink = document.getElementById('shop-mega-trigger') || document.getElementById('shopMegaTrigger');
     const megaMenu = document.getElementById('shop-mega-menu');
 
     if (!triggerWrap || !megaMenu) return;
@@ -171,7 +233,7 @@ export const SiteController = {
           </span>
            <button type="button" class="search-history-clear">Clear All</button></div>
         ${history.map(query => `<div class="search-history-entry">
-          <a href="/Pages/Shop.aspx?q=${encodeURIComponent(query)}" class="mobile-search-result search-history-item" data-search-query="${this.escapeHtml(query)}">${this.escapeHtml(query)}</a>
+          <a href="${APP_CONSTANTS.ROUTES.SHOP}?q=${encodeURIComponent(query)}" class="mobile-search-result search-history-item" data-search-query="${this.escapeHtml(query)}">${this.escapeHtml(query)}</a>
           <button type="button" class="search-history-remove" data-search-query="${this.escapeHtml(query)}" aria-label="Remove ${this.escapeHtml(query)} from search history" title="Remove search"><span aria-hidden="true">&times;</span></button>
         </div>`).join('')}` : '';
       mobileSearchResults.classList.toggle('is-open', history.length > 0);
@@ -183,8 +245,7 @@ export const SiteController = {
       if (q) {
         this.saveSearchHistory(q);
         closeMobileNav();
-        const baseUrl = window.location.pathname.toLowerCase().includes('/pages/') ? 'Shop.aspx' : 'Pages/Shop.aspx';
-        window.location.href = `${baseUrl}?q=${encodeURIComponent(q)}`;
+        window.location.href = `${APP_CONSTANTS.ROUTES.SHOP}?q=${encodeURIComponent(q)}`;
       }
     };
 
@@ -232,14 +293,14 @@ export const SiteController = {
           if (currentRequest !== mobileRequestId || !mobileSearchResults) return;
           const items = result?.items || [];
           mobileSearchResults.innerHTML = items.length
-            ? items.map(item => `<a href="/Pages/ProductDetail.aspx?id=${Number(item.id)}" class="mobile-search-result">
+            ? items.map(item => `<a href="${APP_CONSTANTS.ROUTES.PRODUCT_DETAIL(Number(item.id))}" class="mobile-search-result">
                 ${this.escapeHtml(item.name)} <span>&#8369;${Number(item.effectivePrice ?? item.basePrice ?? 0).toLocaleString()}</span>
-              </a>`).join('') + `<a href="/Pages/Shop.aspx?q=${encodeURIComponent(q)}" class="mobile-search-result mobile-search-result--all">View all results</a>`
-            : `<a href="/Pages/Shop.aspx?q=${encodeURIComponent(q)}" class="mobile-search-result">No suggestions. View shop results</a>`;
+              </a>`).join('') + `<a href="${APP_CONSTANTS.ROUTES.SHOP}?q=${encodeURIComponent(q)}" class="mobile-search-result mobile-search-result--all">View all results</a>`
+            : `<a href="${APP_CONSTANTS.ROUTES.SHOP}?q=${encodeURIComponent(q)}" class="mobile-search-result">No suggestions. View shop results</a>`;
           mobileSearchResults.classList.add('is-open');
         } catch (error) {
           if (currentRequest !== mobileRequestId || !mobileSearchResults) return;
-          mobileSearchResults.innerHTML = `<a href="/Pages/Shop.aspx?q=${encodeURIComponent(q)}" class="mobile-search-result">Open shop results</a>`;
+          mobileSearchResults.innerHTML = `<a href="${APP_CONSTANTS.ROUTES.SHOP}?q=${encodeURIComponent(q)}" class="mobile-search-result">Open shop results</a>`;
           mobileSearchResults.classList.add('is-open');
         }
       }, 180);
@@ -279,7 +340,7 @@ export const SiteController = {
     let activeIndex = -1;
     let requestId = 0;
     let debounceTimer;
-    const shopUrl = query => `/Pages/Shop.aspx?q=${encodeURIComponent(query)}`;
+    const shopUrl = query => `${APP_CONSTANTS.ROUTES.SHOP}?q=${encodeURIComponent(query)}`;
     const showSuggestions = async query => {
       const q = (query || '').trim();
       const thisRequest = ++requestId;
@@ -334,7 +395,7 @@ export const SiteController = {
                 <div class="search-group-title">MATCHING HELMETS (${result.totalCount || matches.length})</div>
                 <div class="search-results-list">
                   ${matches.map((item, index) => `
-                    <a href="/Pages/ProductDetail.aspx?id=${Number(item.id)}" class="search-item search-result-row" data-index="${index}">
+                    <a href="${APP_CONSTANTS.ROUTES.PRODUCT_DETAIL(Number(item.id))}" class="search-item search-result-row" data-index="${index}">
                       <img src="${this.escapeHtml(item.mainImageUrl || '/Content/images/placeholder-helmet.png')}" alt="${this.escapeHtml(item.name)}" class="search-thumb search-result-thumb" onerror="this.src='/Content/images/placeholder-helmet.png'" />
                       <div class="search-item-info search-result-info">
                         <span class="search-item-title search-result-title">${this.highlightMatch(item.name, q)}</span>
@@ -450,8 +511,7 @@ export const SiteController = {
         } else if (input.value.trim()) {
           e.preventDefault();
           this.saveSearchHistory(input.value.trim());
-          const baseUrl = window.location.pathname.toLowerCase().includes('/pages/') ? 'Shop.aspx' : 'Pages/Shop.aspx';
-          window.location.href = `${baseUrl}?q=${encodeURIComponent(input.value.trim())}`;
+          window.location.href = `${APP_CONSTANTS.ROUTES.SHOP}?q=${encodeURIComponent(input.value.trim())}`;
         }
       } else if (e.key === 'Escape') {
         hideSuggestions();
@@ -469,7 +529,7 @@ export const SiteController = {
      4. SLIDING SHOPPING CART DRAWER (Balanced Layout)
      ========================================================================== */
   initCartDrawer() {
-    const cartBtn = document.getElementById('nav-cart-btn');
+    const cartBtn = document.getElementById('nav-cart-btn') || document.getElementById('navCartBtn');
     const mobileCartLink = document.getElementById('mobile-nav-cart-link');
     const drawer = document.getElementById('cart-drawer');
     const overlay = document.getElementById('cart-drawer-overlay');
@@ -516,9 +576,27 @@ export const SiteController = {
     closeBtn?.addEventListener('click', closeDrawer);
     viewCartBtn?.addEventListener('click', closeDrawer);
     viewCartBtn?.addEventListener('click', () => {
-      window.location.href = '/Pages/Cart.aspx';
+      window.location.href = APP_CONSTANTS.ROUTES.CART;
     });
     overlay?.addEventListener('click', closeDrawer);
+
+    const drawerCheckoutBtn = document.querySelector('.cart-drawer__actions .btn--primary');
+    drawerCheckoutBtn?.addEventListener('click', (e) => {
+      const selected = CartManager.getSelectedItems();
+      if (selected.length === 0) {
+        e.preventDefault();
+        RealtimeManager.showToast('Please select at least 1 item in your cart.', 'alert');
+        return;
+      }
+      if (!ApiClient.isAuthenticated()) {
+        e.preventDefault();
+        AuthPromptModal.show({
+          title: 'Sign In to Checkout',
+          message: 'Please sign in or create an account before proceeding to checkout.',
+          returnUrl: APP_CONSTANTS.ROUTES.CHECKOUT
+        });
+      }
+    });
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && drawer.classList.contains('is-open')) {
@@ -560,11 +638,11 @@ export const SiteController = {
               <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
             </svg>
           </div>
-          <h4 class="cart-drawer-empty__title">Your cart is empty</h4>
+          <h4 class="cart-drawer-empty__title">YOUR CART IS EMPTY</h4>
           <p class="cart-drawer-empty__desc">Explore our DOT &amp; ECE-certified helmets to protect your next ride.</p>
-          <a href="/Pages/Shop.aspx" class="btn btn--outline btn--sm">
+          <a href="${APP_CONSTANTS.ROUTES.SHOP}" class="cart-drawer-empty__btn">
             <span>Explore Catalog</span>
-            <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
               <line x1="7" y1="17" x2="17" y2="7"></line>
               <polyline points="7 7 17 7 17 17"></polyline>
             </svg>
@@ -578,13 +656,11 @@ export const SiteController = {
 
     if (footerEl) footerEl.style.display = 'flex';
 
-    const baseUrl = window.location.pathname.toLowerCase().includes('/pages/') ? 'ProductDetail.aspx' : 'Pages/ProductDetail.aspx';
-
     // Perfectly balanced, proportional card layout with selection checkbox and clickable media
     bodyEl.innerHTML = `
       <div class="cart-drawer-items">
         ${items.map(item => {
-          const detailUrl = `${baseUrl}?id=${item.productId || 1}`;
+          const detailUrl = APP_CONSTANTS.ROUTES.PRODUCT_DETAIL(item.productId || 1);
           const isChecked = item.isSelected !== false;
           return `
           <div class="cart-drawer-item ${isChecked ? '' : 'cart-drawer-item--unselected'}" data-variant-id="${item.variantId}">
@@ -682,6 +758,97 @@ export const SiteController = {
         }
       });
     });
+  },
+
+  /* ==========================================================================
+     5. GLOBAL USER AUTHENTICATION & NAVIGATION STATE
+     ========================================================================== */
+  initNavUser() {
+    const userBtn = document.getElementById('nav-user-btn') || document.getElementById('navUserBtn');
+    const mobileLogoutBtn = document.getElementById('mobile-nav-logout-btn');
+
+    const token = localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.AUTH_TOKEN) || 
+                  localStorage.getItem('hc_auth_token') || 
+                  localStorage.getItem('jwt_token');
+
+    let profile = null;
+    try {
+      const stored = localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.USER_PROFILE) || 
+                     localStorage.getItem('hc_user_profile');
+      if (stored) profile = JSON.parse(stored);
+    } catch (_) {}
+
+    const isAuthenticated = !!token;
+    const role = profile?.role || localStorage.getItem('user_role') || '';
+    const isAdmin = role.toLowerCase() === 'admin' || role.toLowerCase() === 'staff';
+
+    // 1. Desktop & Global Header User Icon
+    if (userBtn) {
+      if (isAuthenticated) {
+        const targetUrl = isAdmin ? APP_CONSTANTS.ROUTES.ADMIN_DASHBOARD : APP_CONSTANTS.ROUTES.PROFILE;
+        userBtn.setAttribute('href', targetUrl);
+        userBtn.setAttribute('title', profile?.fullName ? `${profile.fullName} (${role})` : (isAdmin ? 'Admin Dashboard' : 'My Account'));
+        userBtn.addEventListener('click', (e) => {
+          if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+            e.preventDefault();
+            window.location.href = targetUrl;
+          }
+        });
+      } else {
+        userBtn.setAttribute('href', APP_CONSTANTS.ROUTES.AUTH);
+        userBtn.setAttribute('title', 'Sign In or Join the Cartel');
+        userBtn.addEventListener('click', (e) => {
+          if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+            e.preventDefault();
+            window.location.href = APP_CONSTANTS.ROUTES.AUTH;
+          }
+        });
+      }
+    }
+
+    // 2. Mobile Nav Drawer Sign Out / Sign In Button
+    if (mobileLogoutBtn) {
+      const textSpan = mobileLogoutBtn.querySelector('span');
+      if (isAuthenticated) {
+        if (textSpan) textSpan.textContent = 'Sign Out';
+        mobileLogoutBtn.setAttribute('href', 'javascript:void(0);');
+        mobileLogoutBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const profileLogoutBtn = document.getElementById('btn-profile-logout');
+          if (profileLogoutBtn) {
+            profileLogoutBtn.click();
+            return;
+          }
+          try {
+            await ApiClient.logout();
+          } catch (_) {}
+          try {
+            localStorage.removeItem(APP_CONSTANTS.STORAGE_KEYS.AUTH_TOKEN);
+            localStorage.removeItem(APP_CONSTANTS.STORAGE_KEYS.USER_PROFILE);
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('hc_auth_token');
+            localStorage.removeItem('hc_user_profile');
+            sessionStorage.clear();
+            document.cookie = 'jwt_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+          } catch (_) {}
+          RealtimeManager.showToast('You have been signed out.', 'info');
+          setTimeout(() => {
+            window.location.href = `${APP_CONSTANTS.ROUTES.AUTH}?logout=1`;
+          }, 350);
+        });
+      } else {
+        if (textSpan) textSpan.textContent = 'Sign In / Register';
+        mobileLogoutBtn.setAttribute('href', APP_CONSTANTS.ROUTES.AUTH);
+        mobileLogoutBtn.addEventListener('click', (e) => {
+          if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+            e.preventDefault();
+            window.location.href = APP_CONSTANTS.ROUTES.AUTH;
+          }
+        });
+      }
+    }
   },
 
   highlightMatch(text, query) {

@@ -115,13 +115,13 @@ BEGIN
     -- 6. Users
     SELECT TOP (@Limit)
         'Users' AS Category,
-        u.FullName AS Title,
-        CONCAT(u.Email, NCHAR(32), NCHAR(8226), NCHAR(32), ISNULL(u.PhoneNumber, 'No phone')) AS Subtitle,
+        CONCAT(u.FirstName, N' ', u.LastName) AS Title,
+        CONCAT(u.Email, NCHAR(32), NCHAR(8226), NCHAR(32), u.PhoneNumber) AS Subtitle,
         CONCAT('/Admin/Users.aspx?q=', u.Email) AS Url,
         r.Name AS Badge
     FROM dbo.Users u
     JOIN dbo.Roles r ON r.Id = u.RoleId
-    WHERE u.FullName LIKE '%' + @Query + '%'
+    WHERE CONCAT(u.FirstName, N' ', u.LastName) LIKE '%' + @Query + '%'
        OR u.Email LIKE '%' + @Query + '%'
        OR u.PhoneNumber LIKE '%' + @Query + '%';
 END;

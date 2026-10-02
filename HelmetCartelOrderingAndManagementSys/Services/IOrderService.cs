@@ -10,6 +10,7 @@ namespace HelmetCartelOrderingAndManagementSys.Services
         Task<ApiResponse<OrderSummaryDto>> CreateInStorePosOrderAsync(CreateOrderRequestDto request, int staffUserId);
         Task<ApiResponse<bool>> UpdateOrderStatusAsync(int orderId, string newStatus, string notes = null);
         Task<OrderSummaryDto> GetOrderByIdAsync(int orderId);
+        Task<OrderSummaryDto> GetOrderByOrderNumberAsync(string orderNumber);
         Task<List<OrderSummaryDto>> GetRecentOrdersAsync(int limit = 20, string status = null);
         Task<bool> ConfirmOnlinePaymentAsync(string orderNumber, string paymentGatewayRef);
     }

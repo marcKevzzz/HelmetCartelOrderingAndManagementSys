@@ -9,7 +9,7 @@ function expireSession() {
   localStorage.removeItem(APP_CONSTANTS.STORAGE_KEYS.AUTH_TOKEN);
   localStorage.removeItem(APP_CONSTANTS.STORAGE_KEYS.USER_PROFILE);
   const returnUrl = window.location.pathname + window.location.search;
-  window.location.replace(`/Pages/Auth.aspx?sessionExpired=1&returnUrl=${encodeURIComponent(returnUrl)}`);
+  window.location.replace(`${APP_CONSTANTS.ROUTES.AUTH}?sessionExpired=1&returnUrl=${encodeURIComponent(returnUrl)}`);
 }
 function checkExpiry() {
   clearTimeout(expiryTimer);

@@ -1041,6 +1041,7 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
   color: var(--color-text-secondary);
   white-space: nowrap;
   max-width: 100%;
+  margin-left: 0 !important;
 }
 
 .admin-cell-category {
@@ -2424,6 +2425,10 @@ textarea::placeholder,
 }
 
 @media (max-width: 768px) {
+  .admin-card-container {
+    padding: var(--space-4) var(--space-3);
+  }
+
   .admin-topbar {
     padding: var(--space-2) var(--space-3);
   }
@@ -2582,7 +2587,7 @@ textarea::placeholder,
 .admin-palette-chip-swatch {
   width: 14px;
   height: 14px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   border: 1px solid rgba(0, 0, 0, 0.15);
   flex-shrink: 0;
 }
@@ -2703,7 +2708,7 @@ textarea::placeholder,
   right: 4px;
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   background: rgba(239, 68, 68, 0.9);
   color: #FFFFFF;
   border: none;

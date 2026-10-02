@@ -1,6 +1,7 @@
 <%@ Page Title="Find Helmets That Match Your Style" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Default.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Default" ResponseEncoding="utf-8" Async="true" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
+    <link rel="stylesheet" href="~/Content/css/storefront/storefront.css?v=8" runat="server" />
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
@@ -12,13 +13,13 @@
                 <p class="hero-content__desc">
                     Browse through our curated range of rigorously tested, DOT & ECE-certified helmets, engineered to protect your ride and elevate your individuality.
                 </p>
-                <a href="#new-arrivals" class="btn--hero">
+                <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx" CssClass="btn--hero">
                     <span>Shop Now</span>
                     <svg class="btn-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="7" y1="17" x2="17" y2="7"></line>
                         <polyline points="7 7 17 7 17 17"></polyline>
                     </svg>
-                </a>
+                </asp:HyperLink>
 
                 <div class="hero-stats">
                     <div class="hero-stat">
@@ -37,7 +38,7 @@
             </div>
 
             <div class="hero-media">
-                <img src="<%= ResolveUrl("~/Content/images/hero_img.png") %>" 
+                <img runat="server" src="~/Content/images/hero_img.png" 
                      alt="Helmet Cartel Style Showcase" 
                      class="hero-media__img" />
                 
@@ -56,21 +57,21 @@
     <div class="brand-ticker" id="brands">
         <div class="container">
             <div class="brand-ticker__list">
-                <a href="<%= ResolveUrl("~/Pages/Shop.aspx?brand=Zebra") %>" class="brand-ticker__item" title="View Zebra Gear">
-                    <img src="<%= ResolveUrl("~/Content/images/zebra.png") %>" alt="Zebra" class="brand-logo-img" />
-                </a>
-                <a href="<%= ResolveUrl("~/Pages/Shop.aspx?brand=Gille") %>" class="brand-ticker__item" title="View Gille Helmets">
-                    <img src="<%= ResolveUrl("~/Content/images/gille.png") %>" alt="Gille" class="brand-logo-img" />
-                </a>
-                <a href="<%= ResolveUrl("~/Pages/Shop.aspx?brand=HNJ") %>" class="brand-ticker__item" title="View HNJ Top Boxes & Gear">
-                    <img src="<%= ResolveUrl("~/Content/images/hnj.png") %>" alt="HNJ" class="brand-logo-img" />
-                </a>
-                <a href="<%= ResolveUrl("~/Pages/Shop.aspx?brand=Shoei") %>" class="brand-ticker__item" title="View Shoei Helmets">
-                    <img src="<%= ResolveUrl("~/Content/images/shoei.png") %>" alt="Shoei Japan" class="brand-logo-img" />
-                </a>
-                <a href="<%= ResolveUrl("~/Pages/Shop.aspx?brand=AGV") %>" class="brand-ticker__item" title="View AGV Helmets">
-                    <img src="<%= ResolveUrl("~/Content/images/agv.png") %>" alt="AGV" class="brand-logo-img avg" />
-                </a>
+                <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx?brand=Zebra" CssClass="brand-ticker__item" ToolTip="View Zebra Gear">
+                    <img runat="server" src="~/Content/images/zebra.png" alt="Zebra" class="brand-logo-img" />
+                </asp:HyperLink>
+                <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx?brand=Gille" CssClass="brand-ticker__item" ToolTip="View Gille Helmets">
+                    <img runat="server" src="~/Content/images/gille.png" alt="Gille" class="brand-logo-img" />
+                </asp:HyperLink>
+                <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx?brand=HNJ" CssClass="brand-ticker__item" ToolTip="View HNJ Top Boxes &amp; Gear">
+                    <img runat="server" src="~/Content/images/hnj.png" alt="HNJ" class="brand-logo-img" />
+                </asp:HyperLink>
+                <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx?brand=Shoei" CssClass="brand-ticker__item" ToolTip="View Shoei Helmets">
+                    <img runat="server" src="~/Content/images/shoei.png" alt="Shoei Japan" class="brand-logo-img" />
+                </asp:HyperLink>
+                <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx?brand=AGV" CssClass="brand-ticker__item" ToolTip="View AGV Helmets">
+                    <img runat="server" src="~/Content/images/agv.png" alt="AGV" class="brand-logo-img avg" />
+                </asp:HyperLink>
             </div>
         </div>
     </div>
@@ -83,7 +84,7 @@
         <div class="products-grid" id="new-arrivals-grid">
             <asp:Repeater ID="rptNewArrivals" runat="server">
                 <ItemTemplate>
-                    <div class="product-card" onclick="window.location.href='<%= ResolveUrl("~/Pages/ProductDetail.aspx?id=") %><%# Eval("Id") %>'">
+                    <asp:HyperLink runat="server" CssClass="product-card" NavigateUrl='<%# "~/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=" + Eval("Id") %>'>
                         <div class="product-card__img-wrap">
                             <img src="<%# Eval("MainImageUrl") %>" alt="<%# Server.HtmlEncode((string)Eval("Name")) %>" class="product-card__img" loading="lazy" />
                         </div>
@@ -99,18 +100,18 @@
                             <span class="price-current">&#8369;<%# Eval("EffectivePrice", "{0:N0}") %></span>
                             <%# (int)Eval("DiscountPercentage") > 0 ? "<span class=\"price-original\">&#8369;" + string.Format("{0:N0}", Eval("BasePrice")) + "</span><span class=\"discount-badge\">-" + Eval("DiscountPercentage") + "%</span>" : "" %>
                         </div>
-                    </div>
+                    </asp:HyperLink>
                 </ItemTemplate>
             </asp:Repeater>
         </div>
         <div class="section-action">
-            <a href="<%= ResolveUrl("~/Pages/Shop.aspx") %>" class="btn btn--outline">
+            <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx" CssClass="btn btn--outline">
                 <span>View All</span>
                 <svg class="btn-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="7" y1="17" x2="17" y2="7"></line>
                     <polyline points="7 7 17 7 17 17"></polyline>
                 </svg>
-            </a>
+            </asp:HyperLink>
         </div>
     </section>
 
@@ -124,7 +125,7 @@
         <div class="products-grid" id="top-selling-grid">
             <asp:Repeater ID="rptTopSelling" runat="server">
                 <ItemTemplate>
-                    <div class="product-card" onclick="window.location.href='<%= ResolveUrl("~/Pages/ProductDetail.aspx?id=") %><%# Eval("Id") %>'">
+                    <asp:HyperLink runat="server" CssClass="product-card" NavigateUrl='<%# "~/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=" + Eval("Id") %>'>
                         <div class="product-card__img-wrap">
                             <img src="<%# Eval("MainImageUrl") %>" alt="<%# Server.HtmlEncode((string)Eval("Name")) %>" class="product-card__img" loading="lazy" />
                         </div>
@@ -140,18 +141,18 @@
                             <span class="price-current">&#8369;<%# Eval("EffectivePrice", "{0:N0}") %></span>
                             <%# (int)Eval("DiscountPercentage") > 0 ? "<span class=\"price-original\">&#8369;" + string.Format("{0:N0}", Eval("BasePrice")) + "</span><span class=\"discount-badge\">-" + Eval("DiscountPercentage") + "%</span>" : "" %>
                         </div>
-                    </div>
+                    </asp:HyperLink>
                 </ItemTemplate>
             </asp:Repeater>
         </div>
         <div class="section-action">
-            <a href="<%= ResolveUrl("~/Pages/Shop.aspx") %>" class="btn btn--outline">
+            <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx" CssClass="btn btn--outline">
                 <span>View All</span>
                 <svg class="btn-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="7" y1="17" x2="17" y2="7"></line>
                     <polyline points="7 7 17 7 17 17"></polyline>
                 </svg>
-            </a>
+            </asp:HyperLink>
         </div>
     </section>
 
@@ -160,22 +161,22 @@
         <div class="bento-wrapper">
             <h2 class="bento-title">BROWSE BY RIDING STYLE</h2>
             <div class="bento-grid">
-                <a class="bento-card bento-card--span-4" href="<%= ResolveUrl("~/Pages/Shop.aspx") %>">
+                <asp:HyperLink runat="server" CssClass="bento-card bento-card--span-4" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx">
                     <div class="bento-card__title">Casual</div>
-                    <img src="<%= ResolveUrl("~/Content/images/casual.png") %>" alt="Casual Urban" class="bento-card__bg-img casual" />
-                </a>
-                <a class="bento-card bento-card--span-8" href="<%= ResolveUrl("~/Pages/Shop.aspx") %>">
+                    <img runat="server" src="~/Content/images/casual.png" alt="Casual Urban" class="bento-card__bg-img casual" />
+                </asp:HyperLink>
+                <asp:HyperLink runat="server" CssClass="bento-card bento-card--span-8" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx">
                     <div class="bento-card__title">Sport / Track</div>
-                    <img src="<%= ResolveUrl("~/Content/images/track.png") %>" alt="Sport Track" class="bento-card__bg-img sport" />
-                </a>
-                <a class="bento-card bento-card--span-8" href="<%= ResolveUrl("~/Pages/Shop.aspx") %>">
+                    <img runat="server" src="~/Content/images/track.png" alt="Sport Track" class="bento-card__bg-img sport" />
+                </asp:HyperLink>
+                <asp:HyperLink runat="server" CssClass="bento-card bento-card--span-8" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx">
                     <div class="bento-card__title">Touring / Adventure</div>
-                    <img src="<%= ResolveUrl("~/Content/images/touring.png") %>" alt="Touring Adventure" class="bento-card__bg-img touring" />
-                </a>
-                <a class="bento-card bento-card--span-4" href="<%= ResolveUrl("~/Pages/Shop.aspx") %>">
+                    <img runat="server" src="~/Content/images/touring.png" alt="Touring Adventure" class="bento-card__bg-img touring" />
+                </asp:HyperLink>
+                <asp:HyperLink runat="server" CssClass="bento-card bento-card--span-4" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx">
                     <div class="bento-card__title">Off-Road</div>
-                    <img src="<%= ResolveUrl("~/Content/images/offroad.png") %>" alt="Off-Road Dirt" class="bento-card__bg-img offroad" />
-                </a>
+                    <img runat="server" src="~/Content/images/offroad.png" alt="Off-Road Dirt" class="bento-card__bg-img offroad" />
+                </asp:HyperLink>
             </div>
         </div>
     </section>
@@ -267,5 +268,5 @@
     </section>
 
     <!-- Client-Side Dynamic Loader -->
-    <script type="module" src="<%= ResolveUrl("~/Scripts/storefront.js?v=8") %>"></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/storefront.js?v=8") %>'></script>
 </asp:Content>

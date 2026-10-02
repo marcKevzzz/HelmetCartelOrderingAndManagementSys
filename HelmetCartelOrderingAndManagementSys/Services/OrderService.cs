@@ -49,19 +49,23 @@ namespace HelmetCartelOrderingAndManagementSys.Services
             bool isCod = string.Equals(request.PaymentMethod, AppConstants.PaymentGateways.CashOnDelivery, StringComparison.OrdinalIgnoreCase);
             var orderNumber = GenerateOrderNumber();
 
-            if (isCashOnPickup || isCod)
+            try
             {
-                try
-                {
-                    if (request.Items.Any(x => x.Quantity <= 0) || request.Items.Select(x => x.VariantId).Distinct().Count() != request.Items.Count)
-                        return ApiResponse<OrderSummaryDto>.Fail("Invalid or duplicate items.", AppConstants.ErrorCodes.VariantNotFound);
+                if (request.Items.Any(x => x.Quantity <= 0) || request.Items.Select(x => x.VariantId).Distinct().Count() != request.Items.Count)
+                    return ApiResponse<OrderSummaryDto>.Fail("Invalid or duplicate items.", AppConstants.ErrorCodes.VariantNotFound);
 
+                if (isCashOnPickup || isCod)
+                {
                     var orderResult = await _orderRepository.CreateOrderAsync(request, orderNumber, AppConstants.OrderSources.Online, userId).ConfigureAwait(false);
 
                     // Atomic stock deduction for committed orders
                     foreach (var item in request.Items)
                     {
-                        await _inventoryService.ProcessSaleDeductionAsync(item.VariantId, item.Quantity, userId, AppConstants.StockAuditChangeType.OnlineSale, orderNumber).ConfigureAwait(false);
+                        var deduction = await _inventoryService.ProcessSaleDeductionAsync(item.VariantId, item.Quantity, userId, AppConstants.StockAuditChangeType.OnlineSale, orderNumber).ConfigureAwait(false);
+                        if (!deduction.Success)
+                        {
+                            return ApiResponse<OrderSummaryDto>.Fail(deduction.Message, AppConstants.ErrorCodes.InsufficientStock);
+                        }
                     }
 
                     await NotifySafelyAsync(() => BroadcastCommittedStockAsync(request.Items, AppConstants.StockAuditChangeType.OnlineSale)).ConfigureAwait(false);
@@ -72,26 +76,51 @@ namespace HelmetCartelOrderingAndManagementSys.Services
                         : "Order placed for store pickup.";
                     return ApiResponse<OrderSummaryDto>.Ok(orderResult, msg);
                 }
-                catch (Exception e) { return ApiResponse<OrderSummaryDto>.Fail(e.Message, AppConstants.ErrorCodes.InsufficientStock); }
-            }
 
-            var order = await _orderRepository.CreateOrderAsync(request, orderNumber, AppConstants.OrderSources.Online, userId).ConfigureAwait(false);
+                var order = await _orderRepository.CreateOrderAsync(request, orderNumber, AppConstants.OrderSources.Online, userId).ConfigureAwait(false);
 
-            // 2. Generate HitPay payment checkout link for online e-wallet / card payments
-            try
-            {
-                var hitpayResponse = await _hitPayService.CreatePaymentRequestAsync(order).ConfigureAwait(false);
-                order.CheckoutUrl = hitpayResponse?.Url;
+                // Check if HitPay simulation mode is enabled
+                var isSimulation = string.Equals(System.Configuration.ConfigurationManager.AppSettings["HitPay:SimulationMode"], "true", StringComparison.OrdinalIgnoreCase);
+
+                if (isSimulation)
+                {
+                    // Instant payment simulation: mark as paid & processing, deduce stock, and notify hubs
+                    var simGatewayRef = $"SIM-{Guid.NewGuid().ToString("N").Substring(0, 12).ToUpperInvariant()}";
+                    var confirmed = await _orderRepository.ConfirmHitPayOrderAsync(orderNumber, simGatewayRef).ConfigureAwait(false);
+                    if (confirmed)
+                    {
+                        // Note: dbo.sp_ConfirmHitPayOrder ALREADY performs atomic stock deduction in MSSQL via UPDLOCK, ROWLOCK.
+                        // We ONLY broadcast the updated stock levels over SignalR here, do NOT deduct twice!
+                        await NotifySafelyAsync(() => BroadcastCommittedStockAsync(request.Items, AppConstants.StockAuditChangeType.OnlineSale)).ConfigureAwait(false);
+                        order.PaymentStatus = AppConstants.PaymentStatus.Completed;
+                        order.Status = AppConstants.OrderStatus.Processing;
+                        NotifySafely(() => OrderHub.NotifyOrderStatusChanged(order.Id, orderNumber, AppConstants.OrderStatus.Processing));
+                        NotifySafely(() => OrderHub.NotifyNewOrder(order));
+                        return ApiResponse<OrderSummaryDto>.Ok(order, "Order placed and payment simulated successfully (Simulation Mode).");
+                    }
+                }
+
+                // 2. Generate HitPay payment checkout link for online e-wallet / card payments
+                try
+                {
+                    var hitpayResponse = await _hitPayService.CreatePaymentRequestAsync(order).ConfigureAwait(false);
+                    order.CheckoutUrl = hitpayResponse?.Url;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[HitPay] Warning: Checkout URL generation error: {ex.Message}");
+                }
+
+                // 3. Notify staff dashboard of incoming pending order
+                NotifySafely(() => OrderHub.NotifyNewOrder(order));
+
+                return ApiResponse<OrderSummaryDto>.Ok(order, "Order created successfully. Proceed to payment.");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[HitPay] Warning: Checkout URL generation error: {ex.Message}");
+                System.Diagnostics.Trace.TraceError($"[CreateOnlineOrderAsync] Error: {ex}");
+                return ApiResponse<OrderSummaryDto>.Fail(ex.Message, AppConstants.ErrorCodes.InsufficientStock);
             }
-
-            // 3. Notify staff dashboard of incoming pending order
-            NotifySafely(() => OrderHub.NotifyNewOrder(order));
-
-            return ApiResponse<OrderSummaryDto>.Ok(order, "Order created successfully. Proceed to payment.");
         }
 
         public async Task<ApiResponse<OrderSummaryDto>> CreateInStorePosOrderAsync(CreateOrderRequestDto request, int staffUserId)
@@ -162,6 +191,11 @@ namespace HelmetCartelOrderingAndManagementSys.Services
         public async Task<OrderSummaryDto> GetOrderByIdAsync(int orderId)
         {
             return await _orderRepository.GetOrderByIdAsync(orderId).ConfigureAwait(false);
+        }
+
+        public async Task<OrderSummaryDto> GetOrderByOrderNumberAsync(string orderNumber)
+        {
+            return await _orderRepository.GetOrderByOrderNumberAsync(orderNumber).ConfigureAwait(false);
         }
 
         public async Task<List<OrderSummaryDto>> GetRecentOrdersAsync(int limit = 20, string status = null)

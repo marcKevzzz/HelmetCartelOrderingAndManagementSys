@@ -162,6 +162,7 @@ namespace HelmetCartelOrderingAndManagementSys.Constants
             public const string InvalidPaymentSignature = "INVALID_PAYMENT_SIGNATURE";
             public const string UnauthorizedAccess = "UNAUTHORIZED_ACCESS";
             public const string ConcurrencyConflict = "CONCURRENCY_CONFLICT";
+            public const string DatabaseError = "DATABASE_ERROR";
         }
     }
 }

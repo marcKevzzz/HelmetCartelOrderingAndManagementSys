@@ -69,21 +69,21 @@
   --color-accent-amber-bg: #FFFBEB;
   --color-accent-green: #10B981;         /* Verified badge & in-stock indicator */
 
-  /* Palette Swatches (Shop & Product Details) */
-  --swatch-green: #00C12B;
-  --swatch-red: #F50606;
-  --swatch-yellow: #F5DD06;
-  --swatch-orange: #F57906;
-  --swatch-cyan: #06CAF5;
-  --swatch-blue: #063AF5;
-  --swatch-purple: #7D06F5;
-  --swatch-pink: #F506A4;
-  --swatch-white: #FFFFFF;
-  --swatch-black: #000000;
-  --swatch-grey: #777777;
-  --swatch-charcoal: #313437;
-  --swatch-olive: #2F4F4F;
-  --swatch-navy: #1A2A44;
+  /* Palette Swatches (Shop & Product Details - Realistic Helmet Finishes) */
+  --swatch-green: #3E533E;
+  --swatch-red: #C81D25;
+  --swatch-yellow: #D4E600;
+  --swatch-orange: #E65100;
+  --swatch-cyan: #267083;
+  --swatch-blue: #183B7E;
+  --swatch-purple: #6B468C;
+  --swatch-pink: #C2386E;
+  --swatch-white: #F8F9FA;
+  --swatch-black: #18181A;
+  --swatch-grey: #5C646D;
+  --swatch-charcoal: #282A2E;
+  --swatch-olive: #3E533E;
+  --swatch-navy: #142238;
   --color-accent-green-bg: #ECFDF5;
 
   /* -------------------------------------------------------------------------

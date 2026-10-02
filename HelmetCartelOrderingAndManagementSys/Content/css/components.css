@@ -307,7 +307,8 @@ a:hover > .btn-arrow-icon {
 
 @media (max-width: 540px) {
   .products-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
   }
 }
 
@@ -521,3 +522,116 @@ textarea.is-invalid:focus {
 .inline-error-msg.has-error {
   display: block;
 }
+
+/* 10. AUTH PROMPT CONFIRMATION MODAL */
+.auth-prompt-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: var(--z-modal, 9999);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--transition-normal), visibility var(--transition-normal);
+}
+
+.auth-prompt-modal-overlay.is-active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.auth-prompt-modal {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background-color: var(--color-surface-card);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-8) var(--space-6) var(--space-6);
+  text-align: center;
+  transform: translateY(16px) scale(0.97);
+  transition: transform var(--transition-normal);
+}
+
+.auth-prompt-modal-overlay.is-active .auth-prompt-modal {
+  transform: translateY(0) scale(1);
+}
+
+.auth-prompt-modal__close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.auth-prompt-modal__close:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-main);
+}
+
+.auth-prompt-modal__close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.auth-prompt-modal__icon-wrap {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto var(--space-4);
+  background-color: var(--color-surface-subtle);
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-main);
+}
+
+.auth-prompt-modal__icon-wrap svg {
+  width: 26px;
+  height: 26px;
+}
+
+.auth-prompt-modal__title {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: var(--weight-black);
+  letter-spacing: -0.01em;
+  color: var(--color-text-main);
+  margin-bottom: var(--space-2);
+}
+
+.auth-prompt-modal__desc {
+  font-size: var(--text-body-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-relaxed);
+  margin-bottom: var(--space-6);
+}
+
+.auth-prompt-modal__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.auth-prompt-modal__actions .btn {
+  justify-content: center;
+  padding: 0.75rem 1.25rem;
+  font-weight: 600;
+}
+

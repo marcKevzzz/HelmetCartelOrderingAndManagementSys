@@ -1,5 +1,177 @@
 # AI Change Log & Architectural Evolution: Helmet Cartel
 
+## [2026-10-01] — Modular Directory Restructuring, Zero-Inline Script/Style Decoupling & Legacy 301 Routing
+
+- **Zero-Inline JavaScript & CSS Mandate Achieved:**
+  - Extracted all inline `<script>` blocks from `Checkout.aspx` (~580 LOC), `Cart.aspx` (~190 LOC), `Favorites.aspx` (~155 LOC), `Orders.aspx`, and `Inventory.aspx` into dedicated external JavaScript ES modules.
+  - Eliminated all inline `<style>` and internal styles across `.aspx`, `.ascx`, and `.master` files.
+- **Dedicated Modular Folder Structure in `Pages/`:**
+  - `Pages/` now strictly contains three functional subdirectories: `Admin/`, `Auth/`, and `Storefront/`:
+    - `Pages/Auth/`: Dedicated folder housing `Auth.aspx`, `Auth.aspx.cs`, and `Auth.aspx.designer.cs`.
+    - `Pages/Storefront/`: Feature-dedicated folders:
+      - `Cart/`: `Cart.aspx`, `Cart.aspx.cs`, `Cart.aspx.designer.cs`
+      - `Checkout/`: `Checkout.aspx`, `Checkout.aspx.cs`, `Checkout.aspx.designer.cs`
+      - `Favorites/`: `Favorites.aspx`, `Favorites.aspx.cs`
+      - `ProductDetail/`: `ProductDetail.aspx`, `ProductDetail.aspx.cs`, `ProductDetail.aspx.designer.cs`
+      - `Profile/`: `Profile.aspx`, `Profile.aspx.cs`, `Profile.aspx.designer.cs`
+      - `Shop/`: `Shop.aspx`, `Shop.aspx.cs`, `Shop.aspx.designer.cs`, `ProductFilterControl.ascx`, `ProductFilterControl.ascx.cs`, `ProductFilterControl.ascx.designer.cs`
+      - `TrackOrder/`: `TrackOrder.aspx`, `TrackOrder.aspx.cs`, `TrackOrder.aspx.designer.cs`
+    - `Pages/Admin/`: Moved from root `/Admin` into `Pages/Admin/` with feature subdirectories:
+      - `Catalog/`, `CatalogItem/`, `Dashboard/`, `Inventory/`, `Orders/`, `POS/`, `Reports/`, `Users/`, `Reviews/`, `Payments/`, and root `Portal.master`.
+- **CSS & JS Architecture Reorganization:**
+  - Created `Content/css/storefront/` (`storefront.css`, `checkout.css`, `profile.css`, `auth.css`).
+  - Created `Content/css/admin/` (`admin.css`, `pos.css`).
+  - Created `Scripts/storefront/` (`checkout.js`, `cart.js`, `favorites.js`, `product-detail.js`, `profile.js`, `storefront.js`, `track-order.js`, `auth.js`).
+  - Created `Scripts/admin/` (`admin.js`, `catalog.js`, `catalog-item.js`, `dashboard.js`, `inventory.js`, `orders.js`, `pos.js`, `reports.js`, `search-history.js`, `session.js`).
+  - Standardized shared tokens in `Content/css/` (`variables.css`, `reset.css`, `layout.css`, `components.css`) and shared modules in `Scripts/` (`api.js`, `constants.js`, `realtime.js`, `site.js`, `cart.js`, `favorites.js`).
+- **Canonical Routing & Backward-Compatible HTTP 301 Redirection:**
+  - Added centralized `APP_CONSTANTS.ROUTES` to `Scripts/constants.js` powering all client-side navigation.
+  - Implemented `LegacyPageRedirects` in `Global.asax.cs` delivering seamless HTTP 301 Moved Permanently redirects for all old URLs (e.g. `/Pages/Cart.aspx`, `/Pages/Shop.aspx`, `/Admin/Dashboard.aspx`), preserving query strings.
+  - Updated admin authorization gate in `Global.asax.cs` to guard `~/Pages/Admin/` and redirect unauthenticated requests to `~/Pages/Auth/Auth.aspx`.
+- **MSBuild Compilation & Zero-Regression Verification:**
+  - Updated `HelmetCartelOrderingAndManagementSys.csproj` with clean `<Compile>` and `<Content>` entries.
+  - MSBuild succeeded with 0 Warnings and 0 Errors.
+  - Verified live runtime HTTP 200 responses across all storefront pages and HTTP 301/302 redirects.
+
+
+- **Checkout State Persistence Across Page Refresh (`Pages/Checkout.aspx`):**
+  - Implemented `saveCheckoutState()`, `getStoredCheckoutState()`, and `clearCheckoutState()` using `localStorage` (`hc_checkout_state`).
+  - Automatically captures and restores user selections on page reload:
+    - Fulfillment selection (`pickup` vs. `delivery`) and dynamic shipping fee calculations.
+    - Selected recipient address (`selectedAddressId`), ensuring the chosen address card remains selected after refresh or after returning from editing addresses in profile.
+    - Selected payment method card (`hitpay`, `cod`, `cash`).
+    - Active checkout step (`1`, `2`, or `3`), with defensive validation ensuring step restoration only occurs if prerequisites are met.
+    - Terms and conditions agreement checkbox state.
+  - Automatically resets/clears the saved draft state upon successful order placement (`clearCheckoutState`), guaranteeing subsequent checkout sessions start clean.
+- **Loading Spinner on Place Order Action (`Pages/Checkout.aspx` & `Content/css/checkout.css`):**
+  - Added `.btn-spinner` element inside `#btn-place-order` with rotation keyframe animation (`btnSpinnerAnim`).
+  - Added `.btn--loading` state to `#btn-place-order`: displays the rotating spinner, updates copy to `"Processing Transaction..."`, hides the chevron arrow icon, and disables user interaction to prevent duplicate order submissions.
+  - Restores default button state and removes `.btn--loading` if validation or network requests fail.
+
+## [2026-10-01] — Resolution of POST /api/v1/orders 500 Internal Server Error & Simulation Mode Refinement
+
+- **HitPay Simulation Stock Double-Deduction Elimination (`Services/OrderService.cs`):**
+  - Identified that `dbo.sp_ConfirmHitPayOrder` already executes atomic stock decrements via `UPDLOCK, ROWLOCK` in MSSQL and inserts `dbo.StockAuditLogs`.
+  - Removed the redundant secondary call to `_inventoryService.ProcessSaleDeductionAsync` in HitPay Simulation Mode, which previously caused secondary deduction failures ("Insufficient stock") when stock was low or exactly equal to item quantity.
+- **Robust Exception Handling & Detailed Error Diagnostics (`Controllers/Api/OrdersController.cs` & `WebApiConfig.cs`):**
+  - Wrapped `OrdersController.CreateOnlineOrder` in try-catch to return formatted `ApiResponse<OrderSummaryDto>.Fail(...)` rather than bubbling up unhandled 500 exceptions.
+  - Enabled `config.IncludeErrorDetailPolicy = IncludeErrorDetailPolicy.Always;` in `App_Start/WebApiConfig.cs` for clear diagnostics during development.
+  - Added `DatabaseError = "DATABASE_ERROR"` constant to `AppConstants.ErrorCodes`.
+- **String Length Clamping & Defensive Parameter Mapping (`Repositories/OrderRepository.cs`):**
+  - Added defensive string truncation guards for `CustomerName` (max 100), `CustomerEmail` (max 256), `CustomerPhone` (max 30), and `ShippingAddress` (max 300) before binding to `dbo.sp_CreateOrder` parameters, preventing SQL parameter truncation exceptions when customers use extended formatted phone numbers or addresses.
+- **Verified Order Creation Endpoint:**
+  - Tested `POST /api/v1/orders` with live payload; verified successful order generation (`HC-...`), status `Processing`, payment status `Completed` (HitPay Simulation), and HTTP 200 response with zero errors.
+
+## [2026-10-01] — Address Recipient Persistence Fix, Autocomplete Attributes & C# Backend Audit
+
+- **Database Column Restoration & Stored Procedure Update (`database/schema/23_add_recipient_contact_to_user_addresses.sql`):**
+  - Restored `RecipientName NVARCHAR(100)` and `PhoneNumber NVARCHAR(50)` on `dbo.UserAddresses`.
+  - Updated `dbo.sp_SaveUserAddress` to accept and persist `@RecipientName` and `@PhoneNumber` (with fallbacks to user account if null/empty).
+  - Updated `dbo.sp_GetUserAddresses` to return `RecipientName` and `PhoneNumber`.
+  - Resolved SQL error `Procedure sp_SaveUserAddress has too many arguments specified`.
+- **C# Repository & Service Layer Resilience (`UserRepository.cs` & `AuthService.cs`):**
+  - Updated `AuthService.SaveUserAddressAsync` to validate required fields (`StreetAddress`, `City`, `Province`) while gracefully normalizing optional fields (`Barangay`, `PostalCode`, `AddressLabel`), eliminating false `ArgumentException` errors when optional fields were left blank in the UI.
+  - Ensured `UserRepository.SaveUserAddressAsync` and `GetUserAddressesAsync` handle null DB values safely with `reader.IsDBNull`.
+- **DOM Autocomplete Attributes (`Pages/Profile.aspx`):**
+  - Added `autocomplete="username"` to `#edit-email`, `autocomplete="given-name"` to `#edit-first-name`, `autocomplete="family-name"` to `#edit-last-name`, and `autocomplete="tel"` to `#edit-phone`.
+  - Added standard autocomplete attributes (`name`, `tel`, `street-address`, `address-level3`, `address-level2`, `address-level1`, `postal-code`) to `#addressModal` inputs, eliminating browser DOM autocomplete warnings.
+- **C# Backend Architecture Verification:**
+  - Audited all codebase files and scripts. Confirmed 100% adherence to the C# Backend Mandate:
+  - All database access, transactions, and mutations execute exclusively in C# (`Controllers/Api/`, `Services/`, `Repositories/`) via ADO.NET `SqlConnection` and dedicated MSSQL stored procedures (`dbo.sp_...`).
+  - No JavaScript is used for backend operations, persistence, or API simulation; client-side scripts in `Scripts/` are strictly limited to DOM events, UI presentation, and standard HTTP `fetch()` requests to the C# Web API 2 endpoints.
+
+## [2026-10-01] — Checkout Streamlining, Recipient Contact on Address & HitPay Simulation Mode
+
+- **Recipient Name & Phone Number Dedicated to Address Entity:**
+  - Extended `SaveUserAddressRequestDto` in `Models/DTOs/AuthDTOs.cs` to include `RecipientName` and `PhoneNumber`.
+  - Updated `UserRepository.SaveUserAddressAsync` in `Repositories/UserRepository.cs` to bind `@RecipientName` and `@PhoneNumber` to stored procedure `dbo.sp_SaveUserAddress`.
+  - Added Recipient Full Name (`#addr-recipient-name`) and Recipient Phone Number (`#addr-phone`) inputs to `#addressModal` in `Pages/Profile.aspx`.
+  - Updated `Scripts/profile.js` (`openAddressModal`, `handleAddressFormSubmit`, `renderAddresses`, `setDefaultUserAddress`) to populate, validate, persist, and display recipient name and phone on saved address cards.
+- **Customer Contact Details Replaced with Selected Address Component (`Pages/Checkout.aspx`):**
+  - Removed all manual contact input fields (`First Name`, `Last Name`, `Email Address`, `Mobile Phone`) from Step 1 in `Pages/Checkout.aspx`.
+  - Implemented `.checkout-address-card` component styled with location pin icon, recipient name, phone number, formatted multiline address, and right chevron `>`.
+  - Clicking `.checkout-address-card` routes to `/Pages/Profile.aspx?tab=addresses` allowing customers to add, edit, or select addresses with designated recipient details.
+  - Sourced order payload customer information (`customerName`, `customerPhone`, `shippingAddress`, `shippingCity`, etc.) directly from the selected profile address.
+- **Removed Manual Delivery Destination Form:**
+  - Completely removed `#delivery-address-section` (street, barangay, city, province, postal code, delivery notes, save address checkbox) from `Pages/Checkout.aspx`.
+  - Selecting "Door-to-Door Courier Delivery" no longer displays a manual address form; the selected address card provides the required destination data and calculates dynamic shipping rates.
+- **Shipping Method Copy Polish (Simulation Friendly):**
+  - Removed `&bull; Free helmet fitting &amp; visor check` from In-Store Pickup option.
+  - Updated Door-to-Door Courier Delivery description to: `Simulated door-to-door courier dispatch via J&T Express, Lalamove, or Grab Express`.
+- **Step 3 (Review & Confirm Order) Simplification & Mobile Order Summary Layout:**
+  - Removed "Customer & Fulfillment", "Payment Method", and "Total Breakdown" cards from Step 3 in `Pages/Checkout.aspx`.
+  - Preserved strictly the Itemized Gear Breakdown (`Order Items`), Terms of Sale agreement checkbox, and Place Order actions in Step 3.
+  - Updated `@media (max-width: 992px)` in `Content/css/checkout.css` to use `display: flex; flex-direction: column;` with `.checkout-main { order: 1; }` and `.checkout-sidebar { order: 2; }`, guaranteeing the Order Summary is displayed at the bottom on mobile viewports.
+- **HitPay Online Payment Simulation Mode:**
+  - Added `<add key="HitPay:SimulationMode" value="true" />` in `Web.config`.
+  - Updated `Services/OrderService.cs` in `CreateOnlineOrderAsync` to check `HitPay:SimulationMode`.
+  - When `true`, automatically simulates an instant paid transaction: sets payment status to `Completed` and order status to `Processing`, generates simulated gateway reference `SIM-...`, commits inventory stock deduction, broadcasts SignalR updates via `InventoryHub` and `OrderHub`, and displays order confirmation immediately without leaving the site.
+  - When `false`, smoothly preserves the complete HitPay API payment request generation pipeline for easy toggle to live/sandbox gateway transactions.
+
+## [2026-10-01] — Profile Layout, Empty Cart Display, Auth Redirect & Mobile Navigation Enhancements
+
+- **Profile Section Headers Desktop Single-Row Layout:**
+  - Updated `.profile-section-header` in `Content/css/profile.css` to `display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); width: 100%;` without line-wrapping on desktop (`min-width: 0` on child text container, `flex-shrink: 0` on actions), keeping titles, descriptions, and pill buttons (such as `+ Add New Address` and `Sort by`) aligned on a single row on desktop viewports.
+  - Wrapped Tab 1 (`tab-pane-orders`) in `Pages/Profile.aspx` in `.profile-section-card` and `.profile-section-header` with uppercase bold display typography (`ORDER HISTORY`), ensuring consistent visual structure across all profile tabs.
+- **Empty Cart State Matching Reference Design:**
+  - Redesigned empty cart display across both the slide-out cart drawer (`Scripts/site.js`) and dedicated cart page (`Pages/Cart.aspx`).
+  - Implemented 64px circular pill container with shopping cart icon, bold uppercase heading `YOUR CART IS EMPTY`, subtitle copy, and rounded pill button `Explore Catalog ↗` with hover state.
+- **Global Profile Navigation & Admin Redirect Consistency:**
+  - Implemented `initNavUser()` in `Scripts/site.js` to run universally across every page loaded via `Site.Master`.
+  - When an authenticated customer clicks the navbar account button (`#nav-user-btn`), it reliably routes to `/Pages/Profile.aspx` (or `/Admin/Dashboard.aspx` if an admin or staff member).
+  - Fixed issue where clicking the profile icon while already on `Profile.aspx` reverted to `Auth.aspx`.
+- **Mobile Navigation Drawer Integration & Sidebar Optimization:**
+  - Removed deprecated links (`Wishlist & Favorites`, `Shopping Cart`, `Sign In / Register`, `Staff Dashboard`) from the mobile navigation drawer in `Site.Master`.
+  - Integrated the profile navigation menu items (`Account details`, `Order history`, `Wishlist`, `Addresses`, `Payment methods`, `Security & Password`, and `Sign Out`) directly into the mobile drawer.
+  - Added `@media (max-width: 992px)` and `@media (max-width: 768px)` rules hiding `.profile-sidebar` on mobile view (`display: none !important;`), allowing full-width presentation of content cards while using the mobile navigation drawer.
+  - Added smooth client-side tab switching in `profile.js` when tapping mobile drawer tab links.
+  - Fixed syntax issue in `Scripts/site.js` (unclosed `renderCartDrawer()` block).
+- **Home Product Cards 2-Column Mobile Grid:**
+  - Updated `.products-grid` in `Content/css/components.css` and `Content/css/storefront.css` at mobile viewports (`<= 540px` and `<= 35rem`) from `1fr` to `repeat(2, minmax(0, 1fr))` with `gap: var(--space-3)`.
+  - Added text clamping and flexible wrapping for titles, ratings, and pricing badges matching `.products-grid-3col` on the shop catalog page.
+
+- **Order Item Cards Mobile Padding Reduction & Single-Line Truncation:**
+  - Reduced horizontal and vertical padding across `.profile-container`, `.profile-section-card`, `.order-row-card__header`, `.order-row-card__dropdown`, and `.order-item-detail-row` under `@media (max-width: 768px)`, freeing up over 60px of horizontal space on mobile screens.
+  - Added `min-width: 0` to `.order-item-detail-info` and `white-space: nowrap; overflow: hidden; text-overflow: ellipsis;` to `.order-item-detail-title` to enforce strict single-line display with ellipsis truncation on overflow.
+  - Added `white-space: nowrap; overflow: hidden; text-overflow: ellipsis;` to `.order-item-detail-specs`, streamlined thumbnail dimensions (46px), and set `white-space: nowrap` on line totals and quantity tags.
+  - Added `title` attribute on `.order-item-detail-title` for full product title tooltip in `profile.js`.
+
+## [2026-10-01] — Authentication Gates, Modal Prompts, Checkout Enhancements & Saved Address System
+
+- **Mandatory Authentication Gates & Global Auth Prompt Modal:**
+  - Implemented client-side authentication guards across interactive storefront touchpoints: clicking favorite hearts, adding products to the shopping cart, and proceeding to checkout now require user authentication.
+  - Added global confirmation modal (`#auth-prompt-modal-overlay` in `Site.Master` & `Content/css/components.css`) offering "Sign In / Register" or "Continue Browsing" options with clean backdrop blur, auto-closing, and return URL redirect tracking.
+  - Intercepted unauthenticated actions in `site.js` (cart drawer checkout), `storefront.js` (product card favorite hearts), `product-detail.js` ("Add to Cart", "Favorite", "Buy Now"), and `Pages/Cart.aspx` ("Proceed to Checkout").
+- **Saved Delivery Addresses System & Redundancy Removal:**
+  - Created `dbo.UserAddresses` table and stored procedures `dbo.sp_GetUserAddresses`, `dbo.sp_SaveUserAddress`, `dbo.sp_DeleteUserAddress` in `database/schema/21_user_addresses_and_checkout_enhancement.sql`.
+  - **Phone & Recipient Redundancy Fixed:** Resolved the inconsistency where `Users.PhoneNumber` is optional while address previously demanded a mandatory phone. `UserAddresses.PhoneNumber` and `UserAddresses.RecipientName` are now optional (`NVARCHAR NULL`), automatically falling back to the user's registered account profile name and phone number if left empty.
+  - Added "Saved Delivery Addresses" tab to `Pages/Profile.aspx` and `profile.js`: lets customers view saved shipping addresses, add/edit addresses with modal dialog, set default addresses, and delete old addresses.
+  - Added address selector (`#saved-address-select`) in `Pages/Checkout.aspx` with one-click auto-fill and "Save this address to my profile" option (`#chk-save-address`).
+- **Dynamic Shipping Fee & Checkout Polish:**
+  - Removed `#ship-region` dropdown and obsolete `(NCR)` suffix from fulfillment fee display and sidebar.
+  - Implemented dynamic shipping fee calculator based on user-entered `City / Municipality` and `Province`. If the location is unlisted/unrecognized, it defaults to **₱175.00** per project requirements (otherwise regional tiers apply: NCR ₱150, GMA ₱250, Luzon ₱350, Visayas ₱450, Mindanao ₱500).
+  - Completely removed `Estimated VAT (12% Included)` calculation, markup, and sidebar line items to align with proposal project scope.
+  - Redesigned Step 3 (Review & Confirm Order) into structured, modern cards: Customer & Fulfillment Summary, Payment Method, Itemized Gear Breakdown, and Financial Totals.
+  - Removed trust badge promotional filler texts (`100% Genuine DOT & ECE Certified Helmets` and `7-Day Hassle-Free Size Replacement Guarantee`).
+
+- **User Profile Page (`Pages/Profile.aspx`):**
+  - Designed and developed a full-featured customer account page adhering strictly to the design system in `Content/css/variables.css` matching the Helmet Cartel / Shop.co aesthetic with zero inline styles (`style="..."` prohibited) and balanced grid layouts.
+  - Implemented 3 dedicated tabs with seamless switching:
+    1. **Order Tracking & History:** Visual 4-step progress stepper (`Pending` &rarr; `Processing` &rarr; `Shipped` &rarr; `Delivered`), order cards with item counts, courier badges (`J&T Express`, `Lalamove`, `Ninja Van`), tracking numbers with one-click copy, and collapsible itemized gear breakdown. Integrated with SignalR `OrderHub` for real-time live status updates without page reload.
+    2. **Payment History & Digital Receipts:** Clean transactions table displaying transaction ID, date, method, gateway reference, and status badge (`Completed`, `Pending`, `Failed`). Includes interactive printable digital receipt modal (`#receipt-modal`) with itemized unit pricing, subtotal, shipping fee, total amount (`&#8369;`), and print stylesheet (`@media print`).
+    3. **Account & Security:** Inline-validated customer profile update form (First Name, Last Name, Phone Number) and secure password change form with real-time feedback (`.is-invalid` borders and visible `.auth-error-msg` directly beneath input fields).
+- **Shop Catalog Price Filter Enhancements (`Pages/Shop/ProductFilterControl.ascx` & `storefront.js`):**
+  - Updated price filter labels to contain interactive numerical inputs (`#price-min-input`, `#price-max-input`) with `&#8369;` prefix, allowing riders to type their desired price range directly while preserving the dual-range slider.
+  - Synchronized dual slider thumbs, typed inputs, URL query parameters, and instant catalog filtering.
+  - Resolved `ReferenceError: minDisplay is not defined` by removing obsolete display element bindings and unifying input handling.
+  - Corrected dual slider track styling: set unselected background track (`.dual-range-track-bg`) to light gray (`#E2E8F0`) and configured `::-webkit-slider-runnable-track` to `transparent`, ensuring only the active selected range between handles is rendered in black (`#000000`).
+  - Enforced boundary constraints and minimum difference: `min` cannot exceed `max` and `max` cannot fall below `min`, strictly maintaining at least a 1 unit difference (`minGap = 1`) across both slider dragging and direct input typing.
+- **Backend Architecture & MSSQL Stored Procedures (`19_user_profile_and_tracking_migration.sql`):**
+  - Created and executed stored procedures: `dbo.sp_UpdateUserProfile`, `dbo.sp_ChangeUserPassword`, `dbo.sp_GetUserOrders`, `dbo.sp_GetUserOrderDetails`, and `dbo.sp_GetUserPayments`.
+  - Added repository and service methods in `UserRepository`, `AuthService`, and `OrderService`.
+  - Added RESTful endpoints in `AuthController` (`PUT /api/v1/auth/profile`, `PUT /api/v1/auth/change-password`, `GET /api/v1/auth/my-orders`, `GET /api/v1/auth/my-payments`, `GET /api/v1/auth/my-orders/{id}`, `GET /api/v1/auth/my-orders/by-number/{orderNumber}`) and `OrdersController` (`GET /api/v1/orders/track/{orderNumber}`) with dual JWT authentication (Bearer authorization header and HttpOnly cookie).
+  - Verified full compilation with MSBuild (`0 Errors`) and live API tests.
+
 ## [2026-09-30] — Login cookie async-context fix
 
 - Capture the HTTP context before asynchronous login/registration and pass it explicitly when issuing the authentication cookie, preventing an absent ambient context from silently skipping the cookie required by admin access.
@@ -75,7 +247,7 @@
   - Added comprehensive step-by-step inline validation across all 5 entry tabs (`#errBrand`, `#errCategory`, `#errProductName`, `#errDescription`, `#errColors`, `#errVariants`, `#errBasePrice`, `#errGalleryImages`) with `.is-invalid` borders and visible `.inline-error-msg` spans.
   - Implemented automatic forward-navigation guarding in `switchWizardTab`: stepping forward validates all previous steps and focuses the first invalid element before advancing.
   - Implemented full validation on both "Publish Helmet" (all required fields) and "Save as Draft" (minimum product name & brand).
-  - Ensured all styles strictly utilize `var(--radius-pill)` per design system standards (eliminating `var(--radius-full)`).
+  - Ensured all styles strictly utilize `var(--radius-pill)` per design system standards (eliminating `var(--radius-pill)`).
 - **Discount & Toggles UI Refinements:**
   - Standardized the Promotional Discount input into a joined group (`.admin-input-joined`) with retail amount on the left and unit dropdown (`%` or `₱`) on the right; completely removed "Discount Scheme".
   - Standardized segmented pill toggles (`.admin-segmented-pill` with `.admin-pill-segment.is-active`) for Discount Campaign Status (`ACTIVE` / `INACTIVE`) and Color Finish Type (`SOLID` / `GRADIENT`).
@@ -766,8 +938,21 @@ This file maintains a historical ledger of major architectural decisions, direct
 - Replaced the nonfunctional newsletter alert form and unsupported first-order discount message with catalog discovery links.
 - Updated the add-to-cart toast to use the exact cart path shown in the site navigation.
 
-## [2026-09-29] - Local JWT file and minimal fresh database installer
+## [2026-10-01] — Storefront markup migration to asp:HyperLink server controls
 
-- JWT configuration now recognizes the supplied App_Data/Jwt_Secret after environment/app-setting overrides and before the generated fallback. Centralized configuration keys and ignored the private file in Git.
-- Added a reproducible standalone SQLCMD installer built from the current schema and procedure migrations, guarded against existing databases, with only two products and four inventory rows. The compact catalog uses the existing AGV White Modular and Gille Adventure Peak seed context, including their local main and gallery images. No full inventory, transaction history, or shared login credentials are imported.
-- Existing database and connection string are unchanged; execution and connection instructions are in SETUP_GUIDE.md.
+- Replaced all `<a href="<%= ResolveUrl(...) %>">` anchor tags across the entire storefront codebase with `<asp:HyperLink runat="server" NavigateUrl="~/..." CssClass="...">` controls.
+- Eliminated Visual Studio design-time markup parser errors ("The server tag is not well formed") across all pages:
+  - `Site.Master`: Top announcement bar, brand logo, mega-menu trigger, header action buttons (`navCartBtn`, `navUserBtn`), category/brand/color mega-menu links, spotlight featured card, CTA banner links, footer links, mobile drawer links, sliding cart drawer checkout link, and auth modal sign-in button.
+  - `Default.aspx`: Hero action button, brand ticker item links, top-selling section action buttons, and bento riding-style cards.
+  - `Pages/Storefront/Shop/Shop.aspx`: Breadcrumbs and catalog product card links.
+  - `Pages/Storefront/ProductDetail/ProductDetail.aspx`: Breadcrumbs and related product card links.
+  - `Pages/Storefront/Cart/Cart.aspx`: Breadcrumb links and empty-cart catalog exploration button.
+  - `Pages/Storefront/Favorites/Favorites.aspx`: Breadcrumb links.
+  - `Pages/Storefront/Checkout/Checkout.aspx`: Breadcrumb links, address selection card, return to cart links, and continue shopping button.
+  - `Pages/Storefront/Profile/Profile.aspx`: Breadcrumb links and empty-state order catalog button.
+  - `Pages/Storefront/TrackOrder/TrackOrder.aspx`: Breadcrumb links, order view return links, and catalog links.
+  - `Pages/Auth/Auth.aspx`: Brand logo and return to storefront link.
+- Added designer declarations for server controls in `Site.Master.designer.cs` (`shopMegaTrigger`, `navCartBtn`, `navUserBtn`, `authModalSigninBtn`).
+- Updated `Scripts/site.js` and `Scripts/storefront/storefront.js` DOM selectors to seamlessly support both kebab-case and camelCase control IDs.
+- Validated via MSBuild (0 errors, 0 warnings) and verified live HTTP 200 responses across all storefront endpoints on IIS Express.
+

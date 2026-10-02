@@ -124,11 +124,16 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                         {
                             orderCmd.CommandType = CommandType.StoredProcedure;
 
+                            string safeName = string.IsNullOrWhiteSpace(request.CustomerName) ? "Customer" : (request.CustomerName.Length > 100 ? request.CustomerName.Substring(0, 100) : request.CustomerName);
+                            string safeEmail = string.IsNullOrWhiteSpace(request.CustomerEmail) ? "store@helmetcartel.com" : (request.CustomerEmail.Length > 256 ? request.CustomerEmail.Substring(0, 256) : request.CustomerEmail);
+                            string safePhone = string.IsNullOrWhiteSpace(request.CustomerPhone) ? "N/A" : (request.CustomerPhone.Length > 30 ? request.CustomerPhone.Substring(0, 30) : request.CustomerPhone);
+                            string safeAddress = string.IsNullOrWhiteSpace(request.ShippingAddress) ? null : (request.ShippingAddress.Length > 300 ? request.ShippingAddress.Substring(0, 300) : request.ShippingAddress);
+
                             orderCmd.Parameters.Add(new SqlParameter("@OrderNumber", SqlDbType.NVarChar, 50) { Value = orderNumber });
                             orderCmd.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = (object)userId ?? DBNull.Value });
-                            orderCmd.Parameters.Add(new SqlParameter("@CustomerName", SqlDbType.NVarChar, 100) { Value = request.CustomerName ?? "Customer" });
-                            orderCmd.Parameters.Add(new SqlParameter("@CustomerEmail", SqlDbType.NVarChar, 256) { Value = request.CustomerEmail ?? "store@helmetcartel.com" });
-                            orderCmd.Parameters.Add(new SqlParameter("@CustomerPhone", SqlDbType.NVarChar, 30) { Value = request.CustomerPhone ?? "N/A" });
+                            orderCmd.Parameters.Add(new SqlParameter("@CustomerName", SqlDbType.NVarChar, 100) { Value = safeName });
+                            orderCmd.Parameters.Add(new SqlParameter("@CustomerEmail", SqlDbType.NVarChar, 256) { Value = safeEmail });
+                            orderCmd.Parameters.Add(new SqlParameter("@CustomerPhone", SqlDbType.NVarChar, 30) { Value = safePhone });
                             orderCmd.Parameters.Add(new SqlParameter("@OrderSource", SqlDbType.NVarChar, 30) { Value = orderSource });
                             orderCmd.Parameters.Add(new SqlParameter("@Status", SqlDbType.NVarChar, 50) { Value = initialStatus });
                             orderCmd.Parameters.Add(new SqlParameter("@Subtotal", SqlDbType.Decimal) { Value = subtotal });
@@ -138,7 +143,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             orderCmd.Parameters.Add(new SqlParameter("@ShippingMethod", SqlDbType.NVarChar, 50) { Value = shippingMethod });
                             orderCmd.Parameters.Add(new SqlParameter("@ShippingFee", SqlDbType.Decimal) { Value = shippingFee });
                             orderCmd.Parameters.Add(new SqlParameter("@ShippingRegion", SqlDbType.NVarChar, 100) { Value = (object)request.ShippingRegion ?? DBNull.Value });
-                            orderCmd.Parameters.Add(new SqlParameter("@ShippingAddress", SqlDbType.NVarChar, 300) { Value = (object)request.ShippingAddress ?? DBNull.Value });
+                            orderCmd.Parameters.Add(new SqlParameter("@ShippingAddress", SqlDbType.NVarChar, 300) { Value = (object)safeAddress ?? DBNull.Value });
                             orderCmd.Parameters.Add(new SqlParameter("@ShippingBarangay", SqlDbType.NVarChar, 100) { Value = (object)request.ShippingBarangay ?? DBNull.Value });
                             orderCmd.Parameters.Add(new SqlParameter("@ShippingCity", SqlDbType.NVarChar, 100) { Value = (object)request.ShippingCity ?? DBNull.Value });
                             orderCmd.Parameters.Add(new SqlParameter("@ShippingProvince", SqlDbType.NVarChar, 100) { Value = (object)request.ShippingProvince ?? DBNull.Value });

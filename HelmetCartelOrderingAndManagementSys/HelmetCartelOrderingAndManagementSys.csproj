@@ -102,45 +102,66 @@
     <Content Include="Web.config" />
     <Content Include="Site.Master" />
     <Content Include="Default.aspx" />
-    <Content Include="Pages\Cart.aspx" />
-    <Content Include="Pages\Dashboard.aspx" />
-    <Content Include="Admin\Portal.master" />
-    <Content Include="Admin\Dashboard.aspx" />
-    <Content Include="Admin\Orders.aspx" />
-    <Content Include="Admin\Inventory.aspx" />
-    <Content Include="Admin\POS.aspx" />
-    <Content Include="Admin\Catalog.aspx" />
-    <Content Include="Admin\CatalogItem.aspx" />
-    <Content Include="Scripts\admin\catalog-item.js" />
-    <Content Include="Admin\Reports.aspx" />
-    <Content Include="Admin\Users.aspx" />
-    <Content Include="Admin\Reviews.aspx" />
-    <Content Include="Admin\Payments.aspx" />
+    <Content Include="Pages\Storefront\Cart\Cart.aspx" />
+    <Content Include="Pages\Storefront\Checkout\Checkout.aspx" />
+    <Content Include="Pages\Storefront\Favorites\Favorites.aspx" />
+    <Content Include="Pages\Storefront\ProductDetail\ProductDetail.aspx" />
+    <Content Include="Pages\Storefront\Profile\Profile.aspx" />
+    <Content Include="Pages\Storefront\Shop\Shop.aspx" />
+    <Content Include="Pages\Storefront\Shop\ProductFilterControl.ascx" />
+    <Content Include="Pages\Storefront\TrackOrder\TrackOrder.aspx" />
+    <Content Include="Pages\Auth\Auth.aspx" />
+    <Content Include="Pages\Admin\Portal.master" />
+    <Content Include="Pages\Admin\Dashboard\Dashboard.aspx" />
+    <Content Include="Pages\Admin\Orders\Orders.aspx" />
+    <Content Include="Pages\Admin\Inventory\Inventory.aspx" />
+    <Content Include="Pages\Admin\POS\POS.aspx" />
+    <Content Include="Pages\Admin\Catalog\Catalog.aspx" />
+    <Content Include="Pages\Admin\CatalogItem\CatalogItem.aspx" />
+    <Content Include="Pages\Admin\Reports\Reports.aspx" />
+    <Content Include="Pages\Admin\Users\Users.aspx" />
+    <Content Include="Pages\Admin\Reviews\Reviews.aspx" />
+    <Content Include="Pages\Admin\Payments\Payments.aspx" />
     <Content Include="Content\css\admin\admin.css" />
     <Content Include="Content\css\admin\pos.css" />
-    <Content Include="Scripts\admin\admin.js" />
-    <Content Include="Scripts\admin\session.js" />
-    <Content Include="Content\images\favicon.svg" />
-    <Content Include="Scripts\admin\search-history.js" />
-    <Content Include="Scripts\admin\catalog.js" />
-    <Content Include="Scripts\admin\dashboard.js" />
-    <Content Include="Scripts\admin\reports.js" />
-    <Content Include="Scripts\admin\pos.js" />
-    <Content Include="Scripts\vendor\jquery-3.7.1.min.js" />
-    <Content Include="Scripts\vendor\jquery.signalR-2.4.3.min.js" />
-    <Content Include="Pages\Shop.aspx" />
-    <Content Include="Pages\ProductDetail.aspx" />
-    <Content Include="Pages\Shop\ProductFilterControl.ascx" />
-    <Content Include="index.html" />
-    <Content Include="dashboard.html" />
-    <Content Include="cart.html" />
+    <Content Include="Content\css\storefront\auth.css" />
+    <Content Include="Content\css\storefront\checkout.css" />
+    <Content Include="Content\css\storefront\profile.css" />
+    <Content Include="Content\css\storefront\storefront.css" />
     <Content Include="Content\css\variables.css" />
     <Content Include="Content\css\reset.css" />
     <Content Include="Content\css\layout.css" />
     <Content Include="Content\css\components.css" />
-    <Content Include="Content\css\storefront.css" />
-    <Content Include="Content\css\auth.css" />
-    <Content Include="Content\css\checkout.css" />
+    <Content Include="Content\images\favicon.svg" />
+    <Content Include="Scripts\admin\admin.js" />
+    <Content Include="Scripts\admin\catalog.js" />
+    <Content Include="Scripts\admin\catalog-item.js" />
+    <Content Include="Scripts\admin\dashboard.js" />
+    <Content Include="Scripts\admin\inventory.js" />
+    <Content Include="Scripts\admin\orders.js" />
+    <Content Include="Scripts\admin\pos.js" />
+    <Content Include="Scripts\admin\reports.js" />
+    <Content Include="Scripts\admin\search-history.js" />
+    <Content Include="Scripts\admin\session.js" />
+    <Content Include="Scripts\storefront\auth.js" />
+    <Content Include="Scripts\storefront\cart.js" />
+    <Content Include="Scripts\storefront\checkout.js" />
+    <Content Include="Scripts\storefront\favorites.js" />
+    <Content Include="Scripts\storefront\product-detail.js" />
+    <Content Include="Scripts\storefront\profile.js" />
+    <Content Include="Scripts\storefront\storefront.js" />
+    <Content Include="Scripts\storefront\track-order.js" />
+    <Content Include="Scripts\vendor\jquery-3.7.1.min.js" />
+    <Content Include="Scripts\vendor\jquery.signalR-2.4.3.min.js" />
+    <Content Include="Scripts\constants.js" />
+    <Content Include="Scripts\api.js" />
+    <Content Include="Scripts\cart.js" />
+    <Content Include="Scripts\favorites.js" />
+    <Content Include="Scripts\realtime.js" />
+    <Content Include="Scripts\site.js" />
+    <Content Include="index.html" />
+    <Content Include="dashboard.html" />
+    <Content Include="cart.html" />
     <Content Include="Content\images\agv.png" />
     <Content Include="Content\images\gille.png" />
     <Content Include="Content\images\hnj.png" />
@@ -282,20 +303,6 @@
     <Content Include="Content\images\products\helmets\hnj\hnj-titan-a4001k-gallery-2.webp" />
     <Content Include="Content\images\products\helmets\hnj\hnj-titan-a4001k-gallery-3.webp" />
     <Content Include="Content\images\products\helmets\hnj\hnj-titan-a4001k-gallery-4.webp" />
-    <!-- END GENERATED CATALOG IMAGES -->
-    <Content Include="Pages\Auth.aspx" />
-    <Content Include="Pages\Login.aspx" />
-    <Content Include="Pages\Favorites.aspx" />
-    <Content Include="Pages\Checkout.aspx" />
-    <Content Include="Scripts\constants.js" />
-    <Content Include="Scripts\api.js" />
-    <Content Include="Scripts\cart.js" />
-    <Content Include="Scripts\favorites.js" />
-    <Content Include="Scripts\realtime.js" />
-    <Content Include="Scripts\storefront.js" />
-    <Content Include="Scripts\auth.js" />
-    <Content Include="Scripts\site.js" />
-    <Content Include="Scripts\product-detail.js" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App_Start\WebApiConfig.cs" />
@@ -308,17 +315,6 @@
     <Compile Include="Controllers\Api\AuthController.cs" />
     <Compile Include="Controllers\Api\ReviewsController.cs" />
     <Compile Include="Controllers\Api\AdminController.cs" />
-    <Compile Include="Pages\Favorites.aspx.cs">
-      <DependentUpon>Favorites.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="Pages\Auth.aspx.cs">
-      <DependentUpon>Auth.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="Pages\Auth.aspx.designer.cs">
-      <DependentUpon>Auth.aspx</DependentUpon>
-    </Compile>
     <Compile Include="Infrastructure\JwtTokenProvider.cs" />
     <Compile Include="Infrastructure\PaginationHelper.cs" />
     <Compile Include="Infrastructure\StaffAuthorizeAttribute.cs" />
@@ -345,95 +341,116 @@
     <Compile Include="Default.aspx.designer.cs">
       <DependentUpon>Default.aspx</DependentUpon>
     </Compile>
-    <Compile Include="Pages\Cart.aspx.cs">
+    <!-- Storefront Code-Behinds -->
+    <Compile Include="Pages\Storefront\Cart\Cart.aspx.cs">
       <DependentUpon>Cart.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="Pages\Cart.aspx.designer.cs">
+    <Compile Include="Pages\Storefront\Cart\Cart.aspx.designer.cs">
       <DependentUpon>Cart.aspx</DependentUpon>
     </Compile>
-    <Compile Include="Pages\Dashboard.aspx.cs">
-      <DependentUpon>Dashboard.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="Pages\Dashboard.aspx.designer.cs">
-      <DependentUpon>Dashboard.aspx</DependentUpon>
-    </Compile>
-    <Compile Include="Pages\Shop.aspx.cs">
-      <DependentUpon>Shop.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="Pages\Shop.aspx.designer.cs">
-      <DependentUpon>Shop.aspx</DependentUpon>
-    </Compile>
-    <Compile Include="Pages\ProductDetail.aspx.cs">
-      <DependentUpon>ProductDetail.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="Pages\ProductDetail.aspx.designer.cs">
-      <DependentUpon>ProductDetail.aspx</DependentUpon>
-    </Compile>
-    <Compile Include="Pages\Checkout.aspx.cs">
+    <Compile Include="Pages\Storefront\Checkout\Checkout.aspx.cs">
       <DependentUpon>Checkout.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="Pages\Checkout.aspx.designer.cs">
+    <Compile Include="Pages\Storefront\Checkout\Checkout.aspx.designer.cs">
       <DependentUpon>Checkout.aspx</DependentUpon>
     </Compile>
-    <Compile Include="Pages\Shop\ProductFilterControl.ascx.cs">
+    <Compile Include="Pages\Storefront\Favorites\Favorites.aspx.cs">
+      <DependentUpon>Favorites.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\Storefront\ProductDetail\ProductDetail.aspx.cs">
+      <DependentUpon>ProductDetail.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\Storefront\ProductDetail\ProductDetail.aspx.designer.cs">
+      <DependentUpon>ProductDetail.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\Storefront\Profile\Profile.aspx.cs">
+      <DependentUpon>Profile.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\Storefront\Profile\Profile.aspx.designer.cs">
+      <DependentUpon>Profile.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\Storefront\Shop\Shop.aspx.cs">
+      <DependentUpon>Shop.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\Storefront\Shop\Shop.aspx.designer.cs">
+      <DependentUpon>Shop.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\Storefront\Shop\ProductFilterControl.ascx.cs">
       <DependentUpon>ProductFilterControl.ascx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="Pages\Shop\ProductFilterControl.ascx.designer.cs">
+    <Compile Include="Pages\Storefront\Shop\ProductFilterControl.ascx.designer.cs">
       <DependentUpon>ProductFilterControl.ascx</DependentUpon>
     </Compile>
-    <Compile Include="Admin\Inventory.aspx.cs">
-      <DependentUpon>Inventory.aspx</DependentUpon>
+    <Compile Include="Pages\Storefront\TrackOrder\TrackOrder.aspx.cs">
+      <DependentUpon>TrackOrder.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="Admin\Inventory.aspx.designer.cs">
-      <DependentUpon>Inventory.aspx</DependentUpon>
+    <Compile Include="Pages\Storefront\TrackOrder\TrackOrder.aspx.designer.cs">
+      <DependentUpon>TrackOrder.aspx</DependentUpon>
     </Compile>
-    <Compile Include="Admin\Dashboard.aspx.cs">
-      <DependentUpon>Dashboard.aspx</DependentUpon>
+    <!-- Auth Code-Behind -->
+    <Compile Include="Pages\Auth\Auth.aspx.cs">
+      <DependentUpon>Auth.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="Admin\Dashboard.aspx.designer.cs">
-      <DependentUpon>Dashboard.aspx</DependentUpon>
+    <Compile Include="Pages\Auth\Auth.aspx.designer.cs">
+      <DependentUpon>Auth.aspx</DependentUpon>
     </Compile>
-    <Compile Include="Admin\Orders.aspx.cs">
-      <DependentUpon>Orders.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="Admin\Orders.aspx.designer.cs">
-      <DependentUpon>Orders.aspx</DependentUpon>
-    </Compile>
-    <Compile Include="Admin\Catalog.aspx.cs">
+    <!-- Admin Code-Behinds -->
+    <Compile Include="Pages\Admin\Catalog\Catalog.aspx.cs">
       <DependentUpon>Catalog.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="Admin\Catalog.aspx.designer.cs">
+    <Compile Include="Pages\Admin\Catalog\Catalog.aspx.designer.cs">
       <DependentUpon>Catalog.aspx</DependentUpon>
     </Compile>
-    <Compile Include="Admin\CatalogItem.aspx.cs">
+    <Compile Include="Pages\Admin\CatalogItem\CatalogItem.aspx.cs">
       <DependentUpon>CatalogItem.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="Admin\CatalogItem.aspx.designer.cs">
+    <Compile Include="Pages\Admin\CatalogItem\CatalogItem.aspx.designer.cs">
       <DependentUpon>CatalogItem.aspx</DependentUpon>
     </Compile>
-    <Compile Include="Admin\Reports.aspx.cs">
+    <Compile Include="Pages\Admin\Dashboard\Dashboard.aspx.cs">
+      <DependentUpon>Dashboard.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\Admin\Dashboard\Dashboard.aspx.designer.cs">
+      <DependentUpon>Dashboard.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\Admin\Inventory\Inventory.aspx.cs">
+      <DependentUpon>Inventory.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\Admin\Inventory\Inventory.aspx.designer.cs">
+      <DependentUpon>Inventory.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\Admin\Orders\Orders.aspx.cs">
+      <DependentUpon>Orders.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\Admin\Orders\Orders.aspx.designer.cs">
+      <DependentUpon>Orders.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\Admin\Reports\Reports.aspx.cs">
       <DependentUpon>Reports.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="Admin\Reports.aspx.designer.cs">
+    <Compile Include="Pages\Admin\Reports\Reports.aspx.designer.cs">
       <DependentUpon>Reports.aspx</DependentUpon>
     </Compile>
-    <Compile Include="Admin\Users.aspx.cs">
+    <Compile Include="Pages\Admin\Users\Users.aspx.cs">
       <DependentUpon>Users.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="Admin\Users.aspx.designer.cs">
+    <Compile Include="Pages\Admin\Users\Users.aspx.designer.cs">
       <DependentUpon>Users.aspx</DependentUpon>
     </Compile>
     <Compile Include="Hubs\InventoryHub.cs" />
