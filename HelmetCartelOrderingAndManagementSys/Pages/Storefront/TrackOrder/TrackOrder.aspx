@@ -1,7 +1,7 @@
 <%@ Page Title="Live Order Tracking & Fulfillment" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="TrackOrder.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Pages.TrackOrderPage" ResponseEncoding="utf-8" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
-    <link rel="stylesheet" href="~/Content/css/storefront/profile.css?v=8" runat="server" />
+    <link rel="stylesheet" href='<%= ResolveUrl("~/Content/css/storefront/profile.css?v=8") %>' />
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
@@ -57,8 +57,7 @@
                     </div>
                     <div class="track-header-status-wrap">
                         <span class="order-status-badge status-badge--processing" id="track-status-badge">
-                            <span class="status-pulse-dot"></span>
-                            <span id="track-status-text">PROCESSING</span>
+                            <span id="track-status-text">Preparing Order</span>
                         </span>
                     </div>
                 </div>
@@ -80,7 +79,7 @@
                             <circle cx="5.5" cy="18.5" r="2.5"></circle>
                             <circle cx="18.5" cy="18.5" r="2.5"></circle>
                         </svg>
-                        <span class="track-info-card__label">FULFILLMENT METHOD</span>
+                        <span class="track-info-card__label">DELIVERY METHOD</span>
                     </div>
                     <div class="track-info-card__body">
                         <strong class="track-info-card__value" id="track-fulfillment-method">Door-to-Door Delivery</strong>
@@ -219,6 +218,67 @@
         </div>
     </div>
 
+    <!-- Customer Return / Exchange Request Modal -->
+    <div id="customer-rma-modal" class="modal-backdrop review-modal-backdrop is-hidden">
+        <div class="modal-dialog review-modal-dialog">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title">Request Return / Exchange</h3>
+                    <p class="modal-subtitle">Submit a request to exchange or return your purchased gear.</p>
+                </div>
+                <button type="button" class="modal-close-btn" id="btn-close-customer-rma">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="rma-target-item-id" value="" />
+                <div class="modal-field-group">
+                    <label class="modal-field-label">Selected Item:</label>
+                    <div id="rma-target-item-name" style="font-weight: 600; color: #fff;"></div>
+                    <div id="rma-target-item-spec" style="font-size: 0.85rem; color: var(--color-text-muted, #94a3b8);"></div>
+                </div>
+
+                <div class="modal-field-group">
+                    <label class="modal-field-label">Request Type:</label>
+                    <div style="display: flex; gap: 16px; margin-top: 4px;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #fff;">
+                            <input type="radio" name="customer-rma-type" value="RETURN" checked />
+                            <span>Return for Refund</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #fff;">
+                            <input type="radio" name="customer-rma-type" value="EXCHANGE" />
+                            <span>Exchange for Size / Color</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="modal-field-group">
+                    <label for="customer-rma-reason" class="modal-field-label">Primary Reason:</label>
+                    <select id="customer-rma-reason" class="modal-input">
+                        <option value="WRONG_SIZE">Wrong Size / Fit Issue</option>
+                        <option value="DEFECTIVE">Defective or Damaged Gear</option>
+                        <option value="NOT_AS_DESCRIBED">Item Not as Described</option>
+                        <option value="CHANGED_MIND">Changed Mind / Unused</option>
+                        <option value="OTHER">Other Reason</option>
+                    </select>
+                </div>
+
+                <div class="modal-field-group">
+                    <label for="customer-rma-notes" class="modal-field-label">Details / Explanations:</label>
+                    <textarea id="customer-rma-notes" class="modal-textarea" rows="3" placeholder="Provide any details about the fit issue, defect, or exchange preference..."></textarea>
+                </div>
+
+                <div style="background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8; padding: 0.75rem; border-radius: 4px; font-size: 0.8rem; color: #cbd5e1; margin-top: 0.5rem;">
+                    &#9432; Items must be unridden, with all helmet factory tags, visor films, and original packaging intact.
+                </div>
+
+                <div id="customer-rma-error" class="report-alert-danger is-hidden" style="margin-top: 0.75rem;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn--outline" id="btn-cancel-customer-rma">Cancel</button>
+                <button type="button" class="btn btn--primary" id="btn-submit-customer-rma">Submit Request</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Page Specific Script -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/track-order.js?v=3") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/track-order.js?v=4") %>'></script>
 </asp:Content>

@@ -2,7 +2,6 @@
 <%@ Register Src="~/Pages/Storefront/Shop/ProductFilterControl.ascx" TagPrefix="hc" TagName="ProductFilter" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
-    <link rel="stylesheet" href="~/Content/css/storefront/storefront.css?v=8" runat="server" />
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">

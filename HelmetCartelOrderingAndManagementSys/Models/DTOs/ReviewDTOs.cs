@@ -44,4 +44,10 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string Title { get; set; }
         public string Comment { get; set; }
     }
+
+    public class AdminReviewDto : ProductReviewDto
+    {
+        public string ProductName { get; set; }
+        public string BrandName { get; set; }
+    }
 }

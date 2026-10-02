@@ -639,9 +639,9 @@ export const SiteController = {
             </svg>
           </div>
           <h4 class="cart-drawer-empty__title">YOUR CART IS EMPTY</h4>
-          <p class="cart-drawer-empty__desc">Explore our DOT &amp; ECE-certified helmets to protect your next ride.</p>
+          <p class="cart-drawer-empty__desc">Explore our motorcycle helmet catalog and find your next ride today.</p>
           <a href="${APP_CONSTANTS.ROUTES.SHOP}" class="cart-drawer-empty__btn">
-            <span>Explore Catalog</span>
+            <span>Explore Shop</span>
             <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
               <line x1="7" y1="17" x2="17" y2="7"></line>
               <polyline points="7 7 17 7 17 17"></polyline>
@@ -661,10 +661,11 @@ export const SiteController = {
       <div class="cart-drawer-items">
         ${items.map(item => {
           const detailUrl = APP_CONSTANTS.ROUTES.PRODUCT_DETAIL(item.productId || 1);
-          const isChecked = item.isSelected !== false;
+          const isOutOfStock = Number(item.availableStock) <= 0;
+          const isChecked = !isOutOfStock && item.isSelected !== false;
           return `
-          <div class="cart-drawer-item ${isChecked ? '' : 'cart-drawer-item--unselected'}" data-variant-id="${item.variantId}">
-            <button type="button" class="cart-drawer-item__check ${isChecked ? 'is-checked' : ''}" data-action="toggle-check" data-id="${item.variantId}" title="${isChecked ? 'Deselect item' : 'Select for checkout'}" aria-label="Toggle item selection">
+          <div class="cart-drawer-item ${isOutOfStock ? 'is-out-of-stock' : (isChecked ? '' : 'cart-drawer-item--unselected')}" data-variant-id="${item.variantId}">
+            <button type="button" class="cart-drawer-item__check ${isOutOfStock ? 'is-disabled' : (isChecked ? 'is-checked' : '')}" ${isOutOfStock ? 'disabled title="Out of stock"' : `title="${isChecked ? 'Deselect item' : 'Select for checkout'}"`} data-action="toggle-check" data-id="${item.variantId}" aria-label="Toggle item selection">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
@@ -689,12 +690,13 @@ export const SiteController = {
                 <div class="cart-drawer-item__meta">
                   <span class="cart-drawer-item__badge">${this.escapeHtml(item.size || 'Large')}</span>
                   <span class="cart-drawer-item__badge">${this.escapeHtml(item.color || 'Matte Black')}</span>
+                  ${isOutOfStock ? '<span class="cart-item__stock-badge cart-item__stock-badge--oos">Out of Stock</span>' : ''}
                 </div>
                 <div class="cart-drawer-item__bottom">
                   <div class="cart-drawer-stepper">
-                    <button type="button" class="cart-stepper-btn" data-action="decrease" data-id="${item.variantId}" aria-label="Decrease quantity">&minus;</button>
+                    <button type="button" class="cart-stepper-btn" data-action="decrease" data-id="${item.variantId}" ${isOutOfStock ? 'disabled' : ''} aria-label="Decrease quantity">&minus;</button>
                     <span class="cart-stepper-val">${item.quantity}</span>
-                    <button type="button" class="cart-stepper-btn" data-action="increase" data-id="${item.variantId}" aria-label="Increase quantity">&plus;</button>
+                    <button type="button" class="cart-stepper-btn" data-action="increase" data-id="${item.variantId}" ${isOutOfStock ? 'disabled' : ''} aria-label="Increase quantity">&plus;</button>
                   </div>
                   <div class="cart-drawer-item__price">&#8369;${(item.price * item.quantity).toLocaleString()}</div>
                 </div>
@@ -752,7 +754,8 @@ export const SiteController = {
       itemRow.addEventListener('click', (e) => {
         if (e.target.closest('button, a, input, select')) return;
         const variantId = parseInt(itemRow.getAttribute('data-variant-id'), 10);
-        if (variantId) {
+        const item = items.find(i => i.variantId === variantId);
+        if (item && Number(item.availableStock) > 0) {
           CartManager.toggleItemSelection(variantId);
           this.renderCartDrawer();
         }

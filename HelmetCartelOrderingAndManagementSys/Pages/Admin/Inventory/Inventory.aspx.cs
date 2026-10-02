@@ -196,9 +196,15 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 pnlAuditHistory.Visible = true;
                 btnViewActiveStock.CssClass = "admin-tab-btn";
                 btnViewAuditHistory.CssClass = "admin-tab-btn active";
-
                 string search = string.IsNullOrWhiteSpace(CurrentSearch) ? null : CurrentSearch;
                 var auditLogs = await _adminRepo.GetStockAuditLogsAsync(search: search, limit: 500).ConfigureAwait(false);
+
+                // Exclude sales decrements from Stock In History
+                auditLogs = auditLogs.Where(l =>
+                    !string.Equals(l.ChangeType, "ONLINE_SALE", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(l.ChangeType, "INSTORE_SALE", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(l.ChangeType, "Sale", StringComparison.OrdinalIgnoreCase)
+                ).ToList();
 
                 // Functional Filter: Change Type
                 if (CurrentAuditType == "restock")
@@ -541,8 +547,11 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             if (qtyObj == null || qtyObj == DBNull.Value) return "+0 units";
             if (int.TryParse(Convert.ToString(qtyObj), out int qty))
             {
-                int absQty = Math.Abs(qty);
-                return $"+{absQty} {(absQty == 1 ? "unit" : "units")}";
+                if (qty >= 0)
+                {
+                    return $"+{qty} {(qty == 1 ? "unit" : "units")}";
+                }
+                return $"{qty} {(Math.Abs(qty) == 1 ? "unit" : "units")}";
             }
             return "+0 units";
         }

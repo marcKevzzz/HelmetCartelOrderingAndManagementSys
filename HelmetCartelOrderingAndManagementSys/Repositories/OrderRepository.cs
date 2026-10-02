@@ -178,6 +178,28 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 await itemCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                             }
 
+                            // Reserve stock atomically within the same transaction
+                            using (var reserveCmd = new SqlCommand("dbo.sp_ReserveStockAtomic", conn, transaction))
+                            {
+                                reserveCmd.CommandType = CommandType.StoredProcedure;
+                                reserveCmd.Parameters.Add(new SqlParameter("@VariantId", SqlDbType.Int) { Value = item.VariantId });
+                                reserveCmd.Parameters.Add(new SqlParameter("@Quantity", SqlDbType.Int) { Value = item.Quantity });
+                                reserveCmd.Parameters.Add(new SqlParameter("@OrderNumber", SqlDbType.NVarChar, 50) { Value = orderNumber });
+                                var successParam = new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output };
+                                var errorParam = new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 255) { Direction = ParameterDirection.Output };
+                                reserveCmd.Parameters.Add(successParam);
+                                reserveCmd.Parameters.Add(errorParam);
+
+                                await reserveCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                                bool success = (bool)successParam.Value;
+                                if (!success)
+                                {
+                                    string err = errorParam.Value as string ?? "Insufficient stock to complete reservation.";
+                                    throw new InvalidOperationException(err);
+                                }
+                            }
+
                             summaryItems.Add(new OrderItemSummaryDto
                             {
                                 VariantId = item.VariantId,
@@ -318,6 +340,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                         {
                             while (await reader.ReadAsync().ConfigureAwait(false))
                             {
+                                string mainImg = reader.IsDBNull(reader.GetOrdinal("MainImageUrl")) ? null : reader.GetString(reader.GetOrdinal("MainImageUrl"));
                                 summary.Items.Add(new OrderItemSummaryDto
                                 {
                                     Id = reader.GetInt32(reader.GetOrdinal("Id")),
@@ -328,7 +351,9 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                     Color = reader.GetString(reader.GetOrdinal("Color")),
                                     Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
                                     UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
-                                    TotalPrice = reader.GetDecimal(reader.GetOrdinal("TotalPrice"))
+                                    TotalPrice = reader.GetDecimal(reader.GetOrdinal("TotalPrice")),
+                                    MainImageUrl = mainImg,
+                                    ImageUrl = mainImg
                                 });
                             }
                         }
@@ -404,6 +429,30 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                     var rows = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                     return rows > 0;
                 }
+            }
+        }
+
+        public async Task<(bool Success, string Message)> CancelOrderAsync(int orderId, int? userId, string userEmail, string reason)
+        {
+            using (var conn = (SqlConnection)_dbFactory.CreateConnection())
+            using (var cmd = new SqlCommand("dbo.sp_CustomerCancelOrder", conn))
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.Add(new SqlParameter("@OrderId", SqlDbType.Int) { Value = orderId });
+                cmd.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = (object)userId ?? DBNull.Value });
+                cmd.Parameters.Add(new SqlParameter("@UserEmail", SqlDbType.NVarChar, 256) { Value = (object)userEmail ?? DBNull.Value });
+                cmd.Parameters.Add(new SqlParameter("@Reason", SqlDbType.NVarChar, 255) { Value = string.IsNullOrWhiteSpace(reason) ? "Cancelled by customer" : reason.Trim() });
+                var successParam = new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output };
+                var errorParam = new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 255) { Direction = ParameterDirection.Output };
+                cmd.Parameters.Add(successParam);
+                cmd.Parameters.Add(errorParam);
+
+                await conn.OpenAsync().ConfigureAwait(false);
+                await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                bool success = (bool)successParam.Value;
+                string err = errorParam.Value as string;
+                return (success, err);
             }
         }
     }

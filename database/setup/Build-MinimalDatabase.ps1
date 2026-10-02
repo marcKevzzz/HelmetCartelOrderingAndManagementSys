@@ -32,7 +32,15 @@ $files = @(
     'schema/17_active_catalog_visibility.sql',
     'schema/18_delivery_fulfillment_migration.sql',
     'setup/minimal_seed.sql',
-    'setup/dashboard_sample_data.sql'
+    'setup/dashboard_sample_data.sql',
+    'schema/19_user_profile_and_tracking_migration.sql',
+    'schema/20_multi_brand_and_color_enhancement.sql',
+    'schema/21_user_addresses_and_checkout_enhancement.sql',
+    'schema/22_clean_schema_and_enforce_unique_phone.sql',
+    'schema/23_add_recipient_contact_to_user_addresses.sql',
+    'schema/24_remove_redundant_user_fullname.sql',
+    'schema/27_sales_by_brand_and_category.sql',
+    'schema/31_stock_reservation_lifecycle_fix.sql'
 )
 $builder = New-Object System.Text.StringBuilder
 [void]$builder.AppendLine(@"

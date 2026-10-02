@@ -150,7 +150,19 @@ BEGIN
             SELECT COUNT(*) 
             FROM dbo.OrderItems oi 
             WHERE oi.OrderId = o.Id
-        ) AS ItemCount
+        ) AS ItemCount,
+        (
+            SELECT STRING_AGG(p.MainImageUrl, ';')
+            FROM (
+                SELECT TOP 3 p.MainImageUrl
+                FROM dbo.OrderItems oi
+                JOIN dbo.ProductVariants pv ON oi.VariantId = pv.Id
+                JOIN dbo.ProductColors pc ON pv.ProductColorId = pc.Id
+                JOIN dbo.Products p ON pc.ProductId = p.Id
+                WHERE oi.OrderId = o.Id
+                ORDER BY oi.Id ASC
+            ) p
+        ) AS PreviewImages
     FROM dbo.Orders o
     WHERE o.UserId = @UserId OR (o.UserId IS NULL AND o.CustomerEmail = @UserEmail)
     ORDER BY o.CreatedAt DESC;

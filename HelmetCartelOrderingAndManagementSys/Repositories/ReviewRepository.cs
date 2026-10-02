@@ -135,5 +135,74 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                 }
             }
         }
+
+        public async Task<List<AdminReviewDto>> AdminGetReviewsAsync(string filter = "ALL", string search = null)
+        {
+            var list = new List<AdminReviewDto>();
+
+            using (var conn = (SqlConnection)_dbFactory.CreateConnection())
+            {
+                await conn.OpenAsync().ConfigureAwait(false);
+
+                using (var cmd = new SqlCommand("dbo.sp_AdminGetReviews", conn))
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.Parameters.Add(new SqlParameter("@Filter", SqlDbType.NVarChar, 20) { Value = string.IsNullOrWhiteSpace(filter) ? "ALL" : filter.ToUpperInvariant() });
+                    cmd.Parameters.Add(new SqlParameter("@Search", SqlDbType.NVarChar, 100) { Value = string.IsNullOrWhiteSpace(search) ? (object)DBNull.Value : search.Trim() });
+
+                    using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+                    {
+                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            var review = new AdminReviewDto
+                            {
+                                Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                                ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
+                                ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
+                                BrandName = reader.GetString(reader.GetOrdinal("BrandName")),
+                                UserId = reader.IsDBNull(reader.GetOrdinal("UserId")) ? (int?)null : reader.GetInt32(reader.GetOrdinal("UserId")),
+                                OrderId = reader.IsDBNull(reader.GetOrdinal("OrderId")) ? (int?)null : reader.GetInt32(reader.GetOrdinal("OrderId")),
+                                ReviewerName = reader.GetString(reader.GetOrdinal("ReviewerName")),
+                                Rating = reader.GetInt32(reader.GetOrdinal("Rating")),
+                                Title = reader.IsDBNull(reader.GetOrdinal("Title")) ? null : reader.GetString(reader.GetOrdinal("Title")),
+                                Comment = reader.GetString(reader.GetOrdinal("Comment")),
+                                IsVerifiedPurchase = reader.GetBoolean(reader.GetOrdinal("IsVerifiedPurchase")),
+                                FlagCount = Convert.ToInt32(reader["FlagCount"]),
+                                IsHidden = reader.GetBoolean(reader.GetOrdinal("IsHidden")),
+                                CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"))
+                            };
+
+                            list.Add(review);
+                        }
+                    }
+                }
+            }
+
+            return list;
+        }
+
+        public async Task<bool> ToggleReviewVisibilityAsync(int reviewId)
+        {
+            using (var conn = (SqlConnection)_dbFactory.CreateConnection())
+            {
+                await conn.OpenAsync().ConfigureAwait(false);
+
+                using (var cmd = new SqlCommand("dbo.sp_AdminToggleReviewVisibility", conn))
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.Parameters.Add(new SqlParameter("@ReviewId", SqlDbType.Int) { Value = reviewId });
+
+                    var newIsHiddenParam = new SqlParameter("@NewIsHidden", SqlDbType.Bit)
+                    {
+                        Direction = ParameterDirection.Output
+                    };
+                    cmd.Parameters.Add(newIsHiddenParam);
+
+                    await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                    return newIsHiddenParam.Value != DBNull.Value && (bool)newIsHiddenParam.Value;
+                }
+            }
+        }
     }
 }

@@ -10,6 +10,7 @@ import { APP_CONSTANTS } from '../constants.js';
 
 export const TrackOrderController = {
   currentOrder: null,
+  existingRmas: [],
 
   async init() {
     this.bindEvents();
@@ -37,6 +38,17 @@ export const TrackOrderController = {
         throw new Error('Order record could not be found.');
       }
       this.currentOrder = order;
+
+      // Load existing RMAs if order has ID
+      if (order.id) {
+        try {
+          const rmas = await ApiClient.getOrderReturns(order.id);
+          this.existingRmas = Array.isArray(rmas) ? rmas : (rmas?.data || []);
+        } catch (_) {
+          this.existingRmas = [];
+        }
+      }
+
       this.renderOrder(order);
     } catch (err) {
       console.error('[TrackOrderController] Error loading order:', err);
@@ -55,6 +67,14 @@ export const TrackOrderController = {
         throw new Error('Order record could not be found.');
       }
       this.currentOrder = order;
+
+      try {
+        const rmas = await ApiClient.getOrderReturns(Number(orderId));
+        this.existingRmas = Array.isArray(rmas) ? rmas : (rmas?.data || []);
+      } catch (_) {
+        this.existingRmas = [];
+      }
+
       this.renderOrder(order);
     } catch (err) {
       console.error('[TrackOrderController] Error loading order by id:', err);
@@ -220,6 +240,19 @@ export const TrackOrderController = {
           const totalPrice = Number(item.totalPrice || (unitPrice * item.quantity));
           const imgUrl = item.mainImageUrl || item.imageUrl || '/Content/images/placeholder-helmet.png';
 
+          const itemRma = this.existingRmas.find(r => r.orderItemId === item.id);
+          let rmaActionHtml = '';
+          if (itemRma) {
+            rmaActionHtml = `<div style="margin-top: 6px;"><span class="badge" style="background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">RMA ${this.escapeHtml(itemRma.rmaNumber)} (${this.escapeHtml(itemRma.status)})</span></div>`;
+          } else if (status === 'Completed' || status === 'Delivered') {
+            rmaActionHtml = `
+              <div style="margin-top: 6px;">
+                <button type="button" class="btn btn--outline btn--sm btn-open-rma" data-item-id="${item.id}" data-item-name="${this.escapeHtml(item.productName)}" data-item-spec="${this.escapeHtml(item.color || '')} / ${this.escapeHtml(item.size || '')}" style="padding: 3px 8px; font-size: 0.75rem;">
+                  Request Return / Exchange
+                </button>
+              </div>`;
+          }
+
           return `
             <div class="track-item-row">
               <img src="${this.escapeHtml(imgUrl)}" alt="${this.escapeHtml(item.productName)}" class="track-item-img" />
@@ -233,6 +266,7 @@ export const TrackOrderController = {
                 <div class="track-item-qty-price">
                   Quantity: ${item.quantity} &times; &#8369;${unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
+                ${rmaActionHtml}
               </div>
               <div class="track-item-total">
                 &#8369;${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -327,13 +361,13 @@ export const TrackOrderController = {
   formatStatusLabel(status) {
     switch (status) {
       case 'PendingPayment': return 'Pending Payment';
-      case 'Processing': return 'Processing';
+      case 'Processing': return 'Preparing Order';
       case 'ReadyForPickup': return 'Ready for Pickup';
-      case 'Shipped': return 'Dispatched / In Transit';
+      case 'Shipped': return 'In Transit';
       case 'Delivered': return 'Delivered';
       case 'Completed': return 'Completed';
       case 'Cancelled': return 'Cancelled';
-      default: return status;
+      default: return status || 'Preparing Order';
     }
   },
 
@@ -377,6 +411,108 @@ export const TrackOrderController = {
       if (e.key === 'Escape' && overlay?.classList.contains('is-open')) closeModal();
     });
     printBtn?.addEventListener('click', () => window.print());
+
+    // Customer RMA Request Modal Wiring
+    const rmaModal = document.getElementById('customer-rma-modal');
+    const rmaItemIdInput = document.getElementById('rma-target-item-id');
+    const rmaItemNameEl = document.getElementById('rma-target-item-name');
+    const rmaItemSpecEl = document.getElementById('rma-target-item-spec');
+    const rmaNotesInput = document.getElementById('customer-rma-notes');
+    const rmaReasonSelect = document.getElementById('customer-rma-reason');
+    const rmaErrorEl = document.getElementById('customer-rma-error');
+    const btnCloseRma = document.getElementById('btn-close-customer-rma');
+    const btnCancelRma = document.getElementById('btn-cancel-customer-rma');
+    const btnSubmitRma = document.getElementById('btn-submit-customer-rma');
+
+    const openRmaModal = (itemId, itemName, itemSpec) => {
+      if (rmaItemIdInput) rmaItemIdInput.value = itemId;
+      if (rmaItemNameEl) rmaItemNameEl.textContent = itemName;
+      if (rmaItemSpecEl) rmaItemSpecEl.textContent = itemSpec;
+      if (rmaNotesInput) rmaNotesInput.value = '';
+      if (rmaErrorEl) {
+        rmaErrorEl.textContent = '';
+        rmaErrorEl.classList.add('is-hidden');
+      }
+      rmaModal?.classList.remove('is-hidden');
+    };
+
+    const closeRmaModal = () => {
+      rmaModal?.classList.add('is-hidden');
+    };
+
+    document.addEventListener('click', (e) => {
+      const btnRma = e.target.closest('.btn-open-rma');
+      if (btnRma) {
+        const itemId = btnRma.dataset.itemId;
+        const itemName = btnRma.dataset.itemName;
+        const itemSpec = btnRma.dataset.itemSpec;
+        openRmaModal(itemId, itemName, itemSpec);
+      }
+    });
+
+    btnCloseRma?.addEventListener('click', closeRmaModal);
+    btnCancelRma?.addEventListener('click', closeRmaModal);
+    rmaModal?.addEventListener('click', (e) => {
+      if (e.target === rmaModal) closeRmaModal();
+    });
+
+    btnSubmitRma?.addEventListener('click', async () => {
+      if (!this.currentOrder) return;
+      const itemId = parseInt(rmaItemIdInput?.value || '0', 10);
+      const reqType = document.querySelector('input[name="customer-rma-type"]:checked')?.value || 'RETURN';
+      const reason = rmaReasonSelect?.value || 'WRONG_SIZE';
+      const notes = rmaNotesInput?.value?.trim() || '';
+
+      if (!itemId) {
+        if (rmaErrorEl) {
+          rmaErrorEl.textContent = 'Invalid item selected.';
+          rmaErrorEl.classList.remove('is-hidden');
+        }
+        return;
+      }
+
+      if (btnSubmitRma) {
+        btnSubmitRma.disabled = true;
+        btnSubmitRma.textContent = 'Submitting...';
+      }
+
+      try {
+        const res = await ApiClient.createReturnRequest({
+          OrderId: this.currentOrder.id,
+          OrderItemId: itemId,
+          RequestType: reqType,
+          Reason: reason,
+          CustomerNotes: notes
+        });
+
+        if (res && res.success) {
+          RealtimeManager.showToast(res.message || 'RMA Request submitted successfully!', 'success');
+          closeRmaModal();
+          // Reload order
+          if (this.currentOrder.orderNumber) {
+            await this.loadOrder(this.currentOrder.orderNumber);
+          } else {
+            await this.loadOrderById(this.currentOrder.id);
+          }
+        } else {
+          if (rmaErrorEl) {
+            rmaErrorEl.textContent = res?.message || 'Could not submit request.';
+            rmaErrorEl.classList.remove('is-hidden');
+          }
+        }
+      } catch (err) {
+        console.error('[TrackOrder] Error submitting RMA:', err);
+        if (rmaErrorEl) {
+          rmaErrorEl.textContent = err.message || 'Server error while submitting request.';
+          rmaErrorEl.classList.remove('is-hidden');
+        }
+      } finally {
+        if (btnSubmitRma) {
+          btnSubmitRma.disabled = false;
+          btnSubmitRma.textContent = 'Submit Request';
+        }
+      }
+    });
   },
 
   openReceiptModal(order) {

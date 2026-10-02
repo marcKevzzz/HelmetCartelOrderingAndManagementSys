@@ -33,13 +33,15 @@ export const ProfileController = {
     this.bindFormEvents();
     this.bindAddressEvents();
     this.bindReceiptModalEvents();
+    this.bindCancelOrderEvents();
+    this.bindRmaEvents();
     this.bindWishlistEvents();
     this.bindLogoutEvent();
     this.initSignalRListener();
 
-    // Check query params for tab (e.g. ?tab=wishlist)
+    // Check query params or session storage for tab (e.g. ?tab=wishlist)
     const urlParams = new URLSearchParams(window.location.search);
-    const requestedTab = urlParams.get("tab");
+    const requestedTab = urlParams.get("tab") || sessionStorage.getItem("hc_profile_active_tab");
     if (requestedTab) {
       this.switchTab(requestedTab);
     }
@@ -207,6 +209,15 @@ export const ProfileController = {
   switchTab(tabName) {
     if (!tabName) return;
     this.activeTab = tabName;
+
+    try {
+      sessionStorage.setItem("hc_profile_active_tab", tabName);
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("tab") !== tabName) {
+        url.searchParams.set("tab", tabName);
+        window.history.replaceState(null, "", url.toString());
+      }
+    } catch (_) {}
 
     // Update active tab buttons
     document.querySelectorAll(".profile-nav-link[data-tab]").forEach((btn) => {
@@ -490,10 +501,13 @@ export const ProfileController = {
       String(order.shippingMethod).toLowerCase() === "delivery";
     const trackOrderUrl = `${APP_CONSTANTS.ROUTES.TRACK_ORDER}?orderNumber=${encodeURIComponent(order.orderNumber)}`;
 
-    // Stacking image deck placeholder / items if cached
+    // Stacking image deck placeholder / items if cached or from preview list
     const cachedDetails = this.orderDetailsCache.get(order.id);
     const items = cachedDetails ? cachedDetails.items : [];
-    const deckHtml = this.createStackingDeckHtml(items, order.itemCount || 1);
+    const deckHtml = this.createStackingDeckHtml(order, items);
+
+    const canCancel = ["PendingPayment", "Processing"].includes(status);
+    const canReturn = ["Delivered", "Completed"].includes(status);
 
     return `
       <article class="order-row-card" data-order-id="${order.id}" data-order-number="${this.escapeHtml(order.orderNumber)}">
@@ -536,10 +550,22 @@ export const ProfileController = {
           </div>
 
           <div class="order-dropdown-footer">
-            <div class="order-dropdown-info-strip">
-              <span><strong>Fulfillment:</strong> ${isDelivery ? "Door-to-Door Delivery" : "Store Pickup (QC Hub)"}</span>
-              <span><strong>Payment:</strong> ${this.escapeHtml(order.paymentGateway || "HitPay")} (${this.escapeHtml(order.paymentStatus || "Pending")})</span>
-              ${order.shippingAddress ? `<span><strong>Destination:</strong> ${this.escapeHtml(order.shippingAddress)}, ${this.escapeHtml(order.shippingCity || "")}</span>` : ""}
+            <div class="order-dropdown-secondary-actions">
+              ${canCancel ? `
+                <button type="button" class="btn btn--outline btn--sm btn-cancel-order" data-order-id="${order.id}" data-order-number="${this.escapeHtml(order.orderNumber)}">
+                  <span>Cancel Order</span>
+                </button>
+              ` : ""}
+              ${canReturn ? `
+                <button type="button" class="btn btn--outline btn--sm btn-return-order" data-order-id="${order.id}" data-order-number="${this.escapeHtml(order.orderNumber)}">
+                  <span>Return / Exchange</span>
+                </button>
+              ` : ""}
+              ${!canCancel && !canReturn ? `
+                <span class="order-status-hint ${status === "Cancelled" ? "order-status-hint--cancelled" : ""}">
+                  ${status === "Cancelled" ? "Order Cancelled &mdash; Reserved stock released" : "Order in transit &mdash; Return available upon delivery"}
+                </span>
+              ` : ""}
             </div>
             <div class="order-dropdown-actions">
               <a href="${trackOrderUrl}" class="btn btn--outline btn--sm">
@@ -562,9 +588,17 @@ export const ProfileController = {
   /**
    * Stacking card deck preview matching 4th screenshot
    */
-  createStackingDeckHtml(items, fallbackCount = 1) {
-    if (!items || items.length === 0) {
-      // Clean fallback deck representation
+  createStackingDeckHtml(order, items) {
+    let images = [];
+    if (items && items.length > 0) {
+      images = items.map((i) => i.mainImageUrl || i.imageUrl).filter(Boolean);
+    } else if (order && order.previewImageList && order.previewImageList.length > 0) {
+      images = order.previewImageList;
+    } else if (order && order.previewImages) {
+      images = order.previewImages.split(";").filter(Boolean);
+    }
+
+    if (images.length === 0) {
       return `
         <div class="deck-item deck-item--0">
           <img src="/Content/images/placeholder-helmet.png" alt="Gear thumbnail" />
@@ -572,22 +606,17 @@ export const ProfileController = {
       `;
     }
 
-    const previewItems = items.slice(0, 3);
-    const extraCount = items.length - previewItems.length;
+    const previewImages = images.slice(0, 3);
+    const totalCount = order?.itemCount || items?.length || images.length;
+    const extraCount = Math.max(0, totalCount - previewImages.length);
 
     return `
-      ${previewItems
-        .map((item, idx) => {
-          const imgUrl =
-            item.mainImageUrl ||
-            item.imageUrl ||
-            "/Content/images/placeholder-helmet.png";
-          return `
-          <div class="deck-item deck-item--${idx}" title="${this.escapeHtml(item.productName)}">
-            <img src="${this.escapeHtml(imgUrl)}" alt="${this.escapeHtml(item.productName)}" />
+      ${previewImages
+        .map((imgUrl, idx) => `
+          <div class="deck-item deck-item--${idx}">
+            <img src="${this.escapeHtml(imgUrl)}" alt="Gear thumbnail" />
           </div>
-        `;
-        })
+        `)
         .join("")}
       ${extraCount > 0 ? `<span class="deck-badge">+${extraCount}</span>` : ""}
     `;
@@ -596,7 +625,7 @@ export const ProfileController = {
   updateOrderCardDeck(orderId, items) {
     const deckEl = document.getElementById(`deck-stack-${orderId}`);
     if (deckEl) {
-      deckEl.innerHTML = this.createStackingDeckHtml(items);
+      deckEl.innerHTML = this.createStackingDeckHtml({ id: orderId }, items);
     }
   },
 
@@ -680,6 +709,231 @@ export const ProfileController = {
         this.openReceiptModal(orderId);
       });
     });
+
+    // Cancel Order buttons
+    document.querySelectorAll(".btn-cancel-order").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const orderId = Number(btn.dataset.orderId);
+        const orderNumber = btn.dataset.orderNumber;
+        this.openCancelOrderModal(orderId, orderNumber);
+      });
+    });
+
+    // Return Item buttons
+    document.querySelectorAll(".btn-return-order").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const orderId = Number(btn.dataset.orderId);
+        const orderNumber = btn.dataset.orderNumber;
+        this.openRmaModal(orderId, orderNumber);
+      });
+    });
+  },
+
+  /* ==========================================================================
+     ORDER CANCELLATION MODAL
+     ========================================================================== */
+  currentCancelOrderId: null,
+
+  openCancelOrderModal(orderId, orderNumber) {
+    this.currentCancelOrderId = orderId;
+    const modal = document.getElementById("profileCancelOrderModal");
+    const numEl = document.getElementById("cancel-order-num-text");
+    const errEl = document.getElementById("profileCancelOrderError");
+    const notesEl = document.getElementById("cancel-order-notes");
+    if (numEl) numEl.textContent = `#${orderNumber}`;
+    if (errEl) {
+      errEl.textContent = "";
+      errEl.classList.add("is-hidden");
+    }
+    if (notesEl) notesEl.value = "";
+    if (modal) {
+      modal.classList.remove("is-hidden");
+      modal.removeAttribute("hidden");
+    }
+  },
+
+  closeCancelOrderModal() {
+    this.currentCancelOrderId = null;
+    const modal = document.getElementById("profileCancelOrderModal");
+    if (modal) {
+      modal.classList.add("is-hidden");
+      modal.setAttribute("hidden", "");
+    }
+  },
+
+  bindCancelOrderEvents() {
+    const modal = document.getElementById("profileCancelOrderModal");
+    const dismissBtn = document.getElementById("btnDismissCancelOrder");
+    const confirmBtn = document.getElementById("btnConfirmCancelOrder");
+
+    dismissBtn?.addEventListener("click", () => this.closeCancelOrderModal());
+    modal?.addEventListener("click", (e) => {
+      if (e.target === modal) this.closeCancelOrderModal();
+    });
+
+    confirmBtn?.addEventListener("click", async () => {
+      if (!this.currentCancelOrderId) return;
+      const reasonSelect = document.getElementById("cancel-order-reason-select");
+      const notesInput = document.getElementById("cancel-order-notes");
+      const errEl = document.getElementById("profileCancelOrderError");
+
+      const reason = [reasonSelect?.value, notesInput?.value?.trim()].filter(Boolean).join(" - ");
+
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = "Cancelling...";
+
+      try {
+        const res = await ApiClient.cancelOrder(this.currentCancelOrderId, reason);
+        if (res && (res.success || res.status === "Cancelled")) {
+          RealtimeManager.showToast("Order has been cancelled and reserved stock released.", "info");
+          this.closeCancelOrderModal();
+          this.orderDetailsCache.delete(this.currentCancelOrderId);
+          await this.loadUserOrders();
+        } else {
+          throw new Error(res?.message || "Failed to cancel order.");
+        }
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = err.message || "Failed to cancel order.";
+          errEl.classList.remove("is-hidden");
+        } else {
+          RealtimeManager.showToast(err.message || "Failed to cancel order.", "alert");
+        }
+      } finally {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = "Confirm Cancellation";
+      }
+    });
+  },
+
+  /* ==========================================================================
+     ORDER RETURN / EXCHANGE MODAL
+     ========================================================================== */
+  currentRmaOrderId: null,
+
+  async openRmaModal(orderId, orderNumber) {
+    this.currentRmaOrderId = orderId;
+    const modal = document.getElementById("profileRmaModal");
+    const itemSelect = document.getElementById("profile-rma-item-select");
+    const errEl = document.getElementById("profile-rma-error");
+    const notesEl = document.getElementById("profile-rma-notes");
+    if (errEl) {
+      errEl.textContent = "";
+      errEl.classList.add("is-hidden");
+    }
+    if (notesEl) notesEl.value = "";
+
+    const orderIdInput = document.getElementById("profile-rma-order-id");
+    if (orderIdInput) orderIdInput.value = orderId;
+
+    if (modal) {
+      modal.classList.add("is-open");
+      document.body.classList.add("modal-open");
+    }
+
+    // Populate order items
+    if (itemSelect) {
+      itemSelect.innerHTML = '<option value="">Loading order items...</option>';
+      try {
+        let order = this.orderDetailsCache.get(orderId);
+        if (!order) {
+          const res = await ApiClient.getUserOrderDetails(orderId);
+          order = res?.data || res;
+          if (order) this.orderDetailsCache.set(orderId, order);
+        }
+
+        if (order && Array.isArray(order.items) && order.items.length > 0) {
+          itemSelect.innerHTML = order.items
+            .map(
+              (item) => `
+            <option value="${item.orderItemId || item.id}">
+              ${this.escapeHtml(item.productName)} (Size: ${this.escapeHtml(item.size || "N/A")}, Color: ${this.escapeHtml(item.color || "N/A")}, Qty: ${item.quantity})
+            </option>
+          `,
+            )
+            .join("");
+        } else {
+          itemSelect.innerHTML = '<option value="">No items found for this order</option>';
+        }
+      } catch (err) {
+        itemSelect.innerHTML = '<option value="">Error loading items</option>';
+      }
+    }
+  },
+
+  closeRmaModal() {
+    this.currentRmaOrderId = null;
+    const modal = document.getElementById("profileRmaModal");
+    if (modal) {
+      modal.classList.remove("is-open");
+      document.body.classList.remove("modal-open");
+    }
+  },
+
+  bindRmaEvents() {
+    const modal = document.getElementById("profileRmaModal");
+    const closeBtn = document.getElementById("btn-close-profile-rma");
+    const cancelBtn = document.getElementById("btn-cancel-profile-rma");
+    const submitBtn = document.getElementById("btn-submit-profile-rma");
+
+    const close = () => this.closeRmaModal();
+    closeBtn?.addEventListener("click", close);
+    cancelBtn?.addEventListener("click", close);
+    modal?.addEventListener("click", (e) => {
+      if (e.target === modal) close();
+    });
+
+    submitBtn?.addEventListener("click", async () => {
+      if (!this.currentRmaOrderId) return;
+      const itemSelect = document.getElementById("profile-rma-item-select");
+      const typeRadio = document.querySelector('input[name="profile-rma-type"]:checked');
+      const reasonSelect = document.getElementById("profile-rma-reason");
+      const notesInput = document.getElementById("profile-rma-notes");
+      const errEl = document.getElementById("profile-rma-error");
+
+      const orderItemId = parseInt(itemSelect?.value || "0", 10);
+      if (!orderItemId) {
+        if (errEl) {
+          errEl.textContent = "Please select an item to return or exchange.";
+          errEl.classList.remove("is-hidden");
+        }
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Submitting...";
+
+      try {
+        const payload = {
+          OrderId: this.currentRmaOrderId,
+          OrderItemId: orderItemId,
+          RequestType: typeRadio?.value || "RETURN",
+          Reason: reasonSelect?.value || "WRONG_SIZE",
+          CustomerNotes: notesInput?.value?.trim() || "",
+        };
+
+        const res = await ApiClient.createReturnRequest(payload);
+        if (res && res.success) {
+          RealtimeManager.showToast(res.message || "Return / Exchange request submitted successfully!", "info");
+          close();
+          await this.loadUserOrders();
+        } else {
+          throw new Error(res?.message || "Failed to submit return request.");
+        }
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = err.message || "Failed to submit return request.";
+          errEl.classList.remove("is-hidden");
+        } else {
+          RealtimeManager.showToast(err.message || "Failed to submit return request.", "alert");
+        }
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit Request";
+      }
+    });
   },
 
   formatStatusLabel(status) {
@@ -687,11 +941,11 @@ export const ProfileController = {
       case "PendingPayment":
         return "Pending Payment";
       case "Processing":
-        return "Waiting for delivery";
+        return "Preparing Order";
       case "ReadyForPickup":
         return "Ready for Pickup";
       case "Shipped":
-        return "Dispatched / In Transit";
+        return "In Transit";
       case "Delivered":
         return "Delivered";
       case "Completed":
@@ -699,7 +953,7 @@ export const ProfileController = {
       case "Cancelled":
         return "Cancelled";
       default:
-        return status || "Processing";
+        return status || "Preparing Order";
     }
   },
 
@@ -748,7 +1002,7 @@ export const ProfileController = {
           </svg>
           <h3>Your Wishlist is Empty</h3>
           <p>Explore our motorcycle helmet catalog and tap the heart icon on gear you wish to bookmark.</p>
-          <a href="${APP_CONSTANTS.ROUTES.SHOP}" class="btn btn--primary btn--sm">Explore Catalog</a>
+          <a href="${APP_CONSTANTS.ROUTES.SHOP}" class="btn btn--primary btn--sm">Explore Shop</a>
         </div>
       `;
       return;

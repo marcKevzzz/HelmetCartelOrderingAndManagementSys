@@ -32,6 +32,16 @@ function initProductDetailPage() {
     let activeStarFilter = 'all';
     let activeSort = 'latest';
 
+    // Available stock is the quantity customers can actually purchase. Keep
+    // the CurrentStock fallback for older API responses during deployment.
+    const getAvailableStock = (variant) => {
+        if (!variant) return 0;
+        const available = Number(variant.availableStock);
+        return Number.isFinite(available)
+            ? Math.max(0, available)
+            : Math.max(0, Number(variant.currentStock || 0));
+    };
+
     // -------------------------------------------------------------
     // 2. GALLERY THUMBNAIL SWITCHER
     // -------------------------------------------------------------
@@ -159,6 +169,10 @@ function initProductDetailPage() {
     const sizePills = document.querySelectorAll('.size-pill');
     sizePills.forEach(pill => {
         pill.addEventListener('click', () => {
+            if (pill.classList.contains('is-out-of-stock')) {
+                RealtimeManager.showToast('This size is currently out of stock for the selected color.', 'alert');
+                return;
+            }
             sizePills.forEach(p => p.classList.remove('active'));
             pill.classList.add('active');
             updateSelectedVariantUi();
@@ -185,8 +199,19 @@ function initProductDetailPage() {
     if (btnQtyInc && qtyDisplay) {
         btnQtyInc.addEventListener('click', () => {
             const current = parseInt(qtyDisplay.textContent, 10) || 1;
-            qtyDisplay.textContent = current + 1;
-            updateSelectedVariantUi();
+            const size = document.querySelector('.size-pill.active')?.textContent.trim();
+            const color = document.querySelector('.color-swatch.active')?.getAttribute('data-color');
+            const variant = serverProduct?.variants?.find(v =>
+                v.size?.toLowerCase() === size?.toLowerCase() &&
+                v.color?.toLowerCase() === color?.toLowerCase()
+            );
+            const maxStock = getAvailableStock(variant);
+            if (maxStock > 0 && current < maxStock) {
+                qtyDisplay.textContent = current + 1;
+                updateSelectedVariantUi();
+            } else if (maxStock > 0 && current >= maxStock) {
+                RealtimeManager.showToast(`Maximum available stock (${maxStock} units) reached.`, 'alert');
+            }
         });
     }
 
@@ -621,7 +646,7 @@ function initProductDetailPage() {
             );
         }
 
-        if (!serverProduct || !matchedVariant || Number(matchedVariant.currentStock) < qty) return null;
+        if (!serverProduct || !matchedVariant || getAvailableStock(matchedVariant) < qty) return null;
         const name = serverProduct.name;
         const brand = serverProduct.brand;
         const basePrice = Number(serverProduct.basePrice);
@@ -644,25 +669,91 @@ function initProductDetailPage() {
             discountPercentage: discPercent,
             imageUrl: img,
             rating: rating,
-            availableStock: Number(matchedVariant.currentStock),
+            availableStock: getAvailableStock(matchedVariant),
             quantity: qty
         };
     }
 
     function updateSelectedVariantUi() {
         if (!serverProduct) return;
+        const activeColor = document.querySelector('.color-swatch.active')?.getAttribute('data-color') || '';
+        const sizePills = document.querySelectorAll('.size-pill');
+
+        // Update size pill stock availability based on active color
+        sizePills.forEach(pill => {
+            const s = pill.textContent.trim();
+            const v = serverProduct.variants?.find(item =>
+                item.color?.toLowerCase() === activeColor.toLowerCase() &&
+                item.size?.toLowerCase() === s.toLowerCase()
+            );
+            const stock = getAvailableStock(v);
+            if (stock <= 0) {
+                pill.classList.add('is-out-of-stock');
+                pill.setAttribute('title', `${s} - Out of Stock`);
+            } else {
+                pill.classList.remove('is-out-of-stock');
+                pill.removeAttribute('title');
+            }
+        });
+
+        // If active size pill is out of stock, auto-switch to first in-stock size pill if possible
+        const activePill = document.querySelector('.size-pill.active');
+        if (activePill && activePill.classList.contains('is-out-of-stock')) {
+            const firstAvailable = Array.from(sizePills).find(p => !p.classList.contains('is-out-of-stock'));
+            if (firstAvailable) {
+                sizePills.forEach(p => p.classList.remove('active'));
+                firstAvailable.classList.add('active');
+            }
+        }
+
         const size = document.querySelector('.size-pill.active')?.textContent.trim();
-        const color = document.querySelector('.color-swatch.active')?.getAttribute('data-color');
+        const color = activeColor;
         const variant = serverProduct.variants?.find(v =>
             v.size?.toLowerCase() === size?.toLowerCase() &&
             v.color?.toLowerCase() === color?.toLowerCase()
         );
-        const qty = Number(qtyDisplay?.textContent || 1);
-        const available = variant && Number(variant.currentStock) >= qty;
+
+        const maxStock = getAvailableStock(variant);
+        let qty = parseInt(qtyDisplay?.textContent || '1', 10) || 1;
+        if (maxStock > 0 && qty > maxStock) {
+            qty = maxStock;
+            if (qtyDisplay) qtyDisplay.textContent = qty;
+        } else if (maxStock <= 0) {
+            qty = 1;
+            if (qtyDisplay) qtyDisplay.textContent = 1;
+        }
+
+        const isOutOfStock = maxStock <= 0;
+        const available = !isOutOfStock && maxStock >= qty;
+
         const message = document.getElementById('detail-stock-message');
-        if (message) message.textContent = available ? '' : 'This size and color is unavailable at the selected quantity.';
-        document.getElementById('btn-add-detail').disabled = !available;
-        document.getElementById('btn-buy-now').disabled = !available;
+        if (message) {
+            if (isOutOfStock) {
+                message.textContent = 'This variant is currently out of stock.';
+                message.className = 'stock-status-tag stock-status-tag--out';
+            } else if (maxStock <= 3) {
+                message.textContent = `Only ${maxStock} left in stock - order soon!`;
+                message.className = 'stock-status-tag stock-status-tag--low';
+            } else {
+                message.textContent = `In Stock (${maxStock} units available)`;
+                message.className = 'stock-status-tag stock-status-tag--in';
+            }
+        }
+
+        const btnAdd = document.getElementById('btn-add-detail');
+        const btnBuy = document.getElementById('btn-buy-now');
+        if (btnAdd) {
+            btnAdd.disabled = isOutOfStock;
+            btnAdd.innerHTML = isOutOfStock ? '<span>Out of Stock</span>' : '<span>Add to Cart</span>';
+        }
+        if (btnBuy) {
+            btnBuy.disabled = isOutOfStock;
+            btnBuy.innerHTML = isOutOfStock ? '<span>Out of Stock</span>' : '<span>Buy Now</span>';
+        }
+
+        if (btnQtyInc) btnQtyInc.disabled = isOutOfStock || qty >= maxStock;
+        if (btnQtyDec) btnQtyDec.disabled = isOutOfStock || qty <= 1;
+
         if (!variant) return;
         const original = Number(serverProduct.basePrice) + Number(variant.priceAdjustment || 0);
         const current = original * (1 - Number(serverProduct.discountPercentage || 0) / 100);
@@ -726,23 +817,34 @@ function initProductDetailPage() {
     updateFavBtnState();
     updateSelectedVariantUi();
 
-    // Buy Now
+    // Buy Now: Direct single-item instant checkout (bypasses shopping cart)
     document.getElementById('btn-buy-now')?.addEventListener('click', () => {
+        const item = getSelectedProductDetails();
+        if (!item) {
+            RealtimeManager.showToast('Select an available size and color before checkout.', 'alert');
+            return;
+        }
+
+        // Store this single item directly without modifying or polluting CartManager
+        const buyNowPayload = JSON.stringify(item);
+        try {
+            sessionStorage.setItem(APP_CONSTANTS.STORAGE_KEYS.BUY_NOW_ITEM, buyNowPayload);
+            localStorage.setItem(APP_CONSTANTS.STORAGE_KEYS.BUY_NOW_ITEM, buyNowPayload);
+        } catch (e) {
+            console.warn('[ProductDetail] Storage error saving Buy Now item:', e);
+        }
+
+        const checkoutUrl = `${APP_CONSTANTS.ROUTES.CHECKOUT}?mode=buynow`;
+
         if (!ApiClient.isAuthenticated()) {
             window.showAuthPromptModal?.({
                 title: 'Sign In to Checkout',
-                message: 'Please sign in or create an account before proceeding to checkout.',
-                returnUrl: APP_CONSTANTS.ROUTES.CHECKOUT
+                message: 'Please sign in or create an account before proceeding to instant checkout.',
+                returnUrl: checkoutUrl
             });
             return;
         }
 
-        const item = getSelectedProductDetails();
-        if (!item || !CartManager.addItem(item)) {
-            RealtimeManager.showToast('Select an available size and color before checkout.', 'alert');
-            return;
-        }
-        CartManager.updateCartBadge();
-        window.location.href = APP_CONSTANTS.ROUTES.CHECKOUT;
+        window.location.href = checkoutUrl;
     });
 }

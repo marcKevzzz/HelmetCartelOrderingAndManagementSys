@@ -108,22 +108,35 @@
                 <div class="admin-kpi-desc">Color and size combinations</div>
             </div>
         </div>
-
-        <!-- 1. Daily Sales & Revenue Trend Chart -->
-        <div class="admin-chart-card">
+        <!-- 1. Sales Performance Analytics by Brand, Category, and Item -->
+        <div class="admin-chart-card" id="salesPerformanceCard">
             <div class="admin-chart-header">
                 <div>
-                    <h2 class="admin-chart-title">Revenue &amp; Order Velocity</h2>
-                    <span class="admin-chart-subtitle">
-                        <asp:Literal ID="litChartSubtitle" runat="server">Daily transaction trend for the selected period</asp:Literal>
-                    </span>
+                    <h2 class="admin-chart-title">Sales Performance Analytics</h2>
+                    <span class="admin-chart-subtitle">Top 5 performers by brand, category, and helmet models</span>
                 </div>
-                <span class="admin-badge admin-badge--in-stock">
-                    <asp:Literal ID="litActiveRangeBadge" runat="server">Last 30 Days</asp:Literal>
-                </span>
+                <!-- Filter Controls (Dimension and Metric) -->
+                <div class="admin-chart-controls">
+                    <!-- View By -->
+                    <div class="admin-segmented-tabs" id="viewByTabs" title="Dimension View">
+                        <button type="button" class="admin-tab-btn active" data-view="item">Item</button>
+                        <button type="button" class="admin-tab-btn" data-view="brand">Brand</button>
+                        <button type="button" class="admin-tab-btn" data-view="category">Category</button>
+                    </div>
+
+                    <!-- Metric -->
+                    <div class="admin-segmented-tabs" id="metricTabs" title="Primary Metric">
+                        <button type="button" class="admin-tab-btn active" data-metric="units">Units Sold</button>
+                        <button type="button" class="admin-tab-btn" data-metric="revenue">Revenue</button>
+                        <button type="button" class="admin-tab-btn" data-metric="orders">Orders</button>
+                    </div>
+                </div>
             </div>
-            <div class="admin-chart-body">
-                <canvas id="analyticsRevenueChart" height="240" data-labels='<%= Server.HtmlEncode(ChartLabelsJson) %>' data-revenue='<%= Server.HtmlEncode(ChartRevenueJson) %>' data-orders='<%= Server.HtmlEncode(ChartOrdersJson) %>'></canvas>
+
+            <!-- Razor-Sharp Monochrome Vector Graph Container (Top 5) -->
+            <div id="top5GraphContainer" class="admin-vector-graph-container"
+                 data-items='<%= Server.HtmlEncode(SalesPerformanceJson) %>'>
+                <!-- Dynamically rendered by JavaScript -->
             </div>
         </div>
 

@@ -516,6 +516,72 @@
   font-weight: var(--weight-semibold);
 }
 
+.size-pill.is-out-of-stock {
+  opacity: 0.45;
+  cursor: not-allowed !important;
+  text-decoration: line-through;
+  background-color: var(--color-surface-subtle);
+  color: var(--color-text-subtle);
+  border: 1px dashed var(--color-border);
+}
+
+.size-pill.is-out-of-stock:hover {
+  background-color: var(--color-surface-subtle);
+  color: var(--color-text-subtle);
+}
+
+.stock-status-tag {
+  display: inline-block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-top: var(--space-2);
+  width: fit-content;
+}
+
+.cart-item.is-out-of-stock {
+  opacity: 0.65;
+}
+
+.cart-item__stock-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  margin-top: 4px;
+}
+
+.cart-item__stock-badge--oos {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.cart-drawer-item.is-out-of-stock {
+  opacity: 0.65;
+  background: var(--color-surface-subtle);
+}
+
+.fav-card.is-out-of-stock {
+  opacity: 0.75;
+}
+
+.badge-out-of-stock {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(220, 38, 38, 0.9);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  z-index: 2;
+}
+
 .quantity-stepper-lg {
   background-color: var(--color-surface-subtle);
   border: 1px solid var(--color-border-subtle);

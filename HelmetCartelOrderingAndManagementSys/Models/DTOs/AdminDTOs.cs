@@ -97,11 +97,6 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public bool IsActive { get; set; } = true;
     }
 
-    public sealed class AdminReviewDto
-    {
-        public bool IsHidden { get; set; }
-    }
-
     public sealed class AdminSpecificationDto
     {
         public int ProductId { get; set; }
@@ -291,6 +286,44 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public System.DateTime SalesDate { get; set; }
         public int PaymentCount { get; set; }
         public decimal Revenue { get; set; }
+    }
+
+    public sealed class AdminHourlySaleDto
+    {
+        public int SaleHour { get; set; }
+        public int OrderCount { get; set; }
+        public decimal Revenue { get; set; }
+    }
+
+    public sealed class AdminSalesPerformanceItemDto
+    {
+        public int ProductId { get; set; }
+        public string ProductName { get; set; }
+        public int BrandId { get; set; }
+        public string BrandName { get; set; }
+        public int CategoryId { get; set; }
+        public string CategoryName { get; set; }
+        public int UnitsSold { get; set; }
+        public int OrderCount { get; set; }
+        public decimal Revenue { get; set; }
+        public decimal AverageSellingPrice { get; set; }
+    }
+
+    public sealed class AdminSalesDimensionReportDto
+    {
+        public string DimensionName { get; set; }
+        public int UnitsSold { get; set; }
+        public int OrderCount { get; set; }
+        public decimal Revenue { get; set; }
+        public decimal AverageUnitPrice { get; set; }
+        public bool IsTopSeller { get; set; }
+        public bool IsTopRevenue { get; set; }
+    }
+
+    public sealed class AdminSalesBreakdownDto
+    {
+        public List<AdminSalesDimensionReportDto> Brands { get; set; } = new List<AdminSalesDimensionReportDto>();
+        public List<AdminSalesDimensionReportDto> Categories { get; set; } = new List<AdminSalesDimensionReportDto>();
     }
 
     public sealed class AdminGlobalSearchResultDto

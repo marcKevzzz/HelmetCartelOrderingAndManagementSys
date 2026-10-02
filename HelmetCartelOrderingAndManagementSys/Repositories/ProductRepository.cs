@@ -144,6 +144,14 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                         {
                             while (await reader.ReadAsync().ConfigureAwait(false))
                             {
+                                var currentStock = reader.GetInt32(reader.GetOrdinal("CurrentStock"));
+                                var reservedStock = HasColumn(reader, "ReservedStock") && !reader.IsDBNull(reader.GetOrdinal("ReservedStock"))
+                                    ? reader.GetInt32(reader.GetOrdinal("ReservedStock"))
+                                    : 0;
+                                var availableStock = HasColumn(reader, "AvailableStock") && !reader.IsDBNull(reader.GetOrdinal("AvailableStock"))
+                                    ? reader.GetInt32(reader.GetOrdinal("AvailableStock"))
+                                    : Math.Max(0, currentStock - reservedStock);
+
                                 product.Variants.Add(new ProductVariantDto
                                 {
                                     Id = reader.GetInt32(reader.GetOrdinal("Id")),
@@ -154,7 +162,9 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                     ColorHex = reader.GetString(reader.GetOrdinal("ColorHex")),
                                     PriceAdjustment = reader.GetDecimal(reader.GetOrdinal("PriceAdjustment")),
                                     EffectivePrice = HasColumn(reader, "EffectivePrice") && !reader.IsDBNull(reader.GetOrdinal("EffectivePrice")) ? reader.GetDecimal(reader.GetOrdinal("EffectivePrice")) : 0m,
-                                    CurrentStock = reader.GetInt32(reader.GetOrdinal("CurrentStock")),
+                                    CurrentStock = currentStock,
+                                    ReservedStock = reservedStock,
+                                    AvailableStock = availableStock,
                                     IsLowStock = Convert.ToBoolean(reader["IsLowStock"]),
                                     DiscountType = HasColumn(reader, "DiscountType") && !reader.IsDBNull(reader.GetOrdinal("DiscountType")) ? reader.GetString(reader.GetOrdinal("DiscountType")) : null,
                                     DiscountAmount = HasColumn(reader, "DiscountAmount") && !reader.IsDBNull(reader.GetOrdinal("DiscountAmount")) ? reader.GetDecimal(reader.GetOrdinal("DiscountAmount")) : 0m,

@@ -97,6 +97,37 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
             }
         }
 
+        [HttpGet]
+        [Route("admin")]
+        public async Task<IHttpActionResult> AdminGetReviews([FromUri] string filter = "ALL", [FromUri] string search = null)
+        {
+            var reviews = await _reviewRepository.AdminGetReviewsAsync(filter, search).ConfigureAwait(false);
+            return Ok(ApiResponse<System.Collections.Generic.List<AdminReviewDto>>.Ok(reviews));
+        }
+
+        [HttpPost]
+        [Route("admin/{id:int}/toggle-visibility")]
+        public async Task<IHttpActionResult> ToggleReviewVisibility(int id)
+        {
+            if (id <= 0) return BadRequest("Invalid review ID.");
+
+            try
+            {
+                bool isHidden = await _reviewRepository.ToggleReviewVisibilityAsync(id).ConfigureAwait(false);
+                return Ok(new
+                {
+                    success = true,
+                    reviewId = id,
+                    isHidden = isHidden,
+                    message = isHidden ? "Review has been hidden from storefront." : "Review is now visible on storefront."
+                });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new { success = false, message = ex.Message });
+            }
+        }
+
         private string GetClientIpAddress()
         {
             try

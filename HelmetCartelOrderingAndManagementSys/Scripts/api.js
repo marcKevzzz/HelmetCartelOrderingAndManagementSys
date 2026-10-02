@@ -101,6 +101,56 @@ export const ApiClient = {
     return this.get(APP_CONSTANTS.ENDPOINTS.ORDER_TRACK(orderNumber));
   },
 
+  async cancelOrder(orderId, reason) {
+    return this.post(APP_CONSTANTS.ENDPOINTS.ORDER_CANCEL(orderId), { reason });
+  },
+
+  async simulatePayment(data) {
+    return this.post(APP_CONSTANTS.ENDPOINTS.PAYMENTS_SIMULATE, data);
+  },
+
+  async addReview(data) {
+    return this.post(APP_CONSTANTS.ENDPOINTS.REVIEWS, data);
+  },
+
+  async reportReview(data) {
+    return this.post(APP_CONSTANTS.ENDPOINTS.REVIEWS_REPORT, data);
+  },
+
+  async getProductReviews(productId) {
+    return this.get(APP_CONSTANTS.ENDPOINTS.REVIEWS_PRODUCT(productId));
+  },
+
+  async createReturnRequest(data) {
+    return this.post(APP_CONSTANTS.ENDPOINTS.RETURNS, data);
+  },
+
+  async getOrderReturns(orderId) {
+    return this.get(APP_CONSTANTS.ENDPOINTS.RETURNS_ORDER(orderId));
+  },
+
+  async adminGetReviews(filter = 'ALL', search = '') {
+    const params = new URLSearchParams();
+    if (filter) params.append('filter', filter);
+    if (search) params.append('search', search);
+    return this.get(`${APP_CONSTANTS.ENDPOINTS.ADMIN_REVIEWS}?${params.toString()}`);
+  },
+
+  async adminToggleReview(id) {
+    return this.post(APP_CONSTANTS.ENDPOINTS.ADMIN_REVIEW_TOGGLE(id));
+  },
+
+  async adminGetReturns(status = 'ALL', search = '') {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (search) params.append('search', search);
+    return this.get(`${APP_CONSTANTS.ENDPOINTS.ADMIN_RETURNS}?${params.toString()}`);
+  },
+
+  async adminProcessReturn(id, data) {
+    return this.post(APP_CONSTANTS.ENDPOINTS.ADMIN_RETURN_PROCESS(id), data);
+  },
+
   async logout() {
     return this.post(APP_CONSTANTS.ENDPOINTS.AUTH_LOGOUT);
   },

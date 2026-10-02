@@ -8,6 +8,10 @@
     <title><%: Page.Title %> &mdash; Helmet Cartel</title>
     <meta name="description" content="Helmet Cartel &mdash; Premium Motorcycle Helmets &amp; Riding Gear with Real-Time Stock Management." />
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="~/favicon.ico" runat="server" />
+    <link rel="icon" type="image/svg+xml" href="~/Content/images/favicon.svg" runat="server" />
+
     <!-- Design System Tokens & Modular Stylesheets -->
     <link rel="stylesheet" href="~/Content/css/variables.css?v=4" runat="server" />
     <link rel="stylesheet" href="~/Content/css/reset.css?v=3" runat="server" />

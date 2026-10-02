@@ -92,6 +92,8 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public decimal PriceAdjustment { get; set; }
         public decimal EffectivePrice { get; set; }
         public int CurrentStock { get; set; }
+        public int ReservedStock { get; set; }
+        public int AvailableStock { get; set; }
         public bool IsLowStock { get; set; }
         public string DiscountType { get; set; }
         public decimal DiscountAmount { get; set; }

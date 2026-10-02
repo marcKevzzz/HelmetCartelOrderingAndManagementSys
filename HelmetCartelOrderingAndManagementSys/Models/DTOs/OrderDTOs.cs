@@ -57,6 +57,8 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string PaymentStatus { get; set; }
         public string CheckoutUrl { get; set; }
         public DateTime CreatedAt { get; set; }
+        public string PreviewImages { get; set; }
+        public List<string> PreviewImageList { get; set; } = new List<string>();
         public List<OrderItemSummaryDto> Items { get; set; } = new List<OrderItemSummaryDto>();
     }
 
@@ -71,6 +73,8 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal TotalPrice { get; set; }
+        public string MainImageUrl { get; set; }
+        public string ImageUrl { get; set; }
     }
 
     public class UpdateOrderStatusDto
@@ -86,5 +90,10 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string Courier { get; set; }
         public string TrackingNumber { get; set; }
         public string Notes { get; set; }
+    }
+
+    public class CancelOrderRequestDto
+    {
+        public string Reason { get; set; }
     }
 }

@@ -13,5 +13,6 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
         Task<OrderSummaryDto> GetOrderByIdAsync(int orderId);
         Task<List<OrderSummaryDto>> GetRecentOrdersAsync(int limit = 20, string status = null);
         Task<bool> UpdateOrderStatusAsync(int orderId, string newStatus, string notes = null);
+        Task<(bool Success, string Message)> CancelOrderAsync(int orderId, int? userId, string userEmail, string reason);
     }
 }

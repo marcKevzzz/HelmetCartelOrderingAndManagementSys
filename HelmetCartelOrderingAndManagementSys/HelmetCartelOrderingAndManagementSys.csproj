@@ -114,6 +114,7 @@
     <Content Include="Pages\Admin\Portal.master" />
     <Content Include="Pages\Admin\Dashboard\Dashboard.aspx" />
     <Content Include="Pages\Admin\Orders\Orders.aspx" />
+    <Content Include="Pages\Admin\Orders\OrderDetail.aspx" />
     <Content Include="Pages\Admin\Inventory\Inventory.aspx" />
     <Content Include="Pages\Admin\POS\POS.aspx" />
     <Content Include="Pages\Admin\Catalog\Catalog.aspx" />
@@ -121,6 +122,7 @@
     <Content Include="Pages\Admin\Reports\Reports.aspx" />
     <Content Include="Pages\Admin\Users\Users.aspx" />
     <Content Include="Pages\Admin\Reviews\Reviews.aspx" />
+    <Content Include="Pages\Admin\Returns\Returns.aspx" />
     <Content Include="Pages\Admin\Payments\Payments.aspx" />
     <Content Include="Content\css\admin\admin.css" />
     <Content Include="Content\css\admin\pos.css" />
@@ -141,6 +143,8 @@
     <Content Include="Scripts\admin\orders.js" />
     <Content Include="Scripts\admin\pos.js" />
     <Content Include="Scripts\admin\reports.js" />
+    <Content Include="Scripts\admin\reviews.js" />
+    <Content Include="Scripts\admin\returns.js" />
     <Content Include="Scripts\admin\search-history.js" />
     <Content Include="Scripts\admin\session.js" />
     <Content Include="Scripts\storefront\auth.js" />
@@ -314,6 +318,7 @@
     <Compile Include="Controllers\Api\PaymentsController.cs" />
     <Compile Include="Controllers\Api\AuthController.cs" />
     <Compile Include="Controllers\Api\ReviewsController.cs" />
+    <Compile Include="Controllers\Api\ReturnsController.cs" />
     <Compile Include="Controllers\Api\AdminController.cs" />
     <Compile Include="Infrastructure\JwtTokenProvider.cs" />
     <Compile Include="Infrastructure\PaginationHelper.cs" />
@@ -439,6 +444,13 @@
     <Compile Include="Pages\Admin\Orders\Orders.aspx.designer.cs">
       <DependentUpon>Orders.aspx</DependentUpon>
     </Compile>
+    <Compile Include="Pages\Admin\Orders\OrderDetail.aspx.cs">
+      <DependentUpon>OrderDetail.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\Admin\Orders\OrderDetail.aspx.designer.cs">
+      <DependentUpon>OrderDetail.aspx</DependentUpon>
+    </Compile>
     <Compile Include="Pages\Admin\Reports\Reports.aspx.cs">
       <DependentUpon>Reports.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -467,11 +479,15 @@
     <Compile Include="Models\DTOs\OrderDTOs.cs" />
     <Compile Include="Models\DTOs\ProductDTOs.cs" />
     <Compile Include="Models\DTOs\ReviewDTOs.cs" />
+    <Compile Include="Models\DTOs\ReturnRequestDtos.cs" />
+    <Compile Include="Models\Entities\ReturnRequest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Repositories\IProductRepository.cs" />
     <Compile Include="Repositories\ProductRepository.cs" />
     <Compile Include="Repositories\IReviewRepository.cs" />
     <Compile Include="Repositories\ReviewRepository.cs" />
+    <Compile Include="Repositories\IReturnRepository.cs" />
+    <Compile Include="Repositories\ReturnRepository.cs" />
     <Compile Include="Repositories\IInventoryRepository.cs" />
     <Compile Include="Repositories\InventoryRepository.cs" />
     <Compile Include="Repositories\IOrderRepository.cs" />

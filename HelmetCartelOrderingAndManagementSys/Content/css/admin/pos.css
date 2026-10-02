@@ -234,10 +234,7 @@
 
 .pos-product-sku {
   color: var(--color-text-secondary);
-  font-family: var(--font-mono, monospace);
   font-size: var(--text-caption);
-  font-weight: var(--weight-semibold, 600);
-  letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

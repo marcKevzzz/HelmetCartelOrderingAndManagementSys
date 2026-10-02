@@ -32,6 +32,27 @@ export const RealtimeManager = {
         .fail(() => {
           this.updateConnectionStatus(false);
         });
+
+      // Clean disconnect and reconnect when page enters/leaves Back-Forward Cache (bfcache)
+      window.addEventListener('pagehide', () => {
+        try {
+          if (this.hubConnection && typeof this.hubConnection.stop === 'function') {
+            this.hubConnection.stop();
+          }
+        } catch (_) {}
+      });
+
+      window.addEventListener('pageshow', (event) => {
+        if (event.persisted && this.hubConnection && typeof this.hubConnection.start === 'function') {
+          this.hubConnection.start()
+            .done(() => {
+              this.updateConnectionStatus(true);
+            })
+            .fail(() => {
+              this.updateConnectionStatus(false);
+            });
+        }
+      });
     } else {
       this.updateConnectionStatus(false);
     }

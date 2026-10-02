@@ -15,6 +15,12 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
 
         public string SalesChartLabelsJson { get; set; } = "[]";
         public string SalesChartDataJson { get; set; } = "[]";
+        public string DaySalesChartLabelsJson { get; set; } = "[]";
+        public string DaySalesChartDataJson { get; set; } = "[]";
+        public string WeekSalesChartLabelsJson { get; set; } = "[]";
+        public string WeekSalesChartDataJson { get; set; } = "[]";
+        public string MonthSalesChartLabelsJson { get; set; } = "[]";
+        public string MonthSalesChartDataJson { get; set; } = "[]";
         public string BrandChartLabelsJson { get; set; } = "[]";
         public string BrandChartDataJson { get; set; } = "[]";
 
@@ -61,24 +67,54 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 litTodayRevenue.Text = todayRev.ToString("N2");
                 litTodayRevenueTrend.Text = TrendHelper.RenderTrend(todayRev, GetNullableDecimal(stats, "yesterdayRevenue"), "yesterday", isCurrency: true);
 
-                // 2. Sales Trend (Past 7 Days)
+                // 2. Sales Trend (Day, Week, Month)
                 DateTime now = DateTime.UtcNow;
-                var sales = await _adminRepo.GetDailySalesAsync(now.AddDays(-7), now.AddDays(1)).ConfigureAwait(false);
-                var salesMap = sales.ToDictionary(s => s.SalesDate.ToString("yyyy-MM-dd"), s => s.Revenue);
 
-                var labels = new List<string>();
-                var revenueValues = new List<decimal>();
+                // 2A. Day (Hourly breakdown for today)
+                var hourlySales = await _adminRepo.GetHourlySalesAsync(now.Date).ConfigureAwait(false);
+                var hourlyMap = hourlySales.ToDictionary(h => h.SaleHour, h => h.Revenue);
+                var dayLabels = new List<string>();
+                var dayValues = new List<decimal>();
+                for (int h = 0; h < 24; h++)
+                {
+                    DateTime time = DateTime.Today.AddHours(h);
+                    dayLabels.Add($"\"{time:h tt}\"");
+                    dayValues.Add(hourlyMap.TryGetValue(h, out var val) ? val : 0m);
+                }
+                DaySalesChartLabelsJson = "[" + string.Join(", ", dayLabels) + "]";
+                DaySalesChartDataJson = "[" + string.Join(", ", dayValues) + "]";
 
+                // 2B. Week (Past 7 Days)
+                var weekSales = await _adminRepo.GetDailySalesAsync(now.AddDays(-7), now.AddDays(1)).ConfigureAwait(false);
+                var weekSalesMap = weekSales.ToDictionary(s => s.SalesDate.ToString("yyyy-MM-dd"), s => s.Revenue);
+                var weekLabels = new List<string>();
+                var weekValues = new List<decimal>();
                 for (int i = 6; i >= 0; i--)
                 {
                     DateTime d = now.AddDays(-i);
                     string key = d.ToString("yyyy-MM-dd");
-                    labels.Add($"\"{d:MMM dd}\"");
-                    revenueValues.Add(salesMap.TryGetValue(key, out var val) ? val : 0m);
+                    weekLabels.Add($"\"{d:MMM dd}\"");
+                    weekValues.Add(weekSalesMap.TryGetValue(key, out var val) ? val : 0m);
                 }
+                SalesChartLabelsJson = "[" + string.Join(", ", weekLabels) + "]";
+                SalesChartDataJson = "[" + string.Join(", ", weekValues) + "]";
+                WeekSalesChartLabelsJson = SalesChartLabelsJson;
+                WeekSalesChartDataJson = SalesChartDataJson;
 
-                SalesChartLabelsJson = "[" + string.Join(", ", labels) + "]";
-                SalesChartDataJson = "[" + string.Join(", ", revenueValues) + "]";
+                // 2C. Month (Past 30 Days)
+                var monthSales = await _adminRepo.GetDailySalesAsync(now.AddDays(-30), now.AddDays(1)).ConfigureAwait(false);
+                var monthSalesMap = monthSales.ToDictionary(s => s.SalesDate.ToString("yyyy-MM-dd"), s => s.Revenue);
+                var monthLabels = new List<string>();
+                var monthValues = new List<decimal>();
+                for (int i = 29; i >= 0; i--)
+                {
+                    DateTime d = now.AddDays(-i);
+                    string key = d.ToString("yyyy-MM-dd");
+                    monthLabels.Add($"\"{d:MMM dd}\"");
+                    monthValues.Add(monthSalesMap.TryGetValue(key, out var val) ? val : 0m);
+                }
+                MonthSalesChartLabelsJson = "[" + string.Join(", ", monthLabels) + "]";
+                MonthSalesChartDataJson = "[" + string.Join(", ", monthValues) + "]";
 
                 // 3. Brand Distribution
                 var brands = await _adminRepo.GetInventoryReportAsync().ConfigureAwait(false);
@@ -148,6 +184,16 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             return null;
         }
 
+        protected string FormatActivityDetail(object detail)
+        {
+            string text = Convert.ToString(detail) ?? string.Empty;
+            return Server.HtmlEncode(text)
+                .Replace("PHP ", "&#8369;")
+                .Replace("â€¢", "&bull;")
+                .Replace("•", "&bull;")
+                .Replace("&amp;bull;", "&bull;");
+        }
+
         protected string GetActivityIconMarkup(object activityType)
         {
             string type = Convert.ToString(activityType) ?? string.Empty;
@@ -177,11 +223,14 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             if (dateObj == null || dateObj == DBNull.Value) return "";
             if (DateTime.TryParse(Convert.ToString(dateObj), out var dt))
             {
-                var diff = DateTime.UtcNow - dt.ToUniversalTime();
+                DateTime utcDt = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                var diff = DateTime.UtcNow - utcDt;
+                if (diff.TotalSeconds < 0) diff = TimeSpan.Zero;
+
                 string relative;
                 if (diff.TotalSeconds < 60)
                 {
-                    relative = "now";
+                    relative = "just now";
                 }
                 else if (diff.TotalMinutes < 60)
                 {
@@ -196,7 +245,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     relative = $"{(int)diff.TotalDays}d ago";
                 }
 
-                return $"{relative} &middot; {dt.ToLocalTime():MMM d, yyyy, h:mm tt}";
+                return $"{relative} &middot; {utcDt.ToLocalTime():MMM d, yyyy, h:mm tt}";
             }
             return "";
         }

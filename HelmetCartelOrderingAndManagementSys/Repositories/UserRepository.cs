@@ -164,7 +164,11 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             PaymentGateway = reader.GetString(reader.GetOrdinal("PaymentGateway")),
                             PaymentStatus = reader.GetString(reader.GetOrdinal("PaymentStatus")),
                             GatewayReference = reader.IsDBNull(reader.GetOrdinal("GatewayReference")) ? null : reader.GetString(reader.GetOrdinal("GatewayReference")),
-                            ItemCount = reader.GetInt32(reader.GetOrdinal("ItemCount"))
+                            ItemCount = reader.GetInt32(reader.GetOrdinal("ItemCount")),
+                            PreviewImages = reader.IsDBNull(reader.GetOrdinal("PreviewImages")) ? null : reader.GetString(reader.GetOrdinal("PreviewImages")),
+                            PreviewImageList = reader.IsDBNull(reader.GetOrdinal("PreviewImages"))
+                                ? new List<string>()
+                                : new List<string>(reader.GetString(reader.GetOrdinal("PreviewImages")).Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
                         });
                     }
                 }
@@ -318,6 +322,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                     {
                         while (await reader.ReadAsync().ConfigureAwait(false))
                         {
+                            string mainImg = reader.IsDBNull(reader.GetOrdinal("MainImageUrl")) ? null : reader.GetString(reader.GetOrdinal("MainImageUrl"));
                             order.Items.Add(new OrderItemSummaryDto
                             {
                                 Id = reader.GetInt32(reader.GetOrdinal("Id")),
@@ -328,7 +333,9 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 Color = reader.GetString(reader.GetOrdinal("Color")),
                                 Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
                                 UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
-                                TotalPrice = reader.GetDecimal(reader.GetOrdinal("TotalPrice"))
+                                TotalPrice = reader.GetDecimal(reader.GetOrdinal("TotalPrice")),
+                                MainImageUrl = mainImg,
+                                ImageUrl = mainImg
                             });
                         }
                     }

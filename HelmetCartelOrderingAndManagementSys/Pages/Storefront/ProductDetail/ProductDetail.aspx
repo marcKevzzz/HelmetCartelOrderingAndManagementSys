@@ -1,7 +1,6 @@
 <%@ Page Title="Product Details" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="ProductDetail.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Pages.ProductDetailPage" ResponseEncoding="utf-8" Async="true" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
-    <link rel="stylesheet" href="~/Content/css/storefront/storefront.css?v=8" runat="server" />
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
@@ -537,5 +536,5 @@
     <script type="application/json" id="product-detail-data">
         <%= ProductJson %>
     </script>
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/product-detail.js?v=5") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/product-detail.js?v=6") %>'></script>
 </asp:Content>

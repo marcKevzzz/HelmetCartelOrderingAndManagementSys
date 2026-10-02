@@ -1,7 +1,6 @@
 <%@ Page Title="Your Shopping Cart" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Cart.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Pages.Cart" ResponseEncoding="utf-8" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
-    <link rel="stylesheet" href="~/Content/css/storefront/storefront.css?v=8" runat="server" />
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
@@ -27,9 +26,9 @@
                         </svg>
                     </div>
                     <h3 class="cart-drawer-empty__title">YOUR CART IS EMPTY</h3>
-                    <p class="cart-drawer-empty__desc">Explore our DOT &amp; ECE-certified helmets to protect your next ride.</p>
+                    <p class="cart-drawer-empty__desc">Explore our motorcycle helmet catalog and find your next ride today.</p>
                     <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx" CssClass="cart-drawer-empty__btn">
-                        <span>Explore Catalog</span>
+                        <span>Explore Shop</span>
                         <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
                             <line x1="7" y1="17" x2="17" y2="7"></line>
                             <polyline points="7 7 17 7 17 17"></polyline>
@@ -48,7 +47,7 @@
                 </div>
 
                 <div class="order-summary__row">
-                    <span class="order-summary__label">Fulfillment</span>
+                    <span class="order-summary__label">Delivery</span>
                     <strong>FREE (In-Store Pickup)</strong>
                 </div>
 

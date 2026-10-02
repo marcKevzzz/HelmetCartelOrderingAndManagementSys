@@ -2,9 +2,9 @@
 -- 22_clean_schema_and_enforce_unique_phone.sql
 -- Helmet Cartel Ordering and Management System
 -- Schema Cleanup:
--- 1. Remove redundant dbo.Users.FullName (dynamically computed from FirstName + LastName)
--- 2. Enforce REQUIRED and UNIQUE PhoneNumber on dbo.Users with duplicate checking
--- 3. Remove redundant RecipientName and PhoneNumber from dbo.UserAddresses (inherited from Users)
+-- 1. Keep FullName as a computed compatibility column for existing readers.
+-- 2. Require phones for new writes; preserve unknown legacy phones and enforce unique known numbers.
+-- 3. Preserve address-specific RecipientName and PhoneNumber values.
 -- 4. Update all affected Stored Procedures
 -- =====================================================================================
 
@@ -16,45 +16,40 @@ GO
 USE HelmetCartelDB;
 GO
 
--- 1. Clean existing data in dbo.Users before enforcing NOT NULL & UNIQUE
-UPDATE dbo.Users 
-SET PhoneNumber = N'09181234567' 
-WHERE Id = 3 AND (PhoneNumber IS NULL OR LEN(LTRIM(RTRIM(PhoneNumber))) = 0);
+-- Stop before changing anything if normalization would produce duplicate phones.
+IF EXISTS (SELECT 1 FROM dbo.Users WHERE NULLIF(LTRIM(RTRIM(PhoneNumber)), N'') IS NOT NULL
+           GROUP BY LTRIM(RTRIM(PhoneNumber)) HAVING COUNT(*) > 1)
+    THROW 53030, N'Duplicate phone numbers must be resolved before migration 22.', 1;
+
+-- Do not replace an existing name with a different derived name silently.
+IF COL_LENGTH(N'dbo.Users', N'FullName') IS NOT NULL
+    IF EXISTS (SELECT 1 FROM dbo.Users WHERE LTRIM(RTRIM(FullName)) <> CONCAT(LTRIM(RTRIM(FirstName)), N' ', LTRIM(RTRIM(LastName))))
+        THROW 53031, N'Existing full names differ from first/last names; review before migration 22.', 1;
 GO
 
 -- 2. Drop redundant FullName column from dbo.Users if it exists
-IF COL_LENGTH(N'dbo.Users', N'FullName') IS NOT NULL
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.Users') AND name = N'FullName' AND is_computed = 0)
 BEGIN
     ALTER TABLE dbo.Users DROP COLUMN FullName;
-    PRINT 'Dropped redundant column dbo.Users.FullName';
 END;
+GO
+IF COL_LENGTH(N'dbo.Users', N'FullName') IS NULL
+    ALTER TABLE dbo.Users ADD FullName AS CONVERT(NVARCHAR(200), CONCAT(LTRIM(RTRIM(FirstName)), N' ', LTRIM(RTRIM(LastName)))) PERSISTED;
 GO
 
 -- 3. Enforce PhoneNumber NOT NULL and UNIQUE on dbo.Users
-ALTER TABLE dbo.Users ALT0ER COLUMN PhoneNumber NVARCHAR(30) NOT NULL;
+-- Legacy unknown numbers remain NULL until their owners provide real numbers.
+UPDATE dbo.Users SET PhoneNumber = NULLIF(LTRIM(RTRIM(PhoneNumber)), N'');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UQ_Users_PhoneNumber' AND object_id = OBJECT_ID(N'dbo.Users'))
 BEGIN
-    ALTER TABLE dbo.Users ADD CONSTRAINT UQ_Users_PhoneNumber UNIQUE (PhoneNumber);
-    PRINT 'Added unique constraint UQ_Users_PhoneNumber';
+    CREATE UNIQUE INDEX UQ_Users_PhoneNumber ON dbo.Users(PhoneNumber) WHERE PhoneNumber IS NOT NULL;
+    PRINT 'Added filtered unique index UQ_Users_PhoneNumber';
 END;
 GO
 
--- 4. Drop redundant RecipientName and PhoneNumber columns from dbo.UserAddresses
-IF COL_LENGTH(N'dbo.UserAddresses', N'RecipientName') IS NOT NULL
-BEGIN
-    ALTER TABLE dbo.UserAddresses DROP COLUMN RecipientName;
-    PRINT 'Dropped redundant column dbo.UserAddresses.RecipientName';
-END;
-GO
-
-IF COL_LENGTH(N'dbo.UserAddresses', N'PhoneNumber') IS NOT NULL
-BEGIN
-    ALTER TABLE dbo.UserAddresses DROP COLUMN PhoneNumber;
-    PRINT 'Dropped redundant column dbo.UserAddresses.PhoneNumber';
-END;
-GO
+-- 4. Address contact columns are intentionally preserved; migration 23 uses them.
 
 -- 5. UPDATE STORED PROCEDURE: sp_RegisterUser
 IF OBJECT_ID(N'dbo.sp_RegisterUser', N'P') IS NULL 

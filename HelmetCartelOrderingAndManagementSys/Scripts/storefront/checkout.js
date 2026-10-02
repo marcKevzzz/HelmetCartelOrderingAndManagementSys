@@ -10,6 +10,33 @@ import { RealtimeManager } from '../realtime.js';
 import { APP_CONSTANTS } from '../constants.js';
 
 const CHECKOUT_STATE_KEY = 'hc_checkout_state';
+const urlParams = new URLSearchParams(window.location.search);
+const isBuyNowMode = urlParams.get('mode') === 'buynow';
+
+function getBuyNowItem() {
+    try {
+        const raw = sessionStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.BUY_NOW_ITEM)
+                 || localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.BUY_NOW_ITEM);
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+}
+
+function saveBuyNowItem(item) {
+    try {
+        const str = JSON.stringify(item);
+        sessionStorage.setItem(APP_CONSTANTS.STORAGE_KEYS.BUY_NOW_ITEM, str);
+        localStorage.setItem(APP_CONSTANTS.STORAGE_KEYS.BUY_NOW_ITEM, str);
+    } catch {}
+}
+
+function clearBuyNowItem() {
+    try {
+        sessionStorage.removeItem(APP_CONSTANTS.STORAGE_KEYS.BUY_NOW_ITEM);
+        localStorage.removeItem(APP_CONSTANTS.STORAGE_KEYS.BUY_NOW_ITEM);
+    } catch {}
+}
 
 function getStoredCheckoutState() {
     try {
@@ -27,7 +54,7 @@ let selectedFulfillment = (initialDraft?.fulfillment === 'delivery' || initialDr
     ? initialDraft.fulfillment
     : 'pickup';
 let selectedShippingCost = 0;
-let selectedPaymentMethodName = "HitPay Online Checkout (GCash / Maya / QR PH)";
+let selectedPaymentMethodName = "HitPay Online Checkout (QR Ph)";
 let selectedPaymentKey = initialDraft?.paymentKey || "hitpay";
 let savedAddressesList = [];
 let selectedAddress = null;
@@ -117,8 +144,12 @@ function computeShippingDetails(cityInput, provinceInput) {
     return { fee: 175, region: 'Standard Nationwide Delivery', eta: '3\u20136 Business Days' };
 }
 
-// Determine Checkout Items
+// Determine Checkout Items (Single Buy Now item OR Cart selected items)
 function getCheckoutItems() {
+    if (isBuyNowMode) {
+        const singleItem = getBuyNowItem();
+        return singleItem ? [singleItem] : [];
+    }
     return CartManager.getSelectedItems();
 }
 
@@ -133,7 +164,10 @@ function calculateTotals() {
 function renderSidebar() {
     const items = getCheckoutItems();
     if (items.length === 0 && currentStep < 4) {
-        RealtimeManager.showToast('Your cart is empty. Redirecting to Shop...', 'alert');
+        const emptyMsg = isBuyNowMode
+            ? 'Buy Now item is missing. Redirecting to Shop...'
+            : 'Your cart is empty. Redirecting to Shop...';
+        RealtimeManager.showToast(emptyMsg, 'alert');
         setTimeout(() => window.location.href = APP_CONSTANTS.ROUTES.SHOP, 1500);
         return;
     }
@@ -516,67 +550,90 @@ function bindCheckoutEvents() {
             // Clear saved draft state upon successful order placement
             clearCheckoutState();
 
-            // Clear selected items from cart
-            const allItems = CartManager.getItems();
-            const remaining = allItems.filter(item => !checkoutItems.some(c => c.variantId === item.variantId));
-            CartManager.saveItems(remaining);
-            CartManager.updateCartBadge();
+            const completeOrderDisplay = () => {
+                if (isBuyNowMode) {
+                    clearBuyNowItem();
+                    // Preserves cart items, but re-evaluates their stock from the server in case this buy-now depleted it
+                    CartManager.refreshItems().catch(() => {});
+                } else {
+                    // Clear selected checked-out items from cart
+                    const allItems = CartManager.getItems();
+                    const remaining = allItems.filter(item => !checkoutItems.some(c => Number(c.variantId) === Number(item.variantId)));
+                    CartManager.saveItems(remaining);
+                    CartManager.updateCartBadge();
+                }
 
-            // Populate Receipt Card
-            const receiptOrderNo = document.getElementById('receipt-order-no');
-            const receiptDate = document.getElementById('receipt-date');
-            const receiptPayment = document.getElementById('receipt-payment');
-            const receiptTotal = document.getElementById('receipt-total');
+                // Populate Receipt Card
+                const receiptOrderNo = document.getElementById('receipt-order-no');
+                const receiptDate = document.getElementById('receipt-date');
+                const receiptPayment = document.getElementById('receipt-payment');
+                const receiptTotal = document.getElementById('receipt-total');
 
-            if (receiptOrderNo) receiptOrderNo.textContent = orderNo;
-            if (receiptDate) {
-                receiptDate.textContent = new Date().toLocaleDateString('en-US', {
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric'
-                }) + ' - ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-            }
-            if (receiptPayment) receiptPayment.textContent = selectedPaymentMethodName;
-            if (receiptTotal) receiptTotal.innerHTML = `&#8369;${totalPaid.toLocaleString()}`;
+                if (receiptOrderNo) receiptOrderNo.textContent = orderNo;
+                if (receiptDate) {
+                    receiptDate.textContent = new Date().toLocaleDateString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric'
+                    }) + ' - ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                }
+                if (receiptPayment) receiptPayment.textContent = selectedPaymentMethodName;
+                if (receiptTotal) receiptTotal.innerHTML = `&#8369;${totalPaid.toLocaleString()}`;
 
-            const addrLabel = document.getElementById('receipt-address-label');
-            const addrVal = document.getElementById('receipt-address');
-            const etaVal = document.getElementById('receipt-eta');
-            const step3Text = document.getElementById('tracker-step-3-text');
-            const step4Text = document.getElementById('tracker-step-4-text');
+                const addrLabel = document.getElementById('receipt-address-label');
+                const addrVal = document.getElementById('receipt-address');
+                const etaVal = document.getElementById('receipt-eta');
+                const step3Text = document.getElementById('tracker-step-3-text');
+                const step4Text = document.getElementById('tracker-step-4-text');
 
-            if (isDelivery) {
-                if (addrLabel) addrLabel.textContent = 'Delivery Address';
-                if (addrVal) addrVal.textContent = `${addr || ''}${brgy ? `, Brgy. ${brgy}` : ''}, ${city || ''}, ${prov || ''} ${zip || ''}`;
-                if (etaVal) etaVal.textContent = `Dispatched via Courier (Est. ${shippingDetails?.eta || '2\u20134 Days'})`;
+                if (isDelivery) {
+                    if (addrLabel) addrLabel.textContent = 'Delivery Address';
+                    if (addrVal) addrVal.textContent = `${addr || ''}${brgy ? `, Brgy. ${brgy}` : ''}, ${city || ''}, ${prov || ''} ${zip || ''}`;
+                    if (etaVal) etaVal.textContent = `Dispatched via Courier (Est. ${shippingDetails?.eta || '2\u20134 Days'})`;
 
-                if (step3Text) step3Text.textContent = 'In Transit / Dispatched';
-                if (step4Text) step4Text.textContent = 'Delivered';
-            } else {
-                if (addrLabel) addrLabel.textContent = 'Pickup Location';
-                if (addrVal) addrVal.textContent = 'Helmet Cartel Flagship Hub \u2022 128 Commonwealth Ave, QC';
-                if (etaVal) etaVal.textContent = 'Ready for Store Pickup in 1-2 Hours';
+                    if (step3Text) step3Text.textContent = 'In Transit / Dispatched';
+                    if (step4Text) step4Text.textContent = 'Delivered';
+                } else {
+                    if (addrLabel) addrLabel.textContent = 'Pickup Location';
+                    if (addrVal) addrVal.textContent = 'Helmet Cartel Flagship Hub \u2022 128 Commonwealth Ave, QC';
+                    if (etaVal) etaVal.textContent = 'Ready for Store Pickup in 1-2 Hours';
 
-                if (step3Text) step3Text.textContent = 'Ready for Pickup';
-                if (step4Text) step4Text.textContent = 'Collected';
-            }
+                    if (step3Text) step3Text.textContent = 'Ready for Pickup';
+                    if (step4Text) step4Text.textContent = 'Collected';
+                }
 
-            if (paymentGateway === 'HitPay' && orderData?.checkoutUrl) {
-                RealtimeManager.showToast('Redirecting to HitPay secure checkout...', 'info');
-                setTimeout(() => window.location.href = orderData.checkoutUrl, 800);
+                const stepperEl = document.getElementById('checkout-stepper');
+                const gridEl = document.getElementById('checkout-interactive-grid');
+                const successPanel = document.getElementById('checkout-success-panel');
+
+                if (stepperEl) stepperEl.style.display = 'none';
+                if (gridEl) gridEl.style.display = 'none';
+                if (successPanel) successPanel.classList.add('is-active');
+
+                window.scrollTo({ top: 100, behavior: 'smooth' });
+                RealtimeManager.showToast(`Order ${orderNo} confirmed! Inventory reserved.`, 'success');
+            };
+
+            // HitPay Online Payment Routing
+            if (paymentGateway === 'HitPay') {
+                if (orderData?.checkoutUrl) {
+                    RealtimeManager.showToast('Redirecting to HitPay secure checkout...', 'info');
+                    setTimeout(() => window.location.href = orderData.checkoutUrl, 800);
+                    return;
+                }
+
+                // Interactive HitPay Simulation Modal
+                btn?.classList.remove('btn--loading');
+                btn?.classList.remove('btn--disabled');
+                if (btn) btn.disabled = false;
+                if (textSpan) textSpan.textContent = "Place Order & Pay";
+
+                showSimulationModal(orderNo, totalPaid, completeOrderDisplay);
                 return;
             }
 
-            const stepperEl = document.getElementById('checkout-stepper');
-            const gridEl = document.getElementById('checkout-interactive-grid');
-            const successPanel = document.getElementById('checkout-success-panel');
-
-            if (stepperEl) stepperEl.style.display = 'none';
-            if (gridEl) gridEl.style.display = 'none';
-            if (successPanel) successPanel.classList.add('is-active');
-
-            window.scrollTo({ top: 100, behavior: 'smooth' });
-            RealtimeManager.showToast(`Order ${orderNo} confirmed! Inventory reserved.`, 'success');
+            // Direct fulfillment (COD / Cash In-Store)
+            completeOrderDisplay();
         } catch (err) {
             console.error('[Checkout Error]', err);
             RealtimeManager.showToast(err.message || 'Error processing order. Please check stock.', 'alert');
@@ -588,16 +645,191 @@ function bindCheckoutEvents() {
     });
 }
 
+/**
+ * Handles Interactive QR Ph HitPay Simulation Modal (Minimal Design)
+ */
+function showSimulationModal(orderNo, totalAmount, onSuccessCallback) {
+    const modal = document.getElementById('payment-simulation-modal');
+    if (!modal) {
+        onSuccessCallback();
+        return;
+    }
+
+    const amountEl = document.getElementById('sim-order-amount');
+    const statusBanner = document.getElementById('sim-status-banner');
+    const statusText = document.getElementById('sim-status-banner-text');
+    const alertEl = document.getElementById('sim-status-alert');
+    const alertMsg = document.getElementById('sim-status-message');
+    const closeBtn = document.getElementById('btn-close-sim-modal');
+    const failBtn = document.getElementById('btn-fail-sim');
+    const successBtn = document.getElementById('btn-success-sim');
+
+    // Populate amount
+    const formattedAmount = Number(totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (amountEl) amountEl.innerHTML = `&#8369;${formattedAmount}`;
+
+    // Reset status
+    if (statusBanner) statusBanner.className = 'sim-status-banner is-waiting';
+    if (statusText) statusText.textContent = 'Waiting for simulated scan...';
+
+    alertEl?.classList.add('is-hidden');
+    modal.classList.remove('is-hidden');
+
+    const closeModal = () => {
+        modal.classList.add('is-hidden');
+    };
+
+    closeBtn?.addEventListener('click', () => {
+        closeModal();
+        RealtimeManager.showToast(`Order ${orderNo} saved as Pending Payment. You can track or complete it anytime in Order History.`, 'info');
+    }, { once: true });
+
+    // Simulate Payment Failure / Decline
+    failBtn?.addEventListener('click', async () => {
+        failBtn.disabled = true;
+        successBtn.disabled = true;
+        if (statusBanner) statusBanner.className = 'sim-status-banner is-processing';
+        if (statusText) statusText.textContent = 'Simulating scan decline in banking app...';
+
+        try {
+            await ApiClient.simulatePayment({
+                orderNumber: orderNo,
+                paymentChannel: APP_CONSTANTS.PAYMENT_CHANNELS?.QRPH || 'QRPH',
+                outcome: 'FAILED'
+            });
+
+            if (statusBanner) statusBanner.className = 'sim-status-banner is-declined';
+            if (statusText) statusText.textContent = 'Payment Declined: Transaction cancelled or timed out.';
+
+            if (alertEl && alertMsg) {
+                alertEl.className = 'modal-alert modal-alert--danger';
+                alertMsg.textContent = `Simulation: QR Ph payment was declined. Order ${orderNo} remains in Pending Payment status.`;
+                alertEl.classList.remove('is-hidden');
+            }
+        } catch (err) {
+            if (alertEl && alertMsg) {
+                alertEl.className = 'modal-alert modal-alert--danger';
+                alertMsg.textContent = err.message || 'Payment simulation failed.';
+                alertEl.classList.remove('is-hidden');
+            }
+        } finally {
+            failBtn.disabled = false;
+            successBtn.disabled = false;
+        }
+    });
+
+    // Simulate Customer Scan & Successful Payment
+    successBtn?.addEventListener('click', async () => {
+        successBtn.disabled = true;
+        failBtn.disabled = true;
+        successBtn.classList.add('btn--loading');
+
+        try {
+            if (statusBanner) statusBanner.className = 'sim-status-banner is-processing';
+            if (statusText) statusText.textContent = 'Simulating scan and payment verification...';
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Send simulation request to C# backend
+            await ApiClient.simulatePayment({
+                orderNumber: orderNo,
+                paymentChannel: APP_CONSTANTS.PAYMENT_CHANNELS?.QRPH || 'QRPH',
+                outcome: 'SUCCESS'
+            });
+
+            if (statusBanner) statusBanner.className = 'sim-status-banner is-success';
+            if (statusText) statusText.textContent = 'Payment Approved! Inventory reserved & order confirmed.';
+
+            setTimeout(() => {
+                closeModal();
+                onSuccessCallback();
+            }, 700);
+        } catch (err) {
+            if (alertEl && alertMsg) {
+                alertEl.className = 'modal-alert modal-alert--danger';
+                alertMsg.textContent = err.message || 'Unable to confirm payment simulation.';
+                alertEl.classList.remove('is-hidden');
+            }
+            if (statusBanner) statusBanner.className = 'sim-status-banner is-declined';
+            if (statusText) statusText.textContent = 'Payment simulation encountered an error.';
+            successBtn.disabled = false;
+            failBtn.disabled = false;
+            successBtn.classList.remove('btn--loading');
+        }
+    });
+}
+
+// Adapt UI when checking out a single Buy Now item directly
+function adaptBuyNowUi() {
+    if (!isBuyNowMode) return;
+    const item = getBuyNowItem();
+    const productUrl = item?.productId
+        ? `/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=${item.productId}`
+        : APP_CONSTANTS.ROUTES.SHOP;
+
+    // Adapt Breadcrumb: Home > [Product] > Checkout
+    const breadcrumbLink = document.getElementById('breadcrumbCartLink');
+    if (breadcrumbLink) {
+        breadcrumbLink.href = productUrl;
+        breadcrumbLink.textContent = item?.brand ? `${item.brand} Helmet` : 'Product';
+        breadcrumbLink.title = 'Back to product details';
+    }
+
+    // Adapt Step 1 Back Button: "Back to Product"
+    const backBtn = document.getElementById('btnCheckoutBack');
+    const backText = document.getElementById('btn-checkout-back-text');
+    if (backBtn) backBtn.href = productUrl;
+    if (backText) backText.textContent = 'Back to Product';
+
+    // Adapt Step 3 Review Header Edit Link: "Change Options"
+    const editLink = document.getElementById('linkReviewEdit');
+    if (editLink) {
+        editLink.href = productUrl;
+        editLink.textContent = 'Change Options';
+        editLink.title = 'Change size, color, or quantity on product page';
+    }
+}
+
+// Refresh Single Buy Now Item from server to confirm current stock and price
+async function refreshBuyNowItem() {
+    const item = getBuyNowItem();
+    if (!item || !Number.isSafeInteger(Number(item.productId))) return item;
+    try {
+        const product = await ApiClient.getProductById(item.productId);
+        if (!product) return item;
+        const variant = product.variants?.find(v => Number(v.id) === Number(item.variantId));
+        if (!variant) {
+            item.availableStock = 0;
+            saveBuyNowItem(item);
+            return item;
+        }
+        const base = Number(product.basePrice) + Number(variant.priceAdjustment || 0);
+        item.name = product.name;
+        item.brand = product.brand;
+        item.imageUrl = product.mainImageUrl;
+        item.price = Math.round(base * (1 - Number(product.discountPercentage || 0) / 100) * 100) / 100;
+        item.availableStock = Number(variant.availableStock ?? variant.currentStock ?? 0);
+        saveBuyNowItem(item);
+        return item;
+    } catch {
+        return item;
+    }
+}
+
 // Authentication Check on Page Load
 function initAuthCheck() {
     if (!ApiClient.isAuthenticated()) {
+        const returnUrl = isBuyNowMode ? `${APP_CONSTANTS.ROUTES.CHECKOUT}?mode=buynow` : APP_CONSTANTS.ROUTES.CHECKOUT;
         window.showAuthPromptModal?.({
             title: 'Sign In Required for Checkout',
             message: 'You need an active Helmet Cartel account to checkout. Would you like to sign in or return to shopping?',
-            returnUrl: APP_CONSTANTS.ROUTES.CHECKOUT
+            returnUrl: returnUrl
         });
         document.getElementById('auth-modal-cancel-btn')?.addEventListener('click', () => {
-            window.location.href = APP_CONSTANTS.ROUTES.SHOP;
+            const item = getBuyNowItem();
+            window.location.href = isBuyNowMode && item?.productId
+                ? `/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=${item.productId}`
+                : APP_CONSTANTS.ROUTES.SHOP;
         });
     }
 }
@@ -606,11 +838,24 @@ function initAuthCheck() {
 document.addEventListener('DOMContentLoaded', () => {
     initAuthCheck();
     bindCheckoutEvents();
+    adaptBuyNowUi();
     loadSavedAddresses();
     updateFulfillmentUI();
     renderSidebar();
-    CartManager.refreshItems().then(() => {
-        renderSidebar();
-        renderReviewItems();
-    }).catch(() => {});
+
+    if (isBuyNowMode) {
+        refreshBuyNowItem().then(() => {
+            adaptBuyNowUi();
+            renderSidebar();
+            renderReviewItems();
+        }).catch(() => {
+            renderSidebar();
+            renderReviewItems();
+        });
+    } else {
+        CartManager.refreshItems().then(() => {
+            renderSidebar();
+            renderReviewItems();
+        }).catch(() => {});
+    }
 });

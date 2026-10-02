@@ -81,13 +81,25 @@
             <div class="admin-chart-card">
                 <div class="admin-chart-header">
                     <div>
-                        <h2 class="admin-chart-title">Revenue & Sales Velocity</h2>
-                        <span class="admin-chart-subtitle">7-day performance across online and POS transactions</span>
+                        <h2 class="admin-chart-title">Revenue &amp; Order Velocity</h2>
+                        <span class="admin-chart-subtitle" id="velocityTimeframeSubtitle">7-day performance across online and POS transactions</span>
                     </div>
-                    <span class="admin-badge admin-badge--in-stock">Daily Aggregation</span>
+                    <div class="admin-segmented-tabs">
+                        <button type="button" class="admin-tab-btn" data-timeframe="day" id="btnTimeframeDay">Day</button>
+                        <button type="button" class="admin-tab-btn active" data-timeframe="week" id="btnTimeframeWeek">Week</button>
+                        <button type="button" class="admin-tab-btn" data-timeframe="month" id="btnTimeframeMonth">Month</button>
+                    </div>
                 </div>
                 <div class="admin-chart-body">
-                    <canvas id="salesVelocityChart" height="230" data-labels='<%= Server.HtmlEncode(SalesChartLabelsJson) %>' data-values='<%= Server.HtmlEncode(SalesChartDataJson) %>'></canvas>
+                    <canvas id="salesVelocityChart" height="230" 
+                        data-day-labels='<%= Server.HtmlEncode(DaySalesChartLabelsJson) %>' 
+                        data-day-values='<%= Server.HtmlEncode(DaySalesChartDataJson) %>'
+                        data-week-labels='<%= Server.HtmlEncode(SalesChartLabelsJson) %>' 
+                        data-week-values='<%= Server.HtmlEncode(SalesChartDataJson) %>'
+                        data-month-labels='<%= Server.HtmlEncode(MonthSalesChartLabelsJson) %>' 
+                        data-month-values='<%= Server.HtmlEncode(MonthSalesChartDataJson) %>'
+                        data-labels='<%= Server.HtmlEncode(SalesChartLabelsJson) %>' 
+                        data-values='<%= Server.HtmlEncode(SalesChartDataJson) %>'></canvas>
                 </div>
             </div>
 
@@ -134,7 +146,7 @@
                                 </div>
                                 <div class="admin-activity-detail-card">
                                     <span class="admin-activity-ref"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "reference"))) %></span>
-                                    <span class="admin-activity-detail"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "detail"))) %></span>
+                                    <span class="admin-activity-detail"><%# FormatActivityDetail(GetActivityValue(Container.DataItem, "detail")) %></span>
                                 </div>
                             </div>
                         </li>

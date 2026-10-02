@@ -403,6 +403,109 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             return list;
         }
 
+        public async Task<List<AdminHourlySaleDto>> GetHourlySalesAsync(DateTime targetDate)
+        {
+            var list = new List<AdminHourlySaleDto>();
+            using (var connection = (SqlConnection)_factory.CreateConnection())
+            using (var command = new SqlCommand("dbo.sp_AdminSalesHourly", connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add(new SqlParameter("@TargetDate", SqlDbType.Date) { Value = targetDate.Date });
+
+                await connection.OpenAsync().ConfigureAwait(false);
+                using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync().ConfigureAwait(false))
+                    {
+                        list.Add(new AdminHourlySaleDto
+                        {
+                            SaleHour = reader.GetInt32(reader.GetOrdinal("SaleHour")),
+                            OrderCount = reader.GetInt32(reader.GetOrdinal("OrderCount")),
+                            Revenue = reader.GetDecimal(reader.GetOrdinal("Revenue"))
+                        });
+                    }
+                }
+            }
+            return list;
+        }
+
+        public async Task<List<AdminSalesPerformanceItemDto>> GetSalesPerformanceAsync(DateTime startDate, DateTime endDate)
+        {
+            var list = new List<AdminSalesPerformanceItemDto>();
+            using (var connection = (SqlConnection)_factory.CreateConnection())
+            using (var command = new SqlCommand("dbo.sp_AdminSalesPerformance", connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add(new SqlParameter("@StartDate", SqlDbType.DateTime2) { Value = startDate });
+                command.Parameters.Add(new SqlParameter("@EndDate", SqlDbType.DateTime2) { Value = endDate });
+
+                await connection.OpenAsync().ConfigureAwait(false);
+                using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync().ConfigureAwait(false))
+                    {
+                        list.Add(new AdminSalesPerformanceItemDto
+                        {
+                            ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
+                            ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
+                            BrandId = reader.GetInt32(reader.GetOrdinal("BrandId")),
+                            BrandName = reader.GetString(reader.GetOrdinal("BrandName")),
+                            CategoryId = reader.GetInt32(reader.GetOrdinal("CategoryId")),
+                            CategoryName = reader.GetString(reader.GetOrdinal("CategoryName")),
+                            UnitsSold = reader.GetInt32(reader.GetOrdinal("UnitsSold")),
+                            OrderCount = reader.GetInt32(reader.GetOrdinal("OrderCount")),
+                            Revenue = reader.GetDecimal(reader.GetOrdinal("Revenue")),
+                            AverageSellingPrice = reader.IsDBNull(reader.GetOrdinal("AverageSellingPrice")) ? 0m : reader.GetDecimal(reader.GetOrdinal("AverageSellingPrice"))
+                        });
+                    }
+                }
+            }
+            return list;
+        }
+
+        public async Task<AdminSalesBreakdownDto> GetSalesByBrandAndCategoryAsync(DateTime startDate, DateTime endDate)
+        {
+            var result = new AdminSalesBreakdownDto();
+            using (var connection = (SqlConnection)_factory.CreateConnection())
+            using (var command = new SqlCommand("dbo.sp_AdminSalesByBrandAndCategory", connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add(new SqlParameter("@StartDate", SqlDbType.DateTime2) { Value = startDate });
+                command.Parameters.Add(new SqlParameter("@EndDate", SqlDbType.DateTime2) { Value = endDate });
+
+                await connection.OpenAsync().ConfigureAwait(false);
+                using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync().ConfigureAwait(false))
+                    {
+                        result.Brands.Add(ReadSalesDimensionReport(reader));
+                    }
+
+                    if (await reader.NextResultAsync().ConfigureAwait(false))
+                    {
+                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            result.Categories.Add(ReadSalesDimensionReport(reader));
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private static AdminSalesDimensionReportDto ReadSalesDimensionReport(SqlDataReader reader)
+        {
+            return new AdminSalesDimensionReportDto
+            {
+                DimensionName = reader.GetString(reader.GetOrdinal("DimensionName")),
+                UnitsSold = reader.GetInt32(reader.GetOrdinal("UnitsSold")),
+                OrderCount = reader.GetInt32(reader.GetOrdinal("OrderCount")),
+                Revenue = reader.GetDecimal(reader.GetOrdinal("Revenue")),
+                AverageUnitPrice = reader.GetDecimal(reader.GetOrdinal("AverageUnitPrice"))
+            };
+        }
+
         public async Task<List<AdminBrandInventoryDetailDto>> GetBrandInventoryDetailsAsync()
         {
             var list = new List<AdminBrandInventoryDetailDto>();

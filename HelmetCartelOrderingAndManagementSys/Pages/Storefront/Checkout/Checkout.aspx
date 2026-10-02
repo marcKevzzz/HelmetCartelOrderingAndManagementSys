@@ -1,8 +1,7 @@
 <%@ Page Title="Secure Checkout" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Checkout.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Pages.CheckoutPage" ResponseEncoding="utf-8" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
-    <link rel="stylesheet" href="~/Content/css/storefront/storefront.css?v=8" runat="server" />
-    <link rel="stylesheet" href="~/Content/css/storefront/checkout.css?v=4" runat="server" />
+    <link rel="stylesheet" href='<%= ResolveUrl("~/Content/css/storefront/checkout.css?v=5") %>' />
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
@@ -13,7 +12,7 @@
             <svg class="shop-breadcrumb__icon" viewBox="0 0 24 24" fill="none" stroke-width="2">
                 <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
-            <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Cart/Cart.aspx" CssClass="shop-breadcrumb__link">Cart</asp:HyperLink>
+            <asp:HyperLink runat="server" ID="breadcrumbCartLink" ClientIDMode="Static" NavigateUrl="~/Pages/Storefront/Cart/Cart.aspx" CssClass="shop-breadcrumb__link">Cart</asp:HyperLink>
             <svg class="shop-breadcrumb__icon" viewBox="0 0 24 24" fill="none" stroke-width="2">
                 <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
@@ -26,7 +25,7 @@
                 <div class="step-circle" id="step-circle-1">1</div>
                 <div class="step-meta">
                     <span class="step-label">Step 1</span>
-                    <span class="step-title">Customer &amp; Fulfillment</span>
+                    <span class="step-title">Customer &amp; Delivery</span>
                 </div>
             </div>
             <div class="step-connector" id="step-connector-1"></div>
@@ -51,9 +50,9 @@
         <div class="checkout-grid" id="checkout-interactive-grid">
             <!-- Left Main Column: Step Panels -->
             <div class="checkout-main">
-                <!-- STEP 1: Customer Contact & Fulfillment Method -->
+                <!-- STEP 1: Customer Contact & Delivery Method -->
                 <div class="checkout-panel is-active" id="panel-step-1">
-                    <h2 class="checkout-panel__title">Customer &amp; Fulfillment Details</h2>
+                    <h2 class="checkout-panel__title">Customer &amp; Delivery Details</h2>
                     <p class="checkout-panel__subtitle">Enter your contact info and choose store pickup or door-to-door courier delivery.</p>
 
                     <!-- Customer Contact Details & Saved Delivery Address -->
@@ -101,7 +100,7 @@
                                 <circle cx="5.5" cy="18.5" r="2.5"></circle>
                                 <circle cx="18.5" cy="18.5" r="2.5"></circle>
                             </svg>
-                            Fulfillment Method
+                            Delivery Method
                         </h3>
                         <div class="shipping-options-list">
                             <!-- In-Store Pickup -->
@@ -131,11 +130,11 @@
                     </div>
 
                     <div class="checkout-panel-actions">
-                        <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Cart/Cart.aspx" CssClass="btn btn--outline">
+                        <asp:HyperLink runat="server" ID="btnCheckoutBack" ClientIDMode="Static" NavigateUrl="~/Pages/Storefront/Cart/Cart.aspx" CssClass="btn btn--outline">
                             <svg class="shop-breadcrumb__icon icon--back" viewBox="0 0 24 24" fill="none" stroke-width="2">
                                 <polyline points="9 18 15 12 9 6"></polyline>
                             </svg>
-                            <span>Back to Cart</span>
+                            <span id="btn-checkout-back-text">Back to Cart</span>
                         </asp:HyperLink>
                         <button type="button" class="btn btn--primary" id="btn-goto-step-2">
                             <span>Continue to Payment</span>
@@ -153,25 +152,24 @@
                     <p class="checkout-panel__subtitle">All online payments are encrypted and protected by HitPay escrow security.</p>
 
                     <div class="payment-methods-grid">
-                        <!-- Option 1: HitPay E-Wallets & QR PH -->
+                        <!-- Option 1: HitPay Online Checkout (QR Ph) -->
                         <div class="payment-method-card is-selected" data-payment="hitpay">
                             <div class="payment-method-header">
                                 <div class="payment-method-title-wrap">
                                     <div class="shipping-card__radio"></div>
                                     <div>
-                                        <div class="shipping-card__title">HitPay Online Checkout (GCash / Maya / QR PH)</div>
-                                        <div class="shipping-card__desc">Instant payment confirmation via Philippine E-Wallets and QR PH</div>
+                                        <div class="shipping-card__title">HitPay Online Checkout (QR Ph)</div>
+                                        <div class="shipping-card__desc">Instant payment confirmation via QR Ph National QR Standard</div>
                                     </div>
                                 </div>
                                 <span class="payment-badge">Recommended</span>
                             </div>
                             <div class="payment-method-details">
-                                <p class="shipping-card__desc">You will be securely redirected to the official HitPay gateway to complete your payment via GCash, Maya, ShopeePay, or QR PH.</p>
+                                <p class="shipping-card__desc">Pay seamlessly by scanning the dynamic QR Ph code using any Philippine banking or e-wallet app.</p>
                                 <div class="payment-icons payment-icons--checkout">
-                                    <span class="payment-icon-pill">GCash</span>
-                                    <span class="payment-icon-pill">Maya</span>
-                                    <span class="payment-icon-pill">QR PH</span>
-                                    <span class="payment-icon-pill">ShopeePay</span>
+                                    <span class="payment-icon-pill payment-icon-pill--qrph">QR Ph</span>
+                                    <span class="payment-icon-pill">InstaPay P2M</span>
+                                    <span class="payment-icon-pill">Zero Convenience Fee</span>
                                 </div>
                             </div>
                         </div>
@@ -236,7 +234,7 @@
                             <svg class="shop-breadcrumb__icon icon--back" viewBox="0 0 24 24" fill="none" stroke-width="2">
                                 <polyline points="9 18 15 12 9 6"></polyline>
                             </svg>
-                            <span>Back to Customer &amp; Fulfillment</span>
+                            <span>Back to Customer &amp; Delivery</span>
                         </button>
                         <button type="button" class="btn btn--primary" id="btn-goto-step-3">
                             <span>Continue to Review</span>
@@ -264,7 +262,7 @@
                                 </svg>
                                 <span class="review-block__title">Order Items</span>
                             </div>
-                            <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Cart/Cart.aspx" CssClass="review-block__edit">Edit Cart</asp:HyperLink>
+                            <asp:HyperLink runat="server" ID="linkReviewEdit" ClientIDMode="Static" NavigateUrl="~/Pages/Storefront/Cart/Cart.aspx" CssClass="review-block__edit">Edit Cart</asp:HyperLink>
                         </div>
                         <div class="review-items-list" id="review-items-list">
                             <!-- Populated dynamically via JS -->
@@ -308,7 +306,7 @@
                         <span id="sidebar-subtotal">&#8369;0</span>
                     </div>
                     <div class="summary-calc-row">
-                        <span>Fulfillment Fee</span>
+                        <span>Delivery Fee</span>
                         <span id="sidebar-shipping">FREE (In-Store Pickup)</span>
                     </div>
                 </div>
@@ -344,14 +342,14 @@
                 </div>
                 <div class="receipt-row">
                     <span>Payment Channel</span>
-                    <span id="receipt-payment">HitPay (GCash Verified)</span>
+                    <span id="receipt-payment">HitPay (QR Ph Verified)</span>
                 </div>
                 <div class="receipt-row">
-                    <span id="receipt-address-label">Fulfillment Address</span>
+                    <span id="receipt-address-label">Delivery Address</span>
                     <span id="receipt-address">Helmet Cartel Hub &bull; 128 Commonwealth Ave, QC</span>
                 </div>
                 <div class="receipt-row">
-                    <span>Fulfillment Status &amp; ETA</span>
+                    <span>Delivery Status &amp; ETA</span>
                     <span id="receipt-eta" class="receipt-eta">Ready for Store Pickup in 1-2 Hours</span>
                 </div>
                 <div class="receipt-row receipt-row--bold">
@@ -409,6 +407,109 @@
         </div>
     </div>
 
+    <!-- HitPay Interactive Payment Simulation Modal -->
+    <div id="payment-simulation-modal" class="modal-backdrop is-hidden" role="dialog" aria-modal="true" aria-labelledby="sim-order-amount">
+        <div class="modal-dialog modal-dialog--sm sim-qr-dialog">
+            <div class="sim-modal-header">
+                <button type="button" class="modal-close-btn" id="btn-close-sim-modal" aria-label="Close dialog">&times;</button>
+            </div>
+            <div class="modal-body sim-qr-body">
+                <!-- Amount Display -->
+                <div class="sim-amount-container">
+                    <span class="sim-amount-caption">Total Amount to Pay</span>
+                    <div class="sim-order-val sim-order-amount" id="sim-order-amount">&#8369;0.00</div>
+                </div>
+
+                <!-- QR Ph Dynamic Code Frame -->
+                <div class="sim-qr-wrapper">
+                    <div class="sim-qr-frame">
+                        <div class="sim-qr-scan-beam" id="sim-qr-scan-beam"></div>
+                        <svg class="sim-qr-svg" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="200" height="200" rx="12" fill="#FFFFFF"/>
+                            
+                            <rect x="16" y="16" width="44" height="44" rx="4" fill="#0A0A0A"/>
+                            <rect x="22" y="22" width="32" height="32" rx="2" fill="#FFFFFF"/>
+                            <rect x="28" y="28" width="20" height="20" rx="2" fill="#0A0A0A"/>
+                            
+                            <rect x="140" y="16" width="44" height="44" rx="4" fill="#0A0A0A"/>
+                            <rect x="146" y="22" width="32" height="32" rx="2" fill="#FFFFFF"/>
+                            <rect x="152" y="28" width="20" height="20" rx="2" fill="#0A0A0A"/>
+                            
+                            <rect x="16" y="140" width="44" height="44" rx="4" fill="#0A0A0A"/>
+                            <rect x="22" y="146" width="32" height="32" rx="2" fill="#FFFFFF"/>
+                            <rect x="28" y="152" width="20" height="20" rx="2" fill="#0A0A0A"/>
+                            
+                            <rect x="68" y="20" width="8" height="8" fill="#171717"/>
+                            <rect x="84" y="20" width="8" height="8" fill="#171717"/>
+                            <rect x="100" y="20" width="8" height="8" fill="#171717"/>
+                            <rect x="116" y="20" width="8" height="8" fill="#171717"/>
+                            <rect x="68" y="36" width="16" height="8" fill="#171717"/>
+                            <rect x="92" y="36" width="8" height="8" fill="#171717"/>
+                            <rect x="108" y="36" width="16" height="8" fill="#171717"/>
+
+                            <rect x="20" y="68" width="8" height="8" fill="#171717"/>
+                            <rect x="36" y="68" width="8" height="8" fill="#171717"/>
+                            <rect x="20" y="84" width="8" height="8" fill="#171717"/>
+                            <rect x="20" y="100" width="8" height="8" fill="#171717"/>
+                            <rect x="20" y="116" width="8" height="8" fill="#171717"/>
+
+                            <rect x="68" y="68" width="12" height="12" fill="#171717"/>
+                            <rect x="120" y="68" width="12" height="12" fill="#171717"/>
+                            <rect x="140" y="68" width="16" height="8" fill="#171717"/>
+                            <rect x="164" y="68" width="16" height="8" fill="#171717"/>
+
+                            <rect x="140" y="84" width="8" height="16" fill="#171717"/>
+                            <rect x="156" y="84" width="16" height="8" fill="#171717"/>
+                            <rect x="140" y="108" width="12" height="12" fill="#171717"/>
+                            <rect x="160" y="108" width="16" height="16" fill="#171717"/>
+
+                            <rect x="68" y="120" width="16" height="8" fill="#171717"/>
+                            <rect x="92" y="120" width="8" height="16" fill="#171717"/>
+                            <rect x="108" y="120" width="16" height="8" fill="#171717"/>
+                            <rect x="68" y="144" width="12" height="12" fill="#171717"/>
+                            <rect x="88" y="144" width="16" height="8" fill="#171717"/>
+                            <rect x="112" y="144" width="12" height="12" fill="#171717"/>
+
+                            <rect x="136" y="140" width="16" height="16" rx="2" fill="#171717"/>
+                            <rect x="160" y="140" width="16" height="8" fill="#171717"/>
+                            <rect x="140" y="164" width="12" height="16" fill="#171717"/>
+                            <rect x="160" y="160" width="16" height="20" fill="#171717"/>
+                            <rect x="68" y="168" width="16" height="12" fill="#171717"/>
+                            <rect x="92" y="168" width="12" height="12" fill="#171717"/>
+                            <rect x="112" y="168" width="16" height="12" fill="#171717"/>
+
+                            <rect x="78" y="78" width="44" height="44" rx="8" fill="#FFFFFF" stroke="#E5E5E5" stroke-width="2"/>
+                            <rect x="82" y="82" width="36" height="36" rx="6" fill="#0A0A0A"/>
+                            <text x="100" y="104" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="0.5">QRPh</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Simulated Process Controls -->
+                <div class="sim-process-container">
+                    <div class="sim-status-banner is-waiting" id="sim-status-banner">
+                        <span class="sim-status-dot"></span>
+                        <span id="sim-status-banner-text">Waiting for simulated scan...</span>
+                    </div>
+
+                    <div id="sim-status-alert" class="modal-alert modal-alert--danger is-hidden" role="alert">
+                        <span id="sim-status-message"></span>
+                    </div>
+
+                    <div class="sim-actions-grid">
+                        <button type="button" class="btn btn--outline btn-fail-sim" id="btn-fail-sim">
+                            <span>Simulate Decline</span>
+                        </button>
+                        <button type="button" class="btn btn--primary btn-success-sim" id="btn-success-sim">
+                            <span class="btn-spinner"></span>
+                            <span>Simulate Scan &amp; Pay</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- External Storefront Checkout Script -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/checkout.js?v=1") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/checkout.js?v=3") %>'></script>
 </asp:Content>

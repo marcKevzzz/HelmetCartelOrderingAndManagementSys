@@ -16,6 +16,7 @@ GO
 -- Source: schema/01_schema.sql
 SET ANSI_NULLS ON;
 GO
+
 SET QUOTED_IDENTIFIER ON;
 GO
 
@@ -5265,13 +5266,13 @@ BEGIN
     -- 6. Users
     SELECT TOP (@Limit)
         'Users' AS Category,
-        u.FullName AS Title,
-        CONCAT(u.Email, NCHAR(32), NCHAR(8226), NCHAR(32), ISNULL(u.PhoneNumber, 'No phone')) AS Subtitle,
+        CONCAT(u.FirstName, N' ', u.LastName) AS Title,
+        CONCAT(u.Email, NCHAR(32), NCHAR(8226), NCHAR(32), u.PhoneNumber) AS Subtitle,
         CONCAT('/Admin/Users.aspx?q=', u.Email) AS Url,
         r.Name AS Badge
     FROM dbo.Users u
     JOIN dbo.Roles r ON r.Id = u.RoleId
-    WHERE u.FullName LIKE '%' + @Query + '%'
+    WHERE CONCAT(u.FirstName, N' ', u.LastName) LIKE '%' + @Query + '%'
        OR u.Email LIKE '%' + @Query + '%'
        OR u.PhoneNumber LIKE '%' + @Query + '%';
 END;
@@ -6164,13 +6165,13 @@ BEGIN
     -- 6. Users
     SELECT TOP (@Limit)
         'Users' AS Category,
-        u.FullName AS Title,
+        CONCAT(u.FirstName, N' ', u.LastName) AS Title,
         CONCAT(u.Email, NCHAR(32), NCHAR(8226), NCHAR(32), ISNULL(u.PhoneNumber, 'No phone')) AS Subtitle,
         CONCAT('/Admin/Users.aspx?q=', u.Email) AS Url,
         r.Name AS Badge
     FROM dbo.Users u
     JOIN dbo.Roles r ON r.Id = u.RoleId
-    WHERE u.FullName LIKE '%' + @Query + '%'
+    WHERE CONCAT(u.FirstName, N' ', u.LastName) LIKE '%' + @Query + '%'
        OR u.Email LIKE '%' + @Query + '%'
        OR u.PhoneNumber LIKE '%' + @Query + '%';
 END;
@@ -7081,4 +7082,2176 @@ EXEC dbo.sp_SeedDashboardSampleData;
 GO
 
 
+GO
+-- Source: schema/19_user_profile_and_tracking_migration.sql
+-- =====================================================================================
+-- 19_user_profile_and_tracking_migration.sql
+-- Helmet Cartel Ordering and Management System
+-- User Profile Management, Order Tracking, Payment History & Digital Receipts
+-- =====================================================================================
+
+SET ANSI_NULLS ON;
+GO
+SET QUOTED_IDENTIFIER ON;
+GO
+
+GO
+
+-- 1. STORED PROCEDURE: sp_UpdateUserProfile
+-- Updates user first name, last name, full name, phone number
+IF OBJECT_ID(N'dbo.sp_UpdateUserProfile', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_UpdateUserProfile AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_UpdateUserProfile
+    @UserId INT,
+    @FirstName NVARCHAR(100),
+    @LastName NVARCHAR(100),
+    @PhoneNumber NVARCHAR(30) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Id = @UserId AND IsActive = 1)
+        THROW 53001, N'User account not found or inactive.', 1;
+
+    IF @FirstName IS NULL OR LEN(LTRIM(RTRIM(@FirstName))) = 0
+        THROW 53002, N'First name is required.', 1;
+
+    IF @LastName IS NULL OR LEN(LTRIM(RTRIM(@LastName))) = 0
+        THROW 53003, N'Last name is required.', 1;
+
+    UPDATE dbo.Users
+    SET FirstName = LTRIM(RTRIM(@FirstName)),
+        LastName = LTRIM(RTRIM(@LastName)),
+        FullName = LTRIM(RTRIM(@FirstName)) + N' ' + LTRIM(RTRIM(@LastName)),
+        PhoneNumber = NULLIF(LTRIM(RTRIM(@PhoneNumber)), N''),
+        UpdatedAt = SYSUTCDATETIME()
+    WHERE Id = @UserId;
+
+    SELECT 
+        u.Id,
+        r.Name AS RoleName,
+        u.FirstName,
+        u.LastName,
+        u.FullName,
+        u.Email,
+        u.PhoneNumber,
+        u.CreatedAt
+    FROM dbo.Users u
+    INNER JOIN dbo.Roles r ON u.RoleId = r.Id
+    WHERE u.Id = @UserId;
+END;
+GO
+
+-- 2. STORED PROCEDURE: sp_ChangeUserPassword
+-- Updates password hash and salt after current password verification
+IF OBJECT_ID(N'dbo.sp_ChangeUserPassword', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_ChangeUserPassword AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_ChangeUserPassword
+    @UserId INT,
+    @NewPasswordHash NVARCHAR(512),
+    @NewSalt NVARCHAR(128)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Id = @UserId AND IsActive = 1)
+        THROW 53004, N'User account not found or inactive.', 1;
+
+    IF @NewPasswordHash IS NULL OR LEN(@NewPasswordHash) = 0
+        THROW 53005, N'Password hash is required.', 1;
+
+    UPDATE dbo.Users
+    SET PasswordHash = @NewPasswordHash,
+        Salt = @NewSalt,
+        UpdatedAt = SYSUTCDATETIME()
+    WHERE Id = @UserId;
+
+    SELECT 1 AS Success;
+END;
+GO
+
+-- 3. STORED PROCEDURE: sp_GetUserOrders (Enhanced with tracking, fulfillment, and payment info)
+IF OBJECT_ID(N'dbo.sp_GetUserOrders', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_GetUserOrders AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_GetUserOrders
+    @UserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @UserEmail NVARCHAR(256);
+    SELECT @UserEmail = Email FROM dbo.Users WHERE Id = @UserId;
+
+    SELECT 
+        o.Id,
+        o.OrderNumber,
+        o.CustomerName,
+        o.CustomerEmail,
+        o.CustomerPhone,
+        o.Subtotal,
+        o.DiscountAmount,
+        o.ShippingFee,
+        o.TotalAmount,
+        o.Status AS OrderStatus,
+        o.OrderSource,
+        o.ShippingMethod,
+        o.ShippingRegion,
+        o.ShippingAddress,
+        o.ShippingBarangay,
+        o.ShippingCity,
+        o.ShippingProvince,
+        o.ShippingPostalCode,
+        o.Courier,
+        o.TrackingNumber,
+        o.DeliveryNotes,
+        o.Notes,
+        o.CreatedAt,
+        o.UpdatedAt,
+        ISNULL((
+            SELECT TOP 1 p.PaymentGateway 
+            FROM dbo.Payments p 
+            WHERE p.OrderId = o.Id 
+            ORDER BY p.Id DESC
+        ), 'HitPay') AS PaymentGateway,
+        ISNULL((
+            SELECT TOP 1 p.Status 
+            FROM dbo.Payments p 
+            WHERE p.OrderId = o.Id 
+            ORDER BY p.Id DESC
+        ), 'Pending') AS PaymentStatus,
+        (
+            SELECT TOP 1 p.GatewayReference 
+            FROM dbo.Payments p 
+            WHERE p.OrderId = o.Id 
+            ORDER BY p.Id DESC
+        ) AS GatewayReference,
+        (
+            SELECT COUNT(*) 
+            FROM dbo.OrderItems oi 
+            WHERE oi.OrderId = o.Id
+        ) AS ItemCount
+    FROM dbo.Orders o
+    WHERE o.UserId = @UserId OR (o.UserId IS NULL AND o.CustomerEmail = @UserEmail)
+    ORDER BY o.CreatedAt DESC;
+END;
+GO
+
+-- 4. STORED PROCEDURE: sp_GetUserOrderDetails
+-- Multi-result set stored procedure for order tracking & digital receipt rendering
+IF OBJECT_ID(N'dbo.sp_GetUserOrderDetails', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_GetUserOrderDetails AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_GetUserOrderDetails
+    @UserId INT,
+    @OrderId INT = NULL,
+    @OrderNumber NVARCHAR(50) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @UserEmail NVARCHAR(256);
+    SELECT @UserEmail = Email FROM dbo.Users WHERE Id = @UserId;
+
+    DECLARE @ResolvedId INT;
+    IF @OrderId IS NOT NULL
+        SELECT @ResolvedId = Id FROM dbo.Orders WHERE Id = @OrderId AND (UserId = @UserId OR (UserId IS NULL AND CustomerEmail = @UserEmail));
+    ELSE IF @OrderNumber IS NOT NULL
+        SELECT @ResolvedId = Id FROM dbo.Orders WHERE OrderNumber = @OrderNumber AND (UserId = @UserId OR (UserId IS NULL AND CustomerEmail = @UserEmail));
+
+    IF @ResolvedId IS NULL
+        THROW 53006, N'Order not found or access denied.', 1;
+
+    -- Result Set 1: Order Header
+    SELECT
+        o.Id,
+        o.OrderNumber,
+        o.UserId,
+        o.CustomerName,
+        o.CustomerEmail,
+        o.CustomerPhone,
+        o.OrderSource,
+        o.Status,
+        o.Subtotal,
+        o.DiscountAmount,
+        o.ShippingFee,
+        o.TotalAmount,
+        o.ShippingMethod,
+        o.ShippingRegion,
+        o.ShippingAddress,
+        o.ShippingBarangay,
+        o.ShippingCity,
+        o.ShippingProvince,
+        o.ShippingPostalCode,
+        o.Courier,
+        o.TrackingNumber,
+        o.DeliveryNotes,
+        o.Notes,
+        o.CreatedAt,
+        o.UpdatedAt,
+        ISNULL((SELECT TOP 1 p.PaymentGateway FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC), 'HitPay') AS PaymentMethod,
+        ISNULL((SELECT TOP 1 p.Status FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC), 'Pending') AS PaymentStatus,
+        (SELECT TOP 1 p.GatewayReference FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC) AS GatewayReference,
+        (SELECT TOP 1 p.PaidAt FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC) AS PaidAt
+    FROM dbo.Orders o
+    WHERE o.Id = @ResolvedId;
+
+    -- Result Set 2: Order Items
+    SELECT
+        oi.Id,
+        oi.OrderId,
+        oi.VariantId,
+        oi.Quantity,
+        oi.UnitPrice,
+        oi.TotalPrice,
+        p.Name AS ProductName,
+        p.Slug AS ProductSlug,
+        p.MainImageUrl,
+        c.Color,
+        v.Size,
+        v.SKU
+    FROM dbo.OrderItems oi
+    INNER JOIN dbo.ProductVariants v ON oi.VariantId = v.Id
+    INNER JOIN dbo.ProductColors c ON v.ProductColorId = c.Id
+    INNER JOIN dbo.Products p ON c.ProductId = p.Id
+    WHERE oi.OrderId = @ResolvedId;
+
+    -- Result Set 3: Payments
+    SELECT
+        py.Id,
+        py.OrderId,
+        py.PaymentGateway,
+        py.GatewayReference,
+        py.Amount,
+        py.Status,
+        py.PaidAt,
+        py.CreatedAt
+    FROM dbo.Payments py
+    WHERE py.OrderId = @ResolvedId
+    ORDER BY py.Id DESC;
+END;
+GO
+
+-- 5. STORED PROCEDURE: sp_GetUserPayments
+-- Retrieves complete payment transaction history for a customer
+IF OBJECT_ID(N'dbo.sp_GetUserPayments', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_GetUserPayments AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_GetUserPayments
+    @UserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @UserEmail NVARCHAR(256);
+    SELECT @UserEmail = Email FROM dbo.Users WHERE Id = @UserId;
+
+    SELECT 
+        py.Id AS PaymentId,
+        py.OrderId,
+        o.OrderNumber,
+        py.PaymentGateway,
+        py.GatewayReference,
+        py.Amount,
+        py.Status AS PaymentStatus,
+        py.PaidAt,
+        py.CreatedAt AS PaymentCreatedAt,
+        o.CustomerName,
+        o.CustomerEmail,
+        o.ShippingMethod,
+        o.TotalAmount AS OrderTotalAmount,
+        (SELECT COUNT(*) FROM dbo.OrderItems oi WHERE oi.OrderId = o.Id) AS ItemCount
+    FROM dbo.Payments py
+    INNER JOIN dbo.Orders o ON py.OrderId = o.Id
+    WHERE o.UserId = @UserId OR (o.UserId IS NULL AND o.CustomerEmail = @UserEmail)
+    ORDER BY ISNULL(py.PaidAt, py.CreatedAt) DESC, py.Id DESC;
+END;
+GO
+
+
+GO
+-- Source: schema/20_multi_brand_and_color_enhancement.sql
+-- =====================================================================================
+-- 20_multi_brand_and_color_enhancement.sql
+-- Enables comma-delimited multi-brand selection in sp_GetProductsPaged
+-- Refines fn_BaseColorFromHex for realistic motorcycle helmet color families (including Yellow)
+-- =====================================================================================
+
+GO
+
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+
+-- 1. REFINED COLOR FAMILY HELPER
+CREATE OR ALTER FUNCTION dbo.fn_BaseColorFromHex(@ColorHex NVARCHAR(255))
+RETURNS NVARCHAR(20)
+AS
+BEGIN
+    IF @ColorHex IS NULL OR LEN(LTRIM(RTRIM(@ColorHex))) = 0
+        RETURN NULL;
+
+    DECLARE @CleanHex NVARCHAR(255) = LTRIM(RTRIM(@ColorHex));
+
+    DECLARE @HashIdx INT = CHARINDEX(N'#', @CleanHex);
+    IF @HashIdx > 0 AND LEN(@CleanHex) >= @HashIdx + 6
+    BEGIN
+        SET @CleanHex = SUBSTRING(@CleanHex, @HashIdx, 7);
+    END
+    ELSE
+    BEGIN
+        RETURN N'Multi';
+    END
+
+    IF LEN(@CleanHex) <> 7 OR LEFT(@CleanHex, 1) <> N'#'
+        RETURN N'Multi';
+
+    DECLARE @Hex NVARCHAR(16) = N'0123456789ABCDEF';
+    DECLARE @R INT = (CHARINDEX(UPPER(SUBSTRING(@CleanHex, 2, 1)), @Hex) - 1) * 16
+                   + CHARINDEX(UPPER(SUBSTRING(@CleanHex, 3, 1)), @Hex) - 1;
+    DECLARE @G INT = (CHARINDEX(UPPER(SUBSTRING(@CleanHex, 4, 1)), @Hex) - 1) * 16
+                   + CHARINDEX(UPPER(SUBSTRING(@CleanHex, 5, 1)), @Hex) - 1;
+    DECLARE @B INT = (CHARINDEX(UPPER(SUBSTRING(@CleanHex, 6, 1)), @Hex) - 1) * 16
+                   + CHARINDEX(UPPER(SUBSTRING(@CleanHex, 7, 1)), @Hex) - 1;
+
+    IF @R < 0 OR @G < 0 OR @B < 0 RETURN N'Multi';
+
+    DECLARE @MaxChannel INT = CASE
+        WHEN @R >= @G AND @R >= @B THEN @R
+        WHEN @G >= @B THEN @G
+        ELSE @B
+    END;
+    DECLARE @MinChannel INT = CASE
+        WHEN @R <= @G AND @R <= @B THEN @R
+        WHEN @G <= @B THEN @G
+        ELSE @B
+    END;
+    DECLARE @Delta DECIMAL(10,4) = @MaxChannel - @MinChannel;
+    DECLARE @Hue DECIMAL(10,4);
+
+    IF @MaxChannel <= 64 RETURN N'Black';
+    IF @MinChannel >= 200 RETURN N'White';
+    IF @Delta <= 32 RETURN N'Grey';
+
+    SET @Hue = CASE
+        WHEN @MaxChannel = @R THEN 60.0 * (@G - @B) / @Delta
+        WHEN @MaxChannel = @G THEN 60.0 * ((@B - @R) / @Delta + 2)
+        ELSE 60.0 * ((@R - @G) / @Delta + 4)
+    END;
+    IF @Hue < 0 SET @Hue = @Hue + 360;
+
+    IF @Hue < 15 OR @Hue >= 345 RETURN N'Red';
+    IF @Hue < 45 RETURN N'Orange';
+    IF @Hue < 70 RETURN N'Yellow';
+    IF @Hue < 165 RETURN N'Green';
+    IF @Hue < 195 RETURN N'Cyan';
+    IF @Hue < 255 RETURN N'Blue';
+    IF @Hue < 315 RETURN N'Purple';
+    RETURN N'Pink';
+END;
+GO
+
+-- 2. UPDATE sp_GetProductsPaged FOR MULTI-BRAND SELECTION
+CREATE OR ALTER PROCEDURE dbo.sp_GetProductsPaged
+    @CategoryId INT = NULL,
+    @BrandId INT = NULL,
+    @Brand NVARCHAR(200) = NULL,
+    @Category NVARCHAR(100) = NULL,
+    @RidingStyle NVARCHAR(50) = NULL,
+    @Search NVARCHAR(200) = NULL,
+    @OnSale BIT = 0,
+    @MinPrice DECIMAL(18,2) = NULL,
+    @MaxPrice DECIMAL(18,2) = NULL,
+    @Colors NVARCHAR(200) = NULL,
+    @Sizes NVARCHAR(100) = NULL,
+    @SortBy NVARCHAR(50) = 'popular',
+    @PageNumber INT = 1,
+    @PageSize INT = 9,
+    @TotalCount INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SET @Search = NULLIF(LTRIM(RTRIM(@Search)), N'');
+    SET @Brand = NULLIF(LTRIM(RTRIM(@Brand)), N'');
+    SET @Colors = NULLIF(LTRIM(RTRIM(@Colors)), N'');
+    SET @Sizes = NULLIF(LTRIM(RTRIM(@Sizes)), N'');
+    IF @PageNumber IS NULL OR @PageNumber < 1 SET @PageNumber = 1;
+    IF @PageSize IS NULL OR @PageSize < 1 SET @PageSize = 9;
+    IF @PageSize > 100 SET @PageSize = 100;
+
+    DECLARE @Now DATETIME2 = SYSUTCDATETIME();
+
+    -- Calculate total count
+    SELECT @TotalCount = COUNT(*)
+    FROM dbo.v_VisibleProducts p
+    INNER JOIN dbo.Brands b ON p.BrandId = b.Id
+    INNER JOIN dbo.Categories c ON p.CategoryId = c.Id
+    WHERE p.IsActive = 1
+      AND (
+          ISNULL(@OnSale, 0) = 0 
+          OR (
+              (p.DiscountPercentage > 0 OR (p.DiscountType = N'FIXED_AMOUNT' AND p.DiscountAmount > 0))
+              AND ISNULL(p.DiscountIsActive, 1) = 1
+              AND (p.DiscountStartDate IS NULL OR p.DiscountStartDate <= @Now)
+              AND (p.DiscountEndDate IS NULL OR p.DiscountEndDate >= @Now)
+          )
+      )
+      AND (@CategoryId IS NULL OR p.CategoryId = @CategoryId)
+      AND (@BrandId IS NULL OR p.BrandId = @BrandId)
+      AND (@Brand IS NULL OR @Brand = 'all' OR b.Name = @Brand OR CHARINDEX(N',' + UPPER(b.Name) + N',', N',' + UPPER(@Brand) + N',') > 0)
+      AND (@Category IS NULL OR @Category = 'all' OR c.Slug = @Category OR c.Name LIKE '%' + @Category + '%')
+      AND (@RidingStyle IS NULL OR @RidingStyle = 'all' OR p.RidingStyle = @RidingStyle)
+      AND (
+          @Search IS NULL 
+          OR p.Name LIKE N'%' + @Search + N'%'
+          OR b.Name LIKE N'%' + @Search + N'%'
+          OR c.Name LIKE N'%' + @Search + N'%'
+          OR p.RidingStyle LIKE N'%' + @Search + N'%'
+          OR p.Description LIKE N'%' + @Search + N'%'
+          OR EXISTS (
+              SELECT 1 
+              FROM dbo.v_VisibleProductColors pc_s
+              JOIN dbo.v_VisibleProductVariants pv_s ON pv_s.ProductColorId = pc_s.Id
+              WHERE pc_s.ProductId = p.Id AND pv_s.SKU LIKE N'%' + @Search + N'%'
+          )
+      )
+      AND (@MinPrice IS NULL OR dbo.fn_CalculateEffectivePrice(p.BasePrice, 0, p.DiscountPercentage, p.DiscountType, p.DiscountAmount, p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive) >= @MinPrice)
+      AND (@MaxPrice IS NULL OR dbo.fn_CalculateEffectivePrice(p.BasePrice, 0, p.DiscountPercentage, p.DiscountType, p.DiscountAmount, p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive) <= @MaxPrice)
+      AND EXISTS
+      (
+          SELECT 1
+          FROM dbo.v_VisibleProductColors pc
+          JOIN dbo.v_VisibleProductVariants pv ON pv.ProductColorId = pc.Id
+          WHERE pc.ProductId = p.Id AND pv.IsActive = 1
+            AND (@Colors IS NULL OR CHARINDEX(N',' + UPPER(dbo.fn_BaseColorFromHex(pc.ColorHex)) + N',', N',' + UPPER(@Colors) + N',') > 0)
+            AND (@Sizes IS NULL OR CHARINDEX(N',' + UPPER(pv.Size) + N',', N',' + UPPER(@Sizes) + N',') > 0)
+      );
+
+    -- Paged rows
+    SELECT 
+        p.Id,
+        p.Name,
+        p.Slug,
+        b.Name AS Brand,
+        c.Name AS Category,
+        p.RidingStyle,
+        p.BasePrice,
+        p.DiscountPercentage,
+        p.DiscountType,
+        p.DiscountAmount,
+        p.DiscountStartDate,
+        p.DiscountEndDate,
+        CASE 
+            WHEN ISNULL(p.DiscountIsActive, 1) = 1 
+                 AND (p.DiscountStartDate IS NULL OR p.DiscountStartDate <= @Now)
+                 AND (p.DiscountEndDate IS NULL OR p.DiscountEndDate >= @Now)
+                 AND (p.DiscountPercentage > 0 OR (p.DiscountType = N'FIXED_AMOUNT' AND p.DiscountAmount > 0))
+            THEN 1 
+            ELSE 0 
+        END AS IsDiscountActive,
+        dbo.fn_CalculateEffectivePrice(p.BasePrice, 0, p.DiscountPercentage, p.DiscountType, p.DiscountAmount, p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive) AS EffectivePrice,
+        review.Rating,
+        review.ReviewCount,
+        p.MainImageUrl,
+        p.Description,
+        p.IsFeatured
+    FROM dbo.v_VisibleProducts p
+    INNER JOIN dbo.Brands b ON p.BrandId = b.Id
+    INNER JOIN dbo.Categories c ON p.CategoryId = c.Id
+    OUTER APPLY (
+        SELECT CAST(COALESCE(AVG(CAST(r.Rating AS DECIMAL(9,2))), 0) AS DECIMAL(3,2)) AS Rating,
+               COUNT(*) AS ReviewCount
+        FROM dbo.ProductReviews r
+        WHERE r.ProductId = p.Id AND r.IsHidden = 0
+    ) review
+    WHERE p.IsActive = 1
+      AND (
+          ISNULL(@OnSale, 0) = 0 
+          OR (
+              (p.DiscountPercentage > 0 OR (p.DiscountType = N'FIXED_AMOUNT' AND p.DiscountAmount > 0))
+              AND ISNULL(p.DiscountIsActive, 1) = 1
+              AND (p.DiscountStartDate IS NULL OR p.DiscountStartDate <= @Now)
+              AND (p.DiscountEndDate IS NULL OR p.DiscountEndDate >= @Now)
+          )
+      )
+      AND (@CategoryId IS NULL OR p.CategoryId = @CategoryId)
+      AND (@BrandId IS NULL OR p.BrandId = @BrandId)
+      AND (@Brand IS NULL OR @Brand = 'all' OR b.Name = @Brand OR CHARINDEX(N',' + UPPER(b.Name) + N',', N',' + UPPER(@Brand) + N',') > 0)
+      AND (@Category IS NULL OR @Category = 'all' OR c.Slug = @Category OR c.Name LIKE '%' + @Category + '%')
+      AND (@RidingStyle IS NULL OR @RidingStyle = 'all' OR p.RidingStyle = @RidingStyle)
+      AND (
+          @Search IS NULL 
+          OR p.Name LIKE N'%' + @Search + N'%'
+          OR b.Name LIKE N'%' + @Search + N'%'
+          OR c.Name LIKE N'%' + @Search + N'%'
+          OR p.RidingStyle LIKE N'%' + @Search + N'%'
+          OR p.Description LIKE N'%' + @Search + N'%'
+          OR EXISTS (
+              SELECT 1 
+              FROM dbo.v_VisibleProductColors pc_s
+              JOIN dbo.v_VisibleProductVariants pv_s ON pv_s.ProductColorId = pc_s.Id
+              WHERE pc_s.ProductId = p.Id AND pv_s.SKU LIKE N'%' + @Search + N'%'
+          )
+      )
+      AND (@MinPrice IS NULL OR dbo.fn_CalculateEffectivePrice(p.BasePrice, 0, p.DiscountPercentage, p.DiscountType, p.DiscountAmount, p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive) >= @MinPrice)
+      AND (@MaxPrice IS NULL OR dbo.fn_CalculateEffectivePrice(p.BasePrice, 0, p.DiscountPercentage, p.DiscountType, p.DiscountAmount, p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive) <= @MaxPrice)
+      AND EXISTS
+      (
+          SELECT 1
+          FROM dbo.v_VisibleProductColors pc
+          JOIN dbo.v_VisibleProductVariants pv ON pv.ProductColorId = pc.Id
+          WHERE pc.ProductId = p.Id AND pv.IsActive = 1
+            AND (@Colors IS NULL OR CHARINDEX(N',' + UPPER(dbo.fn_BaseColorFromHex(pc.ColorHex)) + N',', N',' + UPPER(@Colors) + N',') > 0)
+            AND (@Sizes IS NULL OR CHARINDEX(N',' + UPPER(pv.Size) + N',', N',' + UPPER(@Sizes) + N',') > 0)
+      )
+    ORDER BY 
+        CASE WHEN @SortBy = 'price_asc' THEN dbo.fn_CalculateEffectivePrice(p.BasePrice, 0, p.DiscountPercentage, p.DiscountType, p.DiscountAmount, p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive) END ASC,
+        CASE WHEN @SortBy = 'price_desc' THEN dbo.fn_CalculateEffectivePrice(p.BasePrice, 0, p.DiscountPercentage, p.DiscountType, p.DiscountAmount, p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive) END DESC,
+        CASE WHEN @SortBy = 'newest' THEN p.CreatedAt END DESC,
+        CASE WHEN @SortBy = 'rating' THEN review.Rating END DESC,
+        CASE WHEN @SortBy = 'popular' OR @SortBy IS NULL THEN review.ReviewCount END DESC,
+        p.Id ASC
+    OFFSET (@PageNumber - 1) * @PageSize ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END;
+GO
+
+
+GO
+-- Source: schema/21_user_addresses_and_checkout_enhancement.sql
+-- =====================================================================================
+-- 21_user_addresses_and_checkout_enhancement.sql
+-- Helmet Cartel Ordering and Management System
+-- Saved Customer Addresses for Faster Checkout and Multi-Address Management
+-- =====================================================================================
+
+SET ANSI_NULLS ON;
+GO
+SET QUOTED_IDENTIFIER ON;
+GO
+
+GO
+
+-- 1. TABLE: dbo.UserAddresses
+IF OBJECT_ID(N'dbo.UserAddresses', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.UserAddresses (
+        Id INT IDENTITY(1,1) NOT NULL,
+        UserId INT NOT NULL,
+        AddressLabel NVARCHAR(50) NOT NULL CONSTRAINT DF_UserAddresses_AddressLabel DEFAULT (N'Home'),
+        RecipientName NVARCHAR(150) NULL,
+        PhoneNumber NVARCHAR(30) NULL,
+        StreetAddress NVARCHAR(255) NOT NULL,
+        Barangay NVARCHAR(100) NOT NULL,
+        City NVARCHAR(100) NOT NULL,
+        Province NVARCHAR(100) NOT NULL,
+        PostalCode NVARCHAR(20) NOT NULL,
+        DeliveryLandmark NVARCHAR(255) NULL,
+        IsDefault BIT NOT NULL CONSTRAINT DF_UserAddresses_IsDefault DEFAULT (0),
+        CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_UserAddresses_CreatedAt DEFAULT (SYSUTCDATETIME()),
+        UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_UserAddresses_UpdatedAt DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT PK_UserAddresses PRIMARY KEY CLUSTERED (Id ASC),
+        CONSTRAINT FK_UserAddresses_Users FOREIGN KEY (UserId) REFERENCES dbo.Users(Id) ON DELETE CASCADE
+    );
+
+    CREATE NONCLUSTERED INDEX IX_UserAddresses_UserId_IsDefault 
+    ON dbo.UserAddresses (UserId ASC, IsDefault DESC, Id DESC);
+END;
+GO
+
+-- 2. STORED PROCEDURE: sp_GetUserAddresses
+IF OBJECT_ID(N'dbo.sp_GetUserAddresses', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_GetUserAddresses AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_GetUserAddresses
+    @UserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT 
+        Id,
+        UserId,
+        AddressLabel,
+        RecipientName,
+        PhoneNumber,
+        StreetAddress,
+        Barangay,
+        City,
+        Province,
+        PostalCode,
+        DeliveryLandmark,
+        IsDefault,
+        CreatedAt,
+        UpdatedAt
+    FROM dbo.UserAddresses
+    WHERE UserId = @UserId
+    ORDER BY IsDefault DESC, Id DESC;
+END;
+GO
+
+-- 3. STORED PROCEDURE: sp_SaveUserAddress
+IF OBJECT_ID(N'dbo.sp_SaveUserAddress', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_SaveUserAddress AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_SaveUserAddress
+    @Id INT = NULL,
+    @UserId INT,
+    @AddressLabel NVARCHAR(50) = N'Home',
+    @RecipientName NVARCHAR(150) = NULL,
+    @PhoneNumber NVARCHAR(30) = NULL,
+    @StreetAddress NVARCHAR(255),
+    @Barangay NVARCHAR(100),
+    @City NVARCHAR(100),
+    @Province NVARCHAR(100),
+    @PostalCode NVARCHAR(20),
+    @DeliveryLandmark NVARCHAR(255) = NULL,
+    @IsDefault BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Id = @UserId AND IsActive = 1)
+        THROW 53010, N'User account not found or inactive.', 1;
+
+    -- If RecipientName is not supplied, fallback to user's registered name
+    IF @RecipientName IS NULL OR LEN(LTRIM(RTRIM(@RecipientName))) = 0
+    BEGIN
+        SELECT @RecipientName = NULLIF(LTRIM(RTRIM(ISNULL(FirstName, N'') + N' ' + ISNULL(LastName, N''))), N'')
+        FROM dbo.Users 
+        WHERE Id = @UserId;
+
+        IF @RecipientName IS NULL
+            SET @RecipientName = N'Account Holder';
+    END;
+
+    -- If PhoneNumber is not supplied, fallback to user's registered phone
+    IF @PhoneNumber IS NULL OR LEN(LTRIM(RTRIM(@PhoneNumber))) = 0
+    BEGIN
+        SELECT @PhoneNumber = PhoneNumber 
+        FROM dbo.Users 
+        WHERE Id = @UserId;
+    END;
+
+    IF @StreetAddress IS NULL OR LEN(LTRIM(RTRIM(@StreetAddress))) = 0
+        THROW 53013, N'Street address is required.', 1;
+
+    IF @Barangay IS NULL OR LEN(LTRIM(RTRIM(@Barangay))) = 0
+        THROW 53014, N'Barangay is required.', 1;
+
+    IF @City IS NULL OR LEN(LTRIM(RTRIM(@City))) = 0
+        THROW 53015, N'City / Municipality is required.', 1;
+
+    IF @Province IS NULL OR LEN(LTRIM(RTRIM(@Province))) = 0
+        THROW 53016, N'Province is required.', 1;
+
+    IF @PostalCode IS NULL OR LEN(LTRIM(RTRIM(@PostalCode))) = 0
+        THROW 53017, N'Postal / ZIP code is required.', 1;
+
+    -- If this is the user's first address, automatically make it default
+    IF NOT EXISTS (SELECT 1 FROM dbo.UserAddresses WHERE UserId = @UserId)
+    BEGIN
+        SET @IsDefault = 1;
+    END
+
+    -- If marking as default, clear default flag from other addresses
+    IF @IsDefault = 1
+    BEGIN
+        UPDATE dbo.UserAddresses
+        SET IsDefault = 0,
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE UserId = @UserId;
+    END
+
+    DECLARE @TargetId INT = @Id;
+
+    IF @TargetId IS NOT NULL AND @TargetId > 0 AND EXISTS (SELECT 1 FROM dbo.UserAddresses WHERE Id = @TargetId AND UserId = @UserId)
+    BEGIN
+        UPDATE dbo.UserAddresses
+        SET AddressLabel = ISNULL(NULLIF(LTRIM(RTRIM(@AddressLabel)), N''), N'Home'),
+            RecipientName = LTRIM(RTRIM(@RecipientName)),
+            PhoneNumber = LTRIM(RTRIM(@PhoneNumber)),
+            StreetAddress = LTRIM(RTRIM(@StreetAddress)),
+            Barangay = LTRIM(RTRIM(@Barangay)),
+            City = LTRIM(RTRIM(@City)),
+            Province = LTRIM(RTRIM(@Province)),
+            PostalCode = LTRIM(RTRIM(@PostalCode)),
+            DeliveryLandmark = NULLIF(LTRIM(RTRIM(@DeliveryLandmark)), N''),
+            IsDefault = @IsDefault,
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE Id = @TargetId AND UserId = @UserId;
+    END
+    ELSE
+    BEGIN
+        INSERT INTO dbo.UserAddresses (
+            UserId, AddressLabel, RecipientName, PhoneNumber,
+            StreetAddress, Barangay, City, Province, PostalCode,
+            DeliveryLandmark, IsDefault, CreatedAt, UpdatedAt
+        )
+        VALUES (
+            @UserId, ISNULL(NULLIF(LTRIM(RTRIM(@AddressLabel)), N''), N'Home'),
+            LTRIM(RTRIM(@RecipientName)), LTRIM(RTRIM(@PhoneNumber)),
+            LTRIM(RTRIM(@StreetAddress)), LTRIM(RTRIM(@Barangay)),
+            LTRIM(RTRIM(@City)), LTRIM(RTRIM(@Province)), LTRIM(RTRIM(@PostalCode)),
+            NULLIF(LTRIM(RTRIM(@DeliveryLandmark)), N''), @IsDefault,
+            SYSUTCDATETIME(), SYSUTCDATETIME()
+        );
+
+        SET @TargetId = SCOPE_IDENTITY();
+    END
+
+    SELECT 
+        Id,
+        UserId,
+        AddressLabel,
+        RecipientName,
+        PhoneNumber,
+        StreetAddress,
+        Barangay,
+        City,
+        Province,
+        PostalCode,
+        DeliveryLandmark,
+        IsDefault,
+        CreatedAt,
+        UpdatedAt
+    FROM dbo.UserAddresses
+    WHERE Id = @TargetId;
+END;
+GO
+
+-- 4. STORED PROCEDURE: sp_DeleteUserAddress
+IF OBJECT_ID(N'dbo.sp_DeleteUserAddress', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_DeleteUserAddress AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_DeleteUserAddress
+    @Id INT,
+    @UserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DELETE FROM dbo.UserAddresses
+    WHERE Id = @Id AND UserId = @UserId;
+
+    -- If deleted address was default, set the newest remaining address as default
+    IF NOT EXISTS (SELECT 1 FROM dbo.UserAddresses WHERE UserId = @UserId AND IsDefault = 1)
+    BEGIN
+        DECLARE @NewDefaultId INT;
+        SELECT TOP 1 @NewDefaultId = Id 
+        FROM dbo.UserAddresses 
+        WHERE UserId = @UserId 
+        ORDER BY Id DESC;
+
+        IF @NewDefaultId IS NOT NULL
+        BEGIN
+            UPDATE dbo.UserAddresses
+            SET IsDefault = 1,
+                UpdatedAt = SYSUTCDATETIME()
+            WHERE Id = @NewDefaultId;
+        END
+    END
+
+    SELECT 1 AS Success;
+END;
+GO
+
+
+GO
+-- Source: schema/22_clean_schema_and_enforce_unique_phone.sql
+-- =====================================================================================
+-- 22_clean_schema_and_enforce_unique_phone.sql
+-- Helmet Cartel Ordering and Management System
+-- Schema Cleanup:
+-- 1. Keep FullName as a computed compatibility column for existing readers.
+-- 2. Require phones for new writes; preserve unknown legacy phones and enforce unique known numbers.
+-- 3. Preserve address-specific RecipientName and PhoneNumber values.
+-- 4. Update all affected Stored Procedures
+-- =====================================================================================
+
+SET ANSI_NULLS ON;
+GO
+SET QUOTED_IDENTIFIER ON;
+GO
+
+GO
+
+-- Stop before changing anything if normalization would produce duplicate phones.
+IF EXISTS (SELECT 1 FROM dbo.Users WHERE NULLIF(LTRIM(RTRIM(PhoneNumber)), N'') IS NOT NULL
+           GROUP BY LTRIM(RTRIM(PhoneNumber)) HAVING COUNT(*) > 1)
+    THROW 53030, N'Duplicate phone numbers must be resolved before migration 22.', 1;
+
+-- Do not replace an existing name with a different derived name silently.
+IF COL_LENGTH(N'dbo.Users', N'FullName') IS NOT NULL
+    IF EXISTS (SELECT 1 FROM dbo.Users WHERE LTRIM(RTRIM(FullName)) <> CONCAT(LTRIM(RTRIM(FirstName)), N' ', LTRIM(RTRIM(LastName))))
+        THROW 53031, N'Existing full names differ from first/last names; review before migration 22.', 1;
+GO
+
+-- 2. Drop redundant FullName column from dbo.Users if it exists
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.Users') AND name = N'FullName' AND is_computed = 0)
+BEGIN
+    ALTER TABLE dbo.Users DROP COLUMN FullName;
+END;
+GO
+IF COL_LENGTH(N'dbo.Users', N'FullName') IS NULL
+    ALTER TABLE dbo.Users ADD FullName AS CONVERT(NVARCHAR(200), CONCAT(LTRIM(RTRIM(FirstName)), N' ', LTRIM(RTRIM(LastName)))) PERSISTED;
+GO
+
+-- 3. Enforce PhoneNumber NOT NULL and UNIQUE on dbo.Users
+-- Legacy unknown numbers remain NULL until their owners provide real numbers.
+UPDATE dbo.Users SET PhoneNumber = NULLIF(LTRIM(RTRIM(PhoneNumber)), N'');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UQ_Users_PhoneNumber' AND object_id = OBJECT_ID(N'dbo.Users'))
+BEGIN
+    CREATE UNIQUE INDEX UQ_Users_PhoneNumber ON dbo.Users(PhoneNumber) WHERE PhoneNumber IS NOT NULL;
+    PRINT 'Added filtered unique index UQ_Users_PhoneNumber';
+END;
+GO
+
+-- 4. Address contact columns are intentionally preserved; migration 23 uses them.
+
+-- 5. UPDATE STORED PROCEDURE: sp_RegisterUser
+IF OBJECT_ID(N'dbo.sp_RegisterUser', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_RegisterUser AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_RegisterUser
+    @FirstName     NVARCHAR(100),
+    @LastName      NVARCHAR(100),
+    @Email         NVARCHAR(256),
+    @PasswordHash  NVARCHAR(512),
+    @Salt          NVARCHAR(128),
+    @PhoneNumber   NVARCHAR(30),
+    @RoleName      NVARCHAR(50) = N'Customer',
+    @NewUserId     INT OUTPUT,
+    @Success       BIT OUTPUT,
+    @ErrorMessage  NVARCHAR(500) OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        SET @FirstName = LTRIM(RTRIM(@FirstName));
+        SET @LastName  = LTRIM(RTRIM(@LastName));
+        SET @Email     = LOWER(LTRIM(RTRIM(@Email)));
+        SET @PhoneNumber = LTRIM(RTRIM(@PhoneNumber));
+
+        -- 1. Input Validations
+        IF @FirstName IS NULL OR LEN(@FirstName) = 0
+        BEGIN
+            SET @Success = 0;
+            SET @ErrorMessage = N'First name is required.';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END;
+
+        IF @LastName IS NULL OR LEN(@LastName) = 0
+        BEGIN
+            SET @Success = 0;
+            SET @ErrorMessage = N'Last name is required.';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END;
+
+        IF @Email IS NULL OR LEN(@Email) = 0
+        BEGIN
+            SET @Success = 0;
+            SET @ErrorMessage = N'Email address is required.';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END;
+
+        IF @PhoneNumber IS NULL OR LEN(@PhoneNumber) = 0
+        BEGIN
+            SET @Success = 0;
+            SET @ErrorMessage = N'Mobile phone number is required.';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END;
+
+        -- 2. Duplicate Email Check
+        IF EXISTS (SELECT 1 FROM dbo.Users WHERE Email = @Email)
+        BEGIN
+            SET @Success = 0;
+            SET @ErrorMessage = N'An account with this email address already exists.';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END;
+
+        -- 3. Duplicate Phone Number Check
+        IF EXISTS (SELECT 1 FROM dbo.Users WHERE PhoneNumber = @PhoneNumber)
+        BEGIN
+            SET @Success = 0;
+            SET @ErrorMessage = N'An account with this mobile phone number already exists.';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END;
+
+        -- 4. Role lookup
+        DECLARE @RoleId INT;
+        SELECT @RoleId = Id FROM dbo.Roles WHERE Name = @RoleName;
+
+        IF @RoleId IS NULL
+        BEGIN
+            SET @Success = 0;
+            SET @ErrorMessage = CONCAT(N'Specified role "', @RoleName, N'" was not found.');
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END;
+
+        -- 5. Insert normalized user record (without redundant FullName)
+        INSERT INTO dbo.Users (
+            RoleId, FirstName, LastName, Email, PasswordHash, Salt, PhoneNumber, IsActive, CreatedAt
+        ) VALUES (
+            @RoleId, @FirstName, @LastName, @Email, @PasswordHash, @Salt, @PhoneNumber, 1, SYSUTCDATETIME()
+        );
+
+        SET @NewUserId = SCOPE_IDENTITY();
+        SET @Success = 1;
+        SET @ErrorMessage = NULL;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        SET @Success = 0;
+        SET @ErrorMessage = ERROR_MESSAGE();
+    END CATCH
+END;
+GO
+
+-- 6. UPDATE STORED PROCEDURE: sp_GetUserByEmail
+IF OBJECT_ID(N'dbo.sp_GetUserByEmail', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_GetUserByEmail AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_GetUserByEmail
+    @Email NVARCHAR(256)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT 
+        u.Id,
+        u.RoleId,
+        r.Name AS RoleName,
+        u.FirstName,
+        u.LastName,
+        CONCAT(u.FirstName, N' ', u.LastName) AS FullName,
+        u.Email,
+        u.PasswordHash,
+        u.Salt,
+        u.PhoneNumber,
+        u.IsActive,
+        u.CreatedAt
+    FROM dbo.Users u
+    INNER JOIN dbo.Roles r ON u.RoleId = r.Id
+    WHERE u.Email = LOWER(LTRIM(RTRIM(@Email))) AND u.IsActive = 1;
+END;
+GO
+
+-- 7. UPDATE STORED PROCEDURE: sp_GetUserProfile
+IF OBJECT_ID(N'dbo.sp_GetUserProfile', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_GetUserProfile AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_GetUserProfile
+    @UserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT 
+        u.Id,
+        u.RoleId,
+        r.Name AS RoleName,
+        u.FirstName,
+        u.LastName,
+        CONCAT(u.FirstName, N' ', u.LastName) AS FullName,
+        u.Email,
+        u.PhoneNumber,
+        u.CreatedAt
+    FROM dbo.Users u
+    INNER JOIN dbo.Roles r ON u.RoleId = r.Id
+    WHERE u.Id = @UserId AND u.IsActive = 1;
+END;
+GO
+
+-- 8. UPDATE STORED PROCEDURE: sp_UpdateUserProfile
+IF OBJECT_ID(N'dbo.sp_UpdateUserProfile', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_UpdateUserProfile AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_UpdateUserProfile
+    @UserId INT,
+    @FirstName NVARCHAR(100),
+    @LastName NVARCHAR(100),
+    @PhoneNumber NVARCHAR(30)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Id = @UserId AND IsActive = 1)
+        THROW 53001, N'User account not found or inactive.', 1;
+
+    IF @FirstName IS NULL OR LEN(LTRIM(RTRIM(@FirstName))) = 0
+        THROW 53002, N'First name is required.', 1;
+
+    IF @LastName IS NULL OR LEN(LTRIM(RTRIM(@LastName))) = 0
+        THROW 53003, N'Last name is required.', 1;
+
+    IF @PhoneNumber IS NULL OR LEN(LTRIM(RTRIM(@PhoneNumber))) = 0
+        THROW 53004, N'Mobile phone number is required.', 1;
+
+    SET @PhoneNumber = LTRIM(RTRIM(@PhoneNumber));
+
+    -- Check if another user already has this phone number
+    IF EXISTS (SELECT 1 FROM dbo.Users WHERE PhoneNumber = @PhoneNumber AND Id <> @UserId)
+        THROW 53005, N'This mobile phone number is already registered to another account.', 1;
+
+    UPDATE dbo.Users
+    SET FirstName = LTRIM(RTRIM(@FirstName)),
+        LastName = LTRIM(RTRIM(@LastName)),
+        PhoneNumber = @PhoneNumber,
+        UpdatedAt = SYSUTCDATETIME()
+    WHERE Id = @UserId;
+
+    SELECT 
+        u.Id,
+        r.Name AS RoleName,
+        u.FirstName,
+        u.LastName,
+        CONCAT(u.FirstName, N' ', u.LastName) AS FullName,
+        u.Email,
+        u.PhoneNumber,
+        u.CreatedAt
+    FROM dbo.Users u
+    INNER JOIN dbo.Roles r ON u.RoleId = r.Id
+    WHERE u.Id = @UserId;
+END;
+GO
+
+-- 9. UPDATE STORED PROCEDURE: sp_AdminUpdateUser
+IF OBJECT_ID(N'dbo.sp_AdminUpdateUser', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_AdminUpdateUser AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_AdminUpdateUser
+    @UserId INT,
+    @FirstName NVARCHAR(100),
+    @LastName NVARCHAR(100),
+    @PhoneNumber NVARCHAR(30),
+    @RoleName NVARCHAR(50),
+    @IsActive BIT,
+    @ActorUserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF NULLIF(LTRIM(RTRIM(@FirstName)), N'') IS NULL OR NULLIF(LTRIM(RTRIM(@LastName)), N'') IS NULL
+        THROW 52008, N'First and last name are required.', 1;
+
+    IF NULLIF(LTRIM(RTRIM(@PhoneNumber)), N'') IS NULL
+        THROW 52012, N'Phone number is required.', 1;
+
+    BEGIN TRANSACTION;
+
+    DECLARE @RoleId INT, @OldRole NVARCHAR(50), @OldActive BIT;
+    SELECT @RoleId = Id FROM dbo.Roles WHERE Name = @RoleName;
+    SELECT @OldRole = r.Name, @OldActive = u.IsActive
+    FROM dbo.Users u WITH (UPDLOCK, ROWLOCK) JOIN dbo.Roles r ON r.Id = u.RoleId WHERE u.Id = @UserId;
+
+    IF @RoleId IS NULL OR @OldRole IS NULL THROW 52009, N'User or role not found.', 1;
+
+    IF @UserId = @ActorUserId AND (@RoleName <> N'Admin' OR @IsActive = 0)
+        THROW 52010, N'You cannot remove your own admin access.', 1;
+
+    IF @OldRole = N'Admin' AND @OldActive = 1 AND (@RoleName <> N'Admin' OR @IsActive = 0)
+       AND (SELECT COUNT(*) FROM dbo.Users u JOIN dbo.Roles r ON r.Id = u.RoleId WHERE r.Name = N'Admin' AND u.IsActive = 1) <= 1
+        THROW 52011, N'At least one active admin is required.', 1;
+
+    IF EXISTS (SELECT 1 FROM dbo.Users WHERE PhoneNumber = LTRIM(RTRIM(@PhoneNumber)) AND Id <> @UserId)
+        THROW 52013, N'This phone number is already registered to another account.', 1;
+
+    UPDATE dbo.Users 
+    SET FirstName = LTRIM(RTRIM(@FirstName)), 
+        LastName = LTRIM(RTRIM(@LastName)),
+        PhoneNumber = LTRIM(RTRIM(@PhoneNumber)), 
+        RoleId = @RoleId, 
+        IsActive = @IsActive, 
+        UpdatedAt = SYSUTCDATETIME()
+    WHERE Id = @UserId;
+
+    COMMIT TRANSACTION;
+
+    SELECT @UserId AS Id;
+END;
+GO
+
+-- 10. UPDATE STORED PROCEDURE: sp_GetUserAddresses
+IF OBJECT_ID(N'dbo.sp_GetUserAddresses', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_GetUserAddresses AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_GetUserAddresses
+    @UserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT 
+        a.Id,
+        a.UserId,
+        a.AddressLabel,
+        CONCAT(u.FirstName, N' ', u.LastName) AS RecipientName,
+        u.PhoneNumber AS PhoneNumber,
+        a.StreetAddress,
+        a.Barangay,
+        a.City,
+        a.Province,
+        a.PostalCode,
+        a.DeliveryLandmark,
+        a.IsDefault,
+        a.CreatedAt,
+        a.UpdatedAt
+    FROM dbo.UserAddresses a
+    INNER JOIN dbo.Users u ON a.UserId = u.Id
+    WHERE a.UserId = @UserId
+    ORDER BY a.IsDefault DESC, a.Id DESC;
+END;
+GO
+
+-- 12. UPDATE STORED PROCEDURE: sp_SaveUserAddress
+IF OBJECT_ID(N'dbo.sp_SaveUserAddress', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_SaveUserAddress AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_SaveUserAddress
+    @Id INT = NULL,
+    @UserId INT,
+    @AddressLabel NVARCHAR(50) = N'Home',
+    @StreetAddress NVARCHAR(255),
+    @Barangay NVARCHAR(100),
+    @City NVARCHAR(100),
+    @Province NVARCHAR(100),
+    @PostalCode NVARCHAR(20),
+    @DeliveryLandmark NVARCHAR(255) = NULL,
+    @IsDefault BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Id = @UserId AND IsActive = 1)
+        THROW 53010, N'User account not found or inactive.', 1;
+
+    IF @StreetAddress IS NULL OR LEN(LTRIM(RTRIM(@StreetAddress))) = 0
+        THROW 53013, N'Street address is required.', 1;
+
+    IF @Barangay IS NULL OR LEN(LTRIM(RTRIM(@Barangay))) = 0
+        THROW 53014, N'Barangay is required.', 1;
+
+    IF @City IS NULL OR LEN(LTRIM(RTRIM(@City))) = 0
+        THROW 53015, N'City / Municipality is required.', 1;
+
+    IF @Province IS NULL OR LEN(LTRIM(RTRIM(@Province))) = 0
+        THROW 53016, N'Province is required.', 1;
+
+    IF @PostalCode IS NULL OR LEN(LTRIM(RTRIM(@PostalCode))) = 0
+        THROW 53017, N'Postal / ZIP code is required.', 1;
+
+    -- If this is the user's first address, automatically make it default
+    IF NOT EXISTS (SELECT 1 FROM dbo.UserAddresses WHERE UserId = @UserId)
+    BEGIN
+        SET @IsDefault = 1;
+    END
+
+    -- If marking as default, clear default flag from other addresses
+    IF @IsDefault = 1
+    BEGIN
+        UPDATE dbo.UserAddresses
+        SET IsDefault = 0,
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE UserId = @UserId;
+    END
+
+    DECLARE @TargetId INT = @Id;
+
+    IF @TargetId IS NOT NULL AND @TargetId > 0 AND EXISTS (SELECT 1 FROM dbo.UserAddresses WHERE Id = @TargetId AND UserId = @UserId)
+    BEGIN
+        UPDATE dbo.UserAddresses
+        SET AddressLabel = ISNULL(NULLIF(LTRIM(RTRIM(@AddressLabel)), N''), N'Home'),
+            StreetAddress = LTRIM(RTRIM(@StreetAddress)),
+            Barangay = LTRIM(RTRIM(@Barangay)),
+            City = LTRIM(RTRIM(@City)),
+            Province = LTRIM(RTRIM(@Province)),
+            PostalCode = LTRIM(RTRIM(@PostalCode)),
+            DeliveryLandmark = NULLIF(LTRIM(RTRIM(@DeliveryLandmark)), N''),
+            IsDefault = @IsDefault,
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE Id = @TargetId AND UserId = @UserId;
+    END
+    ELSE
+    BEGIN
+        INSERT INTO dbo.UserAddresses (
+            UserId, AddressLabel,
+            StreetAddress, Barangay, City, Province, PostalCode,
+            DeliveryLandmark, IsDefault, CreatedAt, UpdatedAt
+        )
+        VALUES (
+            @UserId, ISNULL(NULLIF(LTRIM(RTRIM(@AddressLabel)), N''), N'Home'),
+            LTRIM(RTRIM(@StreetAddress)), LTRIM(RTRIM(@Barangay)),
+            LTRIM(RTRIM(@City)), LTRIM(RTRIM(@Province)), LTRIM(RTRIM(@PostalCode)),
+            NULLIF(LTRIM(RTRIM(@DeliveryLandmark)), N''), @IsDefault,
+            SYSUTCDATETIME(), SYSUTCDATETIME()
+        );
+
+        SET @TargetId = SCOPE_IDENTITY();
+    END
+
+    SELECT 
+        a.Id,
+        a.UserId,
+        a.AddressLabel,
+        CONCAT(u.FirstName, N' ', u.LastName) AS RecipientName,
+        u.PhoneNumber AS PhoneNumber,
+        a.StreetAddress,
+        a.Barangay,
+        a.City,
+        a.Province,
+        a.PostalCode,
+        a.DeliveryLandmark,
+        a.IsDefault,
+        a.CreatedAt,
+        a.UpdatedAt
+    FROM dbo.UserAddresses a
+    INNER JOIN dbo.Users u ON a.UserId = u.Id
+    WHERE a.Id = @TargetId;
+END;
+GO
+
+PRINT 'Migration 22: Schema clean and unique phone enforcement completed successfully.';
+GO
+
+
+GO
+-- Source: schema/23_add_recipient_contact_to_user_addresses.sql
+   -- ============================================================================
+-- Migration 23: Restore RecipientName and PhoneNumber to dbo.UserAddresses
+-- Helmet Cartel Ordering and Management System
+-- Allows recipient contact details to be customized per delivery address.
+-- ============================================================================
+
+GO
+
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+
+-- 1. Ensure RecipientName column exists on dbo.UserAddresses
+IF COL_LENGTH(N'dbo.UserAddresses', N'RecipientName') IS NULL
+BEGIN
+    ALTER TABLE dbo.UserAddresses 
+    ADD RecipientName NVARCHAR(100) NULL;
+    PRINT 'Added RecipientName column to dbo.UserAddresses.';
+END
+ELSE
+BEGIN
+    PRINT 'RecipientName column already exists on dbo.UserAddresses.';
+END
+GO
+
+-- 2. Ensure PhoneNumber column exists on dbo.UserAddresses
+IF COL_LENGTH(N'dbo.UserAddresses', N'PhoneNumber') IS NULL
+BEGIN
+    ALTER TABLE dbo.UserAddresses 
+    ADD PhoneNumber NVARCHAR(50) NULL;
+    PRINT 'Added PhoneNumber column to dbo.UserAddresses.';
+END
+ELSE
+BEGIN
+    PRINT 'PhoneNumber column already exists on dbo.UserAddresses.';
+END
+GO
+
+-- 3. Backfill existing records with user profile defaults if null
+-- Existing tables created by migration 21 use NVARCHAR(30); widen without losing values.
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.UserAddresses') AND name = N'PhoneNumber' AND max_length < 100)
+    ALTER TABLE dbo.UserAddresses ALTER COLUMN PhoneNumber NVARCHAR(50) NULL;
+GO
+
+UPDATE a
+SET a.RecipientName = ISNULL(NULLIF(LTRIM(RTRIM(a.RecipientName)), N''), CONCAT(u.FirstName, N' ', u.LastName)),
+    a.PhoneNumber = ISNULL(NULLIF(LTRIM(RTRIM(a.PhoneNumber)), N''), u.PhoneNumber)
+FROM dbo.UserAddresses a
+INNER JOIN dbo.Users u ON a.UserId = u.Id
+WHERE a.RecipientName IS NULL OR a.PhoneNumber IS NULL;
+GO
+
+-- 4. Update Stored Procedure: dbo.sp_SaveUserAddress
+IF OBJECT_ID(N'dbo.sp_SaveUserAddress', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_SaveUserAddress AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_SaveUserAddress
+    @Id INT = NULL,
+    @UserId INT,
+    @AddressLabel NVARCHAR(50) = N'Home',
+    @RecipientName NVARCHAR(100) = NULL,
+    @PhoneNumber NVARCHAR(50) = NULL,
+    @StreetAddress NVARCHAR(255),
+    @Barangay NVARCHAR(100) = NULL,
+    @City NVARCHAR(100),
+    @Province NVARCHAR(100),
+    @PostalCode NVARCHAR(20) = NULL,
+    @DeliveryLandmark NVARCHAR(255) = NULL,
+    @IsDefault BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Id = @UserId AND IsActive = 1)
+        THROW 53010, N'User account not found or inactive.', 1;
+
+    -- Fallback recipient name to user account if empty
+    IF @RecipientName IS NULL OR LEN(LTRIM(RTRIM(@RecipientName))) = 0
+    BEGIN
+        SELECT @RecipientName = CONCAT(FirstName, N' ', LastName)
+        FROM dbo.Users
+        WHERE Id = @UserId;
+    END
+
+    -- Fallback phone number to user account if empty
+    IF @PhoneNumber IS NULL OR LEN(LTRIM(RTRIM(@PhoneNumber))) = 0
+    BEGIN
+        SELECT @PhoneNumber = PhoneNumber
+        FROM dbo.Users
+        WHERE Id = @UserId;
+    END
+
+    IF @StreetAddress IS NULL OR LEN(LTRIM(RTRIM(@StreetAddress))) = 0
+        THROW 53013, N'Street address is required.', 1;
+
+    IF @City IS NULL OR LEN(LTRIM(RTRIM(@City))) = 0
+        THROW 53015, N'City / Municipality is required.', 1;
+
+    IF @Province IS NULL OR LEN(LTRIM(RTRIM(@Province))) = 0
+        THROW 53016, N'Province is required.', 1;
+
+    -- Defaults for optional fields
+    SET @AddressLabel = ISNULL(NULLIF(LTRIM(RTRIM(@AddressLabel)), N''), N'Home');
+    SET @RecipientName = ISNULL(NULLIF(LTRIM(RTRIM(@RecipientName)), N''), N'Account Holder');
+    SET @PhoneNumber = ISNULL(NULLIF(LTRIM(RTRIM(@PhoneNumber)), N''), N'');
+    SET @Barangay = ISNULL(NULLIF(LTRIM(RTRIM(@Barangay)), N''), N'');
+    SET @PostalCode = ISNULL(NULLIF(LTRIM(RTRIM(@PostalCode)), N''), N'');
+
+    -- If this is the user's first address, automatically make it default
+    IF NOT EXISTS (SELECT 1 FROM dbo.UserAddresses WHERE UserId = @UserId)
+    BEGIN
+        SET @IsDefault = 1;
+    END
+
+    -- If marking as default, clear default flag from other addresses
+    IF @IsDefault = 1
+    BEGIN
+        UPDATE dbo.UserAddresses
+        SET IsDefault = 0,
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE UserId = @UserId;
+    END
+
+    DECLARE @TargetId INT = @Id;
+
+    IF @TargetId IS NOT NULL AND @TargetId > 0 AND EXISTS (SELECT 1 FROM dbo.UserAddresses WHERE Id = @TargetId AND UserId = @UserId)
+    BEGIN
+        UPDATE dbo.UserAddresses
+        SET AddressLabel = @AddressLabel,
+            RecipientName = @RecipientName,
+            PhoneNumber = @PhoneNumber,
+            StreetAddress = LTRIM(RTRIM(@StreetAddress)),
+            Barangay = @Barangay,
+            City = LTRIM(RTRIM(@City)),
+            Province = LTRIM(RTRIM(@Province)),
+            PostalCode = @PostalCode,
+            DeliveryLandmark = NULLIF(LTRIM(RTRIM(@DeliveryLandmark)), N''),
+            IsDefault = @IsDefault,
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE Id = @TargetId AND UserId = @UserId;
+    END
+    ELSE
+    BEGIN
+        INSERT INTO dbo.UserAddresses (
+            UserId, AddressLabel, RecipientName, PhoneNumber,
+            StreetAddress, Barangay, City, Province, PostalCode,
+            DeliveryLandmark, IsDefault, CreatedAt, UpdatedAt
+        )
+        VALUES (
+            @UserId, @AddressLabel, @RecipientName, @PhoneNumber,
+            LTRIM(RTRIM(@StreetAddress)), @Barangay,
+            LTRIM(RTRIM(@City)), LTRIM(RTRIM(@Province)), @PostalCode,
+            NULLIF(LTRIM(RTRIM(@DeliveryLandmark)), N''), @IsDefault,
+            SYSUTCDATETIME(), SYSUTCDATETIME()
+        );
+
+        SET @TargetId = SCOPE_IDENTITY();
+    END
+
+    SELECT 
+        a.Id,
+        a.UserId,
+        a.AddressLabel,
+        a.RecipientName,
+        a.PhoneNumber,
+        a.StreetAddress,
+        a.Barangay,
+        a.City,
+        a.Province,
+        a.PostalCode,
+        a.DeliveryLandmark,
+        a.IsDefault,
+        a.CreatedAt,
+        a.UpdatedAt
+    FROM dbo.UserAddresses a
+    WHERE a.Id = @TargetId;
+END;
+GO
+
+-- 5. Update Stored Procedure: dbo.sp_GetUserAddresses
+IF OBJECT_ID(N'dbo.sp_GetUserAddresses', N'P') IS NULL 
+    EXEC(N'CREATE PROCEDURE dbo.sp_GetUserAddresses AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_GetUserAddresses
+    @UserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT 
+        a.Id,
+        a.UserId,
+        a.AddressLabel,
+        ISNULL(NULLIF(LTRIM(RTRIM(a.RecipientName)), N''), CONCAT(u.FirstName, N' ', u.LastName)) AS RecipientName,
+        ISNULL(NULLIF(LTRIM(RTRIM(a.PhoneNumber)), N''), u.PhoneNumber) AS PhoneNumber,
+        a.StreetAddress,
+        a.Barangay,
+        a.City,
+        a.Province,
+        a.PostalCode,
+        a.DeliveryLandmark,
+        a.IsDefault,
+        a.CreatedAt,
+        a.UpdatedAt
+    FROM dbo.UserAddresses a
+    INNER JOIN dbo.Users u ON a.UserId = u.Id
+    WHERE a.UserId = @UserId
+    ORDER BY a.IsDefault DESC, a.Id DESC;
+END;
+GO
+
+PRINT 'Migration 23 completed successfully: RecipientName and PhoneNumber restored to UserAddresses and stored procedures updated.';
+GO
+
+
+GO
+-- Source: schema/24_remove_redundant_user_fullname.sql
+-- Generated by Build-NormalizationMigration.ps1.
+-- Run after migration 23. The upgrade runner supplies backup and transaction handling.
+-- FullName remains an API result alias, never a Users table column.
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+CREATE OR ALTER PROCEDURE dbo.sp_AdminGlobalSearch
+    @Query NVARCHAR(100),
+    @Limit INT = 8
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET @Query = LTRIM(RTRIM(@Query));
+    IF @Query IS NULL OR LEN(@Query) < 1
+    BEGIN
+        SELECT TOP 0 '' AS Category, '' AS Title, '' AS Subtitle, '' AS Url, '' AS Badge;
+        RETURN;
+    END;
+
+    -- 1. Point of Sale (Direct POS Action for sellable in-stock items)
+    SELECT TOP (@Limit)
+        'Point of Sale' AS Category,
+        CONCAT(b.Name, ' ', p.Name, ' (', c.Color, ' - ', v.Size, ')') AS Title,
+        CONCAT(NCHAR(8369), FORMAT(dbo.fn_CalculateEffectivePrice(p.BasePrice, v.PriceAdjustment, p.DiscountPercentage, p.DiscountType, p.DiscountAmount, p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive), 'N2'), NCHAR(32), NCHAR(8226), NCHAR(32), ISNULL(i.CurrentStock, 0), ' in stock', NCHAR(32), NCHAR(8226), NCHAR(32), 'SKU: ', v.SKU) AS Subtitle,
+        CONCAT('/Admin/POS.aspx?search=', v.SKU) AS Url,
+        'Sell in POS' AS Badge
+    FROM dbo.v_VisibleProductVariants v
+    JOIN dbo.v_VisibleProductColors c ON c.Id = v.ProductColorId
+    JOIN dbo.v_VisibleProducts p ON p.Id = c.ProductId
+    JOIN dbo.Brands b ON b.Id = p.BrandId
+    LEFT JOIN dbo.v_VisibleInventories i ON i.VariantId = v.Id
+    WHERE v.IsActive = 1 AND p.IsActive = 1 AND ISNULL(i.CurrentStock, 0) > 0
+      AND (
+          p.Name LIKE '%' + @Query + '%'
+          OR b.Name LIKE '%' + @Query + '%'
+          OR CONCAT(b.Name, ' ', p.Name) LIKE '%' + @Query + '%'
+          OR CONCAT(b.Name, ' ', p.Name, ' ', c.Color) LIKE '%' + @Query + '%'
+          OR v.SKU LIKE '%' + @Query + '%'
+          OR c.Color LIKE '%' + @Query + '%'
+      )
+
+    UNION ALL
+
+    -- 2. Brands Matching Query
+    SELECT TOP (@Limit)
+        'Brands' AS Category,
+        b.Name AS Title,
+        CONCAT((SELECT COUNT(*) FROM dbo.v_VisibleProducts p WHERE p.BrandId = b.Id), ' Helmet Models in Catalog') AS Subtitle,
+        CONCAT('/Admin/Inventory.aspx?brand=', b.Name) AS Url,
+        'Brand' AS Badge
+    FROM dbo.Brands b
+    WHERE b.Name LIKE '%' + @Query + '%'
+
+    UNION ALL
+
+    -- 3. Catalog Models
+    SELECT TOP (@Limit)
+        'Catalog' AS Category,
+        CONCAT(b.Name, ' ', p.Name) AS Title,
+        CONCAT(cat.Name, NCHAR(32), NCHAR(8226), NCHAR(32), p.RidingStyle, NCHAR(32), NCHAR(8226), NCHAR(32), 'Base: ', NCHAR(8369), FORMAT(p.BasePrice, 'N2')) AS Subtitle,
+        CONCAT('/Admin/Catalog.aspx?id=', p.Id) AS Url,
+        b.Name AS Badge
+    FROM dbo.v_VisibleProducts p
+    JOIN dbo.Brands b ON b.Id = p.BrandId
+    JOIN dbo.Categories cat ON cat.Id = p.CategoryId
+    WHERE p.Name LIKE '%' + @Query + '%'
+       OR b.Name LIKE '%' + @Query + '%'
+       OR CONCAT(b.Name, ' ', p.Name) LIKE '%' + @Query + '%'
+
+    UNION ALL
+
+    -- 4. Inventory Variants (Color, Size, SKU)
+    SELECT TOP (@Limit)
+        'Inventory' AS Category,
+        CONCAT(b.Name, ' ', p.Name, ' (', c.Color, ' - ', v.Size, ')') AS Title,
+        CONCAT('Stock: ', ISNULL(i.CurrentStock,0), ' units', NCHAR(32), NCHAR(8226), NCHAR(32), 'SKU: ', v.SKU) AS Subtitle,
+        CONCAT('/Admin/Inventory.aspx?q=', v.SKU) AS Url,
+        CASE WHEN ISNULL(i.CurrentStock,0) <= 0 THEN 'Out of Stock' 
+             WHEN ISNULL(i.CurrentStock,0) <= ISNULL(i.ReorderPoint,3) THEN 'Low Stock' 
+             ELSE 'In Stock' END AS Badge
+    FROM dbo.v_VisibleProductVariants v
+    JOIN dbo.v_VisibleProductColors c ON c.Id = v.ProductColorId
+    JOIN dbo.v_VisibleProducts p ON p.Id = c.ProductId
+    JOIN dbo.Brands b ON b.Id = p.BrandId
+    LEFT JOIN dbo.v_VisibleInventories i ON i.VariantId = v.Id
+    WHERE p.Name LIKE '%' + @Query + '%'
+       OR b.Name LIKE '%' + @Query + '%'
+       OR CONCAT(b.Name, ' ', p.Name) LIKE '%' + @Query + '%'
+       OR CONCAT(b.Name, ' ', p.Name, ' ', c.Color) LIKE '%' + @Query + '%'
+       OR v.SKU LIKE '%' + @Query + '%'
+       OR c.Color LIKE '%' + @Query + '%'
+
+    UNION ALL
+
+    -- 5. Orders
+    SELECT TOP (@Limit)
+        'Orders' AS Category,
+        CONCAT(o.OrderNumber, ' — ', o.CustomerName) AS Title,
+        CONCAT(NCHAR(8369), FORMAT(o.TotalAmount, 'N2'), NCHAR(32), NCHAR(8226), NCHAR(32), o.Status, NCHAR(32), NCHAR(8226), NCHAR(32), o.OrderSource) AS Subtitle,
+        CONCAT('/Admin/Orders.aspx?q=', o.OrderNumber) AS Url,
+        o.Status AS Badge
+    FROM dbo.Orders o
+    WHERE o.OrderNumber LIKE '%' + @Query + '%'
+       OR o.CustomerName LIKE '%' + @Query + '%'
+       OR o.CustomerEmail LIKE '%' + @Query + '%'
+       OR o.CustomerPhone LIKE '%' + @Query + '%'
+
+    UNION ALL
+
+    -- 6. Users
+    SELECT TOP (@Limit)
+        'Users' AS Category,
+        CONCAT(u.FirstName, N' ', u.LastName) AS Title,
+        CONCAT(u.Email, NCHAR(32), NCHAR(8226), NCHAR(32), ISNULL(u.PhoneNumber, 'No phone')) AS Subtitle,
+        CONCAT('/Admin/Users.aspx?q=', u.Email) AS Url,
+        r.Name AS Badge
+    FROM dbo.Users u
+    JOIN dbo.Roles r ON r.Id = u.RoleId
+    WHERE CONCAT(u.FirstName, N' ', u.LastName) LIKE '%' + @Query + '%'
+       OR u.Email LIKE '%' + @Query + '%'
+       OR u.PhoneNumber LIKE '%' + @Query + '%';
+END;
+
+GO
+IF COL_LENGTH(N'dbo.Users', N'FullName') IS NOT NULL
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM sys.sql_expression_dependencies
+        WHERE referenced_id = OBJECT_ID(N'dbo.Users')
+          AND referenced_minor_id = COLUMNPROPERTY(OBJECT_ID(N'dbo.Users'), N'FullName', 'ColumnId')
+          AND referencing_id <> OBJECT_ID(N'dbo.Users')
+    )
+        THROW 53034, N'FullName still has database dependencies; review before dropping it.', 1;
+    ALTER TABLE dbo.Users DROP COLUMN FullName;
+END;
+GO
+
+GO
+
+-- Source: schema/27_sales_by_brand_and_category.sql
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_AdminSalesByBrandAndCategory
+    @StartDate DATETIME2,
+    @EndDate DATETIME2
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @SalesLines TABLE
+    (
+        OrderId INT NOT NULL,
+        Quantity INT NOT NULL,
+        UnitPrice DECIMAL(18, 2) NOT NULL,
+        BrandName NVARCHAR(100) NOT NULL,
+        CategoryName NVARCHAR(100) NOT NULL
+    );
+
+    INSERT @SalesLines (OrderId, Quantity, UnitPrice, BrandName, CategoryName)
+    SELECT oi.OrderId, oi.Quantity, oi.UnitPrice, b.Name, c.Name
+    FROM dbo.OrderItems oi
+    INNER JOIN dbo.ProductVariants v ON v.Id = oi.VariantId
+    INNER JOIN dbo.ProductColors pc ON pc.Id = v.ProductColorId
+    INNER JOIN dbo.Products p ON p.Id = pc.ProductId
+    INNER JOIN dbo.Brands b ON b.Id = p.BrandId
+    INNER JOIN dbo.Categories c ON c.Id = p.CategoryId
+    INNER JOIN
+    (
+        SELECT OrderId, MAX(PaidAt) AS PaidAt
+        FROM dbo.Payments
+        WHERE Status = N'Completed' AND PaidAt IS NOT NULL
+        GROUP BY OrderId
+    ) completed ON completed.OrderId = oi.OrderId
+    WHERE completed.PaidAt >= @StartDate AND completed.PaidAt < @EndDate;
+
+    SELECT BrandName AS DimensionName, SUM(Quantity) AS UnitsSold,
+           COUNT(DISTINCT OrderId) AS OrderCount,
+           CONVERT(DECIMAL(18, 2), SUM(Quantity * UnitPrice)) AS Revenue,
+           CONVERT(DECIMAL(18, 2), SUM(Quantity * UnitPrice) / NULLIF(SUM(Quantity), 0)) AS AverageUnitPrice
+    FROM @SalesLines
+    GROUP BY BrandName
+    ORDER BY UnitsSold DESC, Revenue DESC, BrandName;
+
+    SELECT CategoryName AS DimensionName, SUM(Quantity) AS UnitsSold,
+           COUNT(DISTINCT OrderId) AS OrderCount,
+           CONVERT(DECIMAL(18, 2), SUM(Quantity * UnitPrice)) AS Revenue,
+           CONVERT(DECIMAL(18, 2), SUM(Quantity * UnitPrice) / NULLIF(SUM(Quantity), 0)) AS AverageUnitPrice
+    FROM @SalesLines
+    GROUP BY CategoryName
+    ORDER BY UnitsSold DESC, Revenue DESC, CategoryName;
+END;
+GO
+-- Source: schema/31_stock_reservation_lifecycle_fix.sql
+-- ============================================================================
+-- Migration 31: Stock reservation lifecycle and storefront availability fix
+--
+-- Reservations are held when an online order is created. They are converted
+-- into a sale exactly once when HitPay confirms payment or when a cash/COD
+-- order is fulfilled. Available stock is always CurrentStock - ReservedStock.
+-- ============================================================================
+SET ANSI_NULLS ON;
+GO
+SET QUOTED_IDENTIFIER ON;
+GO
+
+-- Customer cancellation records a cancelled pending payment.
+IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_Payments_Status')
+    ALTER TABLE dbo.Payments DROP CONSTRAINT CK_Payments_Status;
+GO
+
+ALTER TABLE dbo.Payments ADD CONSTRAINT CK_Payments_Status
+    CHECK (Status IN (N'Pending', N'Completed', N'Failed', N'Refunded', N'Cancelled'));
+GO
+
+-- HitPay confirmation converts the existing reservation into a completed sale.
+CREATE OR ALTER PROCEDURE dbo.sp_ConfirmHitPayOrder
+    @OrderNumber NVARCHAR(50),
+    @GatewayReference NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF NULLIF(LTRIM(RTRIM(@GatewayReference)), N'') IS NULL
+        THROW 52204, N'Payment reference is required.', 1;
+
+    BEGIN TRANSACTION;
+
+    DECLARE @OrderId INT,
+            @Status NVARCHAR(50),
+            @Total DECIMAL(18,2),
+            @CustomerUserId INT;
+
+    SELECT @OrderId = Id,
+           @Status = Status,
+           @Total = TotalAmount,
+           @CustomerUserId = UserId
+    FROM dbo.Orders WITH (UPDLOCK, ROWLOCK)
+    WHERE OrderNumber = @OrderNumber AND OrderSource = N'ONLINE';
+
+    IF @OrderId IS NULL
+        THROW 52205, N'Online order not found.', 1;
+
+    IF @Status = N'Processing' AND EXISTS
+    (
+        SELECT 1
+        FROM dbo.Payments
+        WHERE OrderId = @OrderId
+          AND PaymentGateway = N'HitPay'
+          AND GatewayReference = @GatewayReference
+          AND Status = N'Completed'
+    )
+    BEGIN
+        COMMIT TRANSACTION;
+        SELECT @OrderId AS Id, CONVERT(BIT, 0) AS Processed;
+        RETURN;
+    END;
+
+    IF @Status <> N'PendingPayment'
+        THROW 52206, N'Order cannot accept this payment.', 1;
+
+    DECLARE @Lines TABLE
+    (
+        VariantId INT PRIMARY KEY,
+        Quantity INT NOT NULL,
+        OldStock INT NOT NULL,
+        OldReservedStock INT NOT NULL
+    );
+
+    DECLARE @VariantId INT,
+            @Quantity INT,
+            @OldStock INT,
+            @OldReservedStock INT;
+
+    DECLARE line_cursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT VariantId, SUM(Quantity)
+        FROM dbo.OrderItems
+        WHERE OrderId = @OrderId
+        GROUP BY VariantId
+        ORDER BY VariantId;
+
+    OPEN line_cursor;
+    FETCH NEXT FROM line_cursor INTO @VariantId, @Quantity;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SELECT @OldStock = CurrentStock,
+               @OldReservedStock = ReservedStock
+        FROM dbo.Inventories WITH (UPDLOCK, ROWLOCK)
+        WHERE VariantId = @VariantId;
+
+        IF @OldStock IS NULL OR @OldStock - @OldReservedStock < @Quantity
+            THROW 52207, N'Paid order has insufficient stock; manual resolution required.', 1;
+
+        INSERT @Lines (VariantId, Quantity, OldStock, OldReservedStock)
+        VALUES (@VariantId, @Quantity, @OldStock, @OldReservedStock);
+
+        SET @OldStock = NULL;
+        SET @OldReservedStock = NULL;
+        FETCH NEXT FROM line_cursor INTO @VariantId, @Quantity;
+    END;
+
+    CLOSE line_cursor;
+    DEALLOCATE line_cursor;
+
+    UPDATE i
+    SET CurrentStock = i.CurrentStock - l.Quantity,
+        ReservedStock = CASE
+            WHEN i.ReservedStock >= l.Quantity THEN i.ReservedStock - l.Quantity
+            ELSE 0
+        END,
+        UpdatedAt = SYSUTCDATETIME()
+    FROM dbo.Inventories i
+    INNER JOIN @Lines l ON l.VariantId = i.VariantId;
+
+    INSERT dbo.StockAuditLogs
+        (VariantId, UserId, ChangeType, PreviousStock, QuantityChanged, ReferenceNumber, Notes)
+    SELECT VariantId, @CustomerUserId, N'ONLINE_SALE', OldStock, -Quantity,
+           @OrderNumber, N'HitPay payment confirmed; reservation converted to sale.'
+    FROM @Lines;
+
+    INSERT dbo.Payments
+        (OrderId, PaymentGateway, GatewayReference, Amount, Status, PaidAt)
+    VALUES
+        (@OrderId, N'HitPay', @GatewayReference, @Total, N'Completed', SYSUTCDATETIME());
+
+    UPDATE dbo.Orders
+    SET Status = N'Processing', UpdatedAt = SYSUTCDATETIME()
+    WHERE Id = @OrderId;
+
+    INSERT dbo.RestockAlerts (InventoryId, Severity)
+    SELECT i.Id,
+           CASE WHEN i.CurrentStock - i.ReservedStock = 0
+                THEN N'CRITICAL_ZERO' ELSE N'LOW_STOCK' END
+    FROM dbo.Inventories i
+    INNER JOIN @Lines l ON l.VariantId = i.VariantId
+    WHERE i.IsLowStock = 1
+      AND NOT EXISTS
+      (
+          SELECT 1
+          FROM dbo.RestockAlerts a
+          WHERE a.InventoryId = i.Id AND a.IsDismissed = 0
+      );
+
+    COMMIT TRANSACTION;
+    SELECT @OrderId AS Id, CONVERT(BIT, 1) AS Processed;
+END;
+GO
+
+-- Fulfilment converts a reservation only when the order has not already been
+-- committed by HitPay. The audit check also prevents old double-deducted orders
+-- from being deducted a second time after this migration is applied.
+CREATE OR ALTER PROCEDURE dbo.sp_AdminUpdateOrderStatus
+    @OrderId INT,
+    @NewStatus NVARCHAR(50),
+    @Notes NVARCHAR(500) = NULL,
+    @Courier NVARCHAR(100) = NULL,
+    @TrackingNumber NVARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRANSACTION;
+
+    DECLARE @OldStatus NVARCHAR(50),
+            @Source NVARCHAR(30),
+            @HasCommittedSale BIT;
+
+    SELECT @OldStatus = Status, @Source = OrderSource
+    FROM dbo.Orders WITH (UPDLOCK, ROWLOCK)
+    WHERE Id = @OrderId;
+
+    IF @OldStatus IS NULL
+        THROW 52001, N'Order not found.', 1;
+
+    IF NOT
+    (
+        (@OldStatus = N'Processing' AND @NewStatus = N'ReadyForPickup') OR
+        (@OldStatus = N'Processing' AND @NewStatus = N'Shipped') OR
+        (@OldStatus = N'ReadyForPickup' AND @NewStatus = N'Completed') OR
+        (@OldStatus = N'Shipped' AND @NewStatus = N'Delivered') OR
+        (@OldStatus = N'Delivered' AND @NewStatus = N'Completed') OR
+        (@OldStatus = N'Shipped' AND @NewStatus = N'Completed') OR
+        (@OldStatus = N'PendingPayment' AND @NewStatus = N'Cancelled') OR
+        (@OldStatus = N'Processing' AND @NewStatus = N'Cancelled')
+    )
+        THROW 52002, N'Invalid order status transition.', 1;
+
+    IF (@NewStatus IN (N'ReadyForPickup', N'Shipped'))
+       AND @Source = N'ONLINE'
+       AND EXISTS
+       (
+           SELECT 1 FROM dbo.Payments
+           WHERE OrderId = @OrderId AND PaymentGateway = N'HitPay'
+       )
+       AND NOT EXISTS
+       (
+           SELECT 1 FROM dbo.Payments
+           WHERE OrderId = @OrderId AND Status = N'Completed'
+       )
+        THROW 52003, N'Online HitPay payment is not complete.', 1;
+
+    SELECT @HasCommittedSale = CASE WHEN EXISTS
+    (
+        SELECT 1 FROM dbo.StockAuditLogs l
+        INNER JOIN dbo.Orders o ON o.OrderNumber = l.ReferenceNumber
+            WHERE o.Id = @OrderId
+              AND l.ChangeType = N'ONLINE_SALE'
+              AND EXISTS
+              (
+                  SELECT 1 FROM dbo.Payments p
+                  WHERE p.OrderId = @OrderId AND p.Status = N'Completed'
+              )
+    ) THEN 1 ELSE 0 END;
+
+    UPDATE dbo.Orders
+    SET Status = @NewStatus,
+        Notes = COALESCE(@Notes, Notes),
+        Courier = COALESCE(@Courier, Courier),
+        TrackingNumber = COALESCE(@TrackingNumber, TrackingNumber),
+        UpdatedAt = SYSUTCDATETIME()
+    WHERE Id = @OrderId;
+
+    IF @NewStatus IN (N'Completed', N'Delivered')
+    BEGIN
+        UPDATE dbo.Payments
+        SET Status = N'Completed', PaidAt = SYSUTCDATETIME()
+        WHERE OrderId = @OrderId
+          AND PaymentGateway IN (N'Cash', N'CashOnDelivery')
+          AND Status = N'Pending';
+    END;
+
+    IF (@OldStatus = N'Processing' AND @NewStatus = N'Shipped')
+       OR (@OldStatus = N'ReadyForPickup' AND @NewStatus = N'Completed')
+    BEGIN
+        UPDATE inv
+        SET inv.CurrentStock = CASE
+                WHEN @HasCommittedSale = 1 THEN inv.CurrentStock
+                WHEN inv.ReservedStock >= oi.Quantity
+                    THEN inv.CurrentStock - oi.Quantity
+                ELSE inv.CurrentStock
+            END,
+            inv.ReservedStock = CASE
+                WHEN inv.ReservedStock >= oi.Quantity
+                    THEN inv.ReservedStock - oi.Quantity
+                ELSE inv.ReservedStock
+            END,
+            inv.UpdatedAt = SYSUTCDATETIME()
+        FROM dbo.Inventories inv
+        INNER JOIN dbo.OrderItems oi ON inv.VariantId = oi.VariantId
+        WHERE oi.OrderId = @OrderId;
+    END;
+
+    IF @NewStatus = N'Cancelled'
+    BEGIN
+        UPDATE inv
+        SET inv.CurrentStock = CASE
+                WHEN @HasCommittedSale = 1 THEN inv.CurrentStock + oi.Quantity
+                ELSE inv.CurrentStock
+            END,
+            inv.ReservedStock = CASE
+                WHEN inv.ReservedStock >= oi.Quantity
+                    THEN inv.ReservedStock - oi.Quantity
+                ELSE 0
+            END,
+            inv.UpdatedAt = SYSUTCDATETIME()
+        FROM dbo.Inventories inv
+        INNER JOIN dbo.OrderItems oi ON inv.VariantId = oi.VariantId
+        WHERE oi.OrderId = @OrderId;
+    END;
+
+    COMMIT TRANSACTION;
+    SELECT @OrderId AS Id, @NewStatus AS Status,
+           @Courier AS Courier, @TrackingNumber AS TrackingNumber;
+END;
+GO
+
+-- Customer cancellation uses the same reservation/sale distinction as the
+-- admin status transition so cash pickup orders do not get over-restocked.
+CREATE OR ALTER PROCEDURE dbo.sp_CustomerCancelOrder
+    @OrderId INT,
+    @UserId INT = NULL,
+    @UserEmail NVARCHAR(256) = NULL,
+    @Reason NVARCHAR(255) = N'Customer requested cancellation',
+    @Success BIT OUTPUT,
+    @ErrorMessage NVARCHAR(255) OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @CurrentStatus NVARCHAR(50),
+                @OrderUserId INT,
+                @OrderEmail NVARCHAR(256),
+                @OrderNumber NVARCHAR(50),
+                @HasCommittedSale BIT;
+
+        SELECT @CurrentStatus = Status,
+               @OrderUserId = UserId,
+               @OrderEmail = CustomerEmail,
+               @OrderNumber = OrderNumber
+        FROM dbo.Orders WITH (UPDLOCK, ROWLOCK)
+        WHERE Id = @OrderId;
+
+        IF @CurrentStatus IS NULL
+            THROW 52301, N'Order not found.', 1;
+
+        IF @UserId IS NOT NULL AND @OrderUserId IS NOT NULL AND @OrderUserId <> @UserId
+            THROW 52302, N'You are not authorized to cancel this order.', 1;
+
+        IF @CurrentStatus NOT IN (N'PendingPayment', N'Processing')
+            THROW 52303, N'This order can no longer be cancelled.', 1;
+
+        SELECT @HasCommittedSale = CASE WHEN EXISTS
+        (
+            SELECT 1
+            FROM dbo.StockAuditLogs l
+            WHERE l.ReferenceNumber = @OrderNumber
+              AND l.ChangeType = N'ONLINE_SALE'
+              AND EXISTS
+              (
+                  SELECT 1 FROM dbo.Payments p
+                  WHERE p.OrderId = @OrderId AND p.Status = N'Completed'
+              )
+        ) THEN 1 ELSE 0 END;
+
+        UPDATE dbo.Orders
+        SET Status = N'Cancelled',
+            Notes = CONCAT(ISNULL(Notes + N' | ', N''), N'Cancelled by customer: ', @Reason),
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE Id = @OrderId;
+
+        UPDATE dbo.Payments
+        SET Status = CASE WHEN Status = N'Completed' THEN N'Refunded' ELSE N'Cancelled' END
+        WHERE OrderId = @OrderId;
+
+        UPDATE inv
+        SET inv.CurrentStock = CASE
+                WHEN @HasCommittedSale = 1 THEN inv.CurrentStock + oi.Quantity
+                ELSE inv.CurrentStock
+            END,
+            inv.ReservedStock = CASE
+                WHEN inv.ReservedStock >= oi.Quantity
+                    THEN inv.ReservedStock - oi.Quantity
+                ELSE 0
+            END,
+            inv.UpdatedAt = SYSUTCDATETIME()
+        FROM dbo.Inventories inv
+        INNER JOIN dbo.OrderItems oi ON inv.VariantId = oi.VariantId
+        WHERE oi.OrderId = @OrderId;
+
+        COMMIT TRANSACTION;
+        SET @Success = 1;
+        SET @ErrorMessage = NULL;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        SET @Success = 0;
+        SET @ErrorMessage = ERROR_MESSAGE();
+    END CATCH;
+END;
+GO
+
+-- Repair the known legacy state where cash/COD order creation both reserved
+-- and deducted stock. Keep the reservation, restore on-hand stock, and let
+-- the corrected fulfillment procedure consume it once later.
+UPDATE inv
+SET inv.CurrentStock = inv.CurrentStock + oi.Quantity,
+    inv.UpdatedAt = SYSUTCDATETIME()
+FROM dbo.Inventories inv
+INNER JOIN dbo.OrderItems oi ON inv.VariantId = oi.VariantId
+INNER JOIN dbo.Orders o ON o.Id = oi.OrderId
+WHERE o.Status = N'Processing'
+  AND EXISTS
+  (
+      SELECT 1 FROM dbo.Payments p
+      WHERE p.OrderId = o.Id
+        AND p.PaymentGateway IN (N'Cash', N'CashOnDelivery')
+        AND p.Status = N'Pending'
+  )
+  AND inv.ReservedStock >= oi.Quantity
+  AND EXISTS
+  (
+      SELECT 1 FROM dbo.StockAuditLogs l
+      WHERE l.ReferenceNumber = o.OrderNumber
+        AND l.VariantId = oi.VariantId
+        AND l.ChangeType = N'ONLINE_SALE'
+  );
+GO
+
+-- Return both on-hand and sellable quantities to the product detail API.
+CREATE OR ALTER PROCEDURE dbo.sp_GetProductById
+    @Id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @Now DATETIME2 = SYSUTCDATETIME();
+
+    SELECT
+        p.Id,
+        p.Name,
+        p.Slug,
+        b.Name AS Brand,
+        c.Name AS Category,
+        p.RidingStyle,
+        p.BasePrice,
+        p.DiscountPercentage,
+        p.DiscountType,
+        p.DiscountAmount,
+        p.DiscountStartDate,
+        p.DiscountEndDate,
+        CASE
+            WHEN ISNULL(p.DiscountIsActive, 1) = 1
+                 AND (p.DiscountStartDate IS NULL OR p.DiscountStartDate <= @Now)
+                 AND (p.DiscountEndDate IS NULL OR p.DiscountEndDate >= @Now)
+                 AND (p.DiscountPercentage > 0 OR (p.DiscountType = N'FIXED_AMOUNT' AND p.DiscountAmount > 0))
+            THEN 1 ELSE 0
+        END AS IsDiscountActive,
+        dbo.fn_CalculateEffectivePrice(p.BasePrice, 0, p.DiscountPercentage,
+            p.DiscountType, p.DiscountAmount, p.DiscountStartDate,
+            p.DiscountEndDate, p.DiscountIsActive) AS EffectivePrice,
+        review.Rating,
+        review.ReviewCount,
+        orders.OrderCount,
+        p.MainImageUrl,
+        p.Description,
+        p.IsFeatured
+    FROM dbo.v_VisibleProducts p
+    INNER JOIN dbo.Brands b ON p.BrandId = b.Id
+    INNER JOIN dbo.Categories c ON p.CategoryId = c.Id
+    OUTER APPLY
+    (
+        SELECT CAST(COALESCE(AVG(CAST(r.Rating AS DECIMAL(9,2))), 0) AS DECIMAL(3,2)) AS Rating,
+               COUNT(*) AS ReviewCount
+        FROM dbo.ProductReviews r
+        WHERE r.ProductId = p.Id AND r.IsHidden = 0
+    ) review
+    OUTER APPLY
+    (
+        SELECT COUNT(DISTINCT oi.OrderId) AS OrderCount
+        FROM dbo.v_VisibleProductColors pc
+        INNER JOIN dbo.v_VisibleProductVariants pv ON pv.ProductColorId = pc.Id
+        INNER JOIN dbo.OrderItems oi ON oi.VariantId = pv.Id
+        INNER JOIN dbo.Orders o ON o.Id = oi.OrderId
+        WHERE pc.ProductId = p.Id AND o.Status <> N'Cancelled'
+    ) orders
+    WHERE p.Id = @Id AND p.IsActive = 1;
+
+    SELECT
+        pv.Id,
+        pc.ProductId,
+        pv.SKU,
+        pv.Size,
+        pc.Color,
+        pc.ColorHex,
+        pv.PriceAdjustment,
+        dbo.fn_CalculateEffectivePrice(p.BasePrice, pv.PriceAdjustment,
+            p.DiscountPercentage, p.DiscountType, p.DiscountAmount,
+            p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive) AS EffectivePrice,
+        ISNULL(i.CurrentStock, 0) AS CurrentStock,
+        ISNULL(i.ReservedStock, 0) AS ReservedStock,
+        ISNULL(i.CurrentStock, 0) - ISNULL(i.ReservedStock, 0) AS AvailableStock,
+        ISNULL(i.IsLowStock, 0) AS IsLowStock
+    FROM dbo.v_VisibleProductVariants pv
+    INNER JOIN dbo.v_VisibleProductColors pc ON pv.ProductColorId = pc.Id
+    INNER JOIN dbo.v_VisibleProducts p ON pc.ProductId = p.Id
+    LEFT JOIN dbo.v_VisibleInventories i ON pv.Id = i.VariantId
+    WHERE pc.ProductId = @Id AND pv.IsActive = 1
+    ORDER BY pv.Id ASC;
+
+    SELECT ImageUrl,
+           COALESCE(AltText, N'Product view') AS AltText,
+           CONVERT(INT, DisplayOrder) AS DisplayOrder
+    FROM dbo.ProductGalleryImages
+    WHERE ProductId = @Id AND IsActive = 1
+    ORDER BY DisplayOrder ASC, Id ASC;
+END;
 GO

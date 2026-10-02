@@ -15,22 +15,27 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
     public class OrdersController : ApiController
     {
         private readonly IOrderService _orderService;
+        private readonly IOrderRepository _orderRepository;
+        private readonly IUserRepository _userRepository;
 
         public OrdersController()
         {
             var dbFactory = new DbConnectionFactory();
-            var orderRepo = new OrderRepository(dbFactory);
+            _orderRepository = new OrderRepository(dbFactory);
+            _userRepository = new UserRepository(dbFactory);
             var invRepo = new InventoryRepository(dbFactory);
             var invService = new InventoryService(invRepo);
             var sigValidator = new HitPaySignatureValidator();
             var hitPayService = new HitPayService(sigValidator);
 
-            _orderService = new OrderService(orderRepo, invService, hitPayService);
+            _orderService = new OrderService(_orderRepository, invService, hitPayService);
         }
 
-        public OrdersController(IOrderService orderService)
+        public OrdersController(IOrderService orderService, IOrderRepository orderRepository = null, IUserRepository userRepository = null)
         {
             _orderService = orderService;
+            _orderRepository = orderRepository ?? new OrderRepository(new DbConnectionFactory());
+            _userRepository = userRepository ?? new UserRepository(new DbConnectionFactory());
         }
 
         [HttpPost]
@@ -142,6 +147,33 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                 return Ok(ApiResponse<object>.Ok(rows));
             }
             catch (SqlException e) { return BadRequest(e.Message); }
+        }
+
+        [HttpPost]
+        [Route("{id:int}/cancel")]
+        public async Task<IHttpActionResult> CancelOrder(int id, [FromBody] CancelOrderRequestDto dto)
+        {
+            int? userId = GetAuthenticatedUserId();
+            string userEmail = null;
+            if (userId.HasValue)
+            {
+                var profile = await _userRepository.GetUserProfileAsync(userId.Value).ConfigureAwait(false);
+                userEmail = profile?.Email;
+            }
+
+            var result = await _orderRepository.CancelOrderAsync(id, userId, userEmail, dto?.Reason).ConfigureAwait(false);
+            if (!result.Success)
+            {
+                return BadRequest(result.Message ?? "Unable to cancel order.");
+            }
+
+            var order = await _orderRepository.GetOrderByIdAsync(id).ConfigureAwait(false);
+            if (order != null)
+            {
+                OrderHub.NotifyOrderStatusChanged(id, order.OrderNumber, AppConstants.OrderStatus.Cancelled);
+            }
+
+            return Ok(new { success = true, message = "Order cancelled successfully and reserved stock released." });
         }
 
         private int? GetAuthenticatedUserId()

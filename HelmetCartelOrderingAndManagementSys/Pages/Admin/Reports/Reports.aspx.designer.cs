@@ -30,8 +30,6 @@ namespace HelmetCartelOrderingAndManagementSys.Admin {
         protected global::System.Web.UI.WebControls.Literal litTotalUnitsTrend;
         protected global::System.Web.UI.WebControls.Literal litTotalVariants;
         protected global::System.Web.UI.WebControls.Literal litTotalVariantsTrend;
-        protected global::System.Web.UI.WebControls.Literal litChartSubtitle;
-        protected global::System.Web.UI.WebControls.Literal litActiveRangeBadge;
         protected global::System.Web.UI.WebControls.Repeater rptDailySales;
         protected global::System.Web.UI.WebControls.Panel pnlDailySalesPagination;
         protected global::System.Web.UI.WebControls.LinkButton lnkDailySalesPrev;

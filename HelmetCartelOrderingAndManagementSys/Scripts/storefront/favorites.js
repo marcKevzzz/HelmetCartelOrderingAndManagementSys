@@ -52,7 +52,7 @@ export function renderFavorites() {
                 <h2 class="favorites-empty-title">Your Wishlist is Empty</h2>
                 <p class="favorites-empty-desc">Browse helmets and tap the heart icon on gear you want to save for later.</p>
                 <a href="${APP_CONSTANTS.ROUTES.SHOP}" class="btn btn--primary">
-                    <span>Explore Catalog</span>
+                    <span>Explore Shop</span>
                     <svg class="btn-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="7" y1="17" x2="17" y2="7"></line>
                         <polyline points="7 7 17 7 17 17"></polyline>
@@ -75,9 +75,11 @@ export function renderFavorites() {
                 const rating = Number(item.rating ?? 0);
                 const hasPrice = item.price != null && Number.isFinite(price) && price > 0;
                 const detailUrl = APP_CONSTANTS.ROUTES.PRODUCT_DETAIL(item.productId);
+                const isOos = Boolean(item.isOutOfStock);
                 return `
-                <div class="fav-card" data-id="${item.productId}">
+                <div class="fav-card ${isOos ? 'is-out-of-stock' : ''}" data-id="${item.productId}">
                     <div class="fav-card__media">
+                        ${isOos ? '<span class="badge-out-of-stock">Out of Stock</span>' : ''}
                         <img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.name)}" class="fav-card__img" />
                         <button type="button" class="fav-card__remove-btn" data-remove-id="${item.productId}" aria-label="Remove from wishlist" title="Remove">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -99,9 +101,7 @@ export function renderFavorites() {
                             ${hasPrice && discount > 0 ? `<span class="price-original">&#8369;${origPrice.toLocaleString()}</span><span class="discount-badge">-${discount}%</span>` : ''}
                         </div>
                         <div class="fav-card__actions">
-                            <a href="${detailUrl}" class="btn btn--primary btn--sm btn--block">
-                                <span>View &amp; Configure</span>
-                            </a>
+                            ${isOos ? `<a href="${detailUrl}" class="btn btn--outline btn--sm btn--block"><span>Out of Stock &bull; View</span></a>` : `<a href="${detailUrl}" class="btn btn--primary btn--sm btn--block"><span>View &amp; Configure</span></a>`}
                         </div>
                     </div>
                 </div>
@@ -131,6 +131,9 @@ async function refreshFavorites() {
         if (!product) return item;
         const basePrice = Number(product.basePrice ?? 0);
         const discount = Number(product.discountPercentage ?? 0);
+        const isOutOfStock = product.variants && product.variants.length > 0
+            ? product.variants.every(v => Number(v.currentStock || 0) <= 0)
+            : false;
         return {
             productId: product.id,
             name: product.name,
@@ -141,7 +144,8 @@ async function refreshFavorites() {
             discountPercentage: discount,
             price: Math.round(basePrice * (1 - discount / 100) * 100) / 100,
             rating: Number(product.rating ?? 0),
-            reviewCount: Number(product.reviewCount ?? 0)
+            reviewCount: Number(product.reviewCount ?? 0),
+            isOutOfStock: isOutOfStock
         };
     });
     const refreshedById = new Map(updated.map(item => [Number(item.productId), item]));

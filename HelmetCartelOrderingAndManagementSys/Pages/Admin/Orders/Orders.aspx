@@ -56,22 +56,20 @@
                 <colgroup>
                     <col class="col-order-num" />
                     <col class="col-customer" />
-                    <col class="col-contacts" />
-                    <col style="min-width: 140px;" />
-                    <col style="min-width: 110px;" />
+                    <col style="min-width: 120px;" />
+                    <col style="min-width: 100px;" />
                     <col style="min-width: 65px; width: 65px;" />
                     <col class="col-price" />
                     <col class="col-status" />
                     <col style="min-width: 130px; width: 150px;" />
                     <col style="min-width: 140px; width: 170px;" />
-                    <col class="col-actions" />
+                    <col class="col-actions orders" />
                 </colgroup>
                 <thead>
                     <tr>
                         <th>Order #</th>
                         <th>Customer</th>
-                        <th>Contact</th>
-                        <th>Fulfillment</th>
+                        <th>Delivery</th>
                         <th>Source</th>
                         <th>Items</th>
                         <th>Total</th>
@@ -94,13 +92,7 @@
                                     <span class="admin-cell-name"><%# Server.HtmlEncode(Convert.ToString(Eval("CustomerName"))) %></span>
                                 </td>
                                 <td>
-                                    <div class="admin-variant-cell">
-                                        <span class="admin-cell-mono-muted admin-cell-contacts"><%# Server.HtmlEncode(Convert.ToString(Eval("CustomerEmail"))) %></span>
-                                        <span class="admin-activity-time admin-cell-contacts"><%# Server.HtmlEncode(Convert.ToString(Eval("CustomerPhone"))) %></span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <%# RenderFulfillmentCell(Convert.ToString(Eval("ShippingMethod")), Convert.ToString(Eval("ShippingRegion")), Convert.ToString(Eval("Courier")), Convert.ToString(Eval("TrackingNumber"))) %>
+                                    <%# RenderDeliveryCell(Convert.ToString(Eval("ShippingMethod")), Convert.ToString(Eval("ShippingRegion")), Convert.ToString(Eval("Courier")), Convert.ToString(Eval("TrackingNumber"))) %>
                                 </td>
                                 <td>
                                     <%# RenderSourceBadge(Convert.ToString(Eval("OrderSource"))) %>
@@ -121,14 +113,18 @@
                                     <span class="admin-activity-time"><%# Convert.ToDateTime(Eval("CreatedAt")).ToString("MMM dd, yyyy HH:mm") %></span>
                                 </td>
                                 <td class="admin-table-align-right">
-                                    <div class="admin-actions-cell" style="justify-content: flex-end;">
+                                    <div class="admin-actions-cell admin-actions-cell--right">
+                                        <a href='<%# "OrderDetail.aspx?id=" + Eval("Id") %>' class="btn-pill-sm btn-pill--outline" title="View Full Order Details">
+                                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                            <span>View</span>
+                                        </a>
                                         <%# RenderTransitionButton(Convert.ToInt32(Eval("Id")), Convert.ToString(Eval("Status")), Convert.ToString(Eval("PaymentStatus")), Convert.ToString(Eval("ShippingMethod")), Convert.ToDecimal(Eval("TotalAmount")), Convert.ToString(Eval("PaymentMethod")), Convert.ToString(Eval("OrderNumber")), Convert.ToString(Eval("CustomerName")), Convert.ToString(Eval("ShippingCity"))) %>
                                     </div>
                                 </td>
                             </tr>
                         </ItemTemplate>
                         <FooterTemplate>
-                            <%# rptOrders.Items.Count == 0 ? "<tr><td colspan='11'><div class='admin-empty-state'><div class='admin-empty-title'>No Orders Found</div><p>No orders match the current status filter or search criteria.</p></div></td></tr>" : "" %>
+                            <%# rptOrders.Items.Count == 0 ? "<tr><td colspan='10'><div class='admin-empty-state'><div class='admin-empty-title'>No Orders Found</div><p>No orders match the current status filter or search criteria.</p></div></td></tr>" : "" %>
                         </FooterTemplate>
                     </asp:Repeater>
                 </tbody>

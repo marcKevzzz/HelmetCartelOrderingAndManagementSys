@@ -65,6 +65,7 @@ export const CartManager = {
     const items = this.getItems();
     const item = items.find(i => String(i.variantId) === String(variantId));
     if (item) {
+      if (Number(item.availableStock) <= 0) return;
       item.isSelected = !(item.isSelected !== false);
       this.saveItems(items);
     }
@@ -72,12 +73,18 @@ export const CartManager = {
 
   selectAll(selected = true) {
     const items = this.getItems();
-    items.forEach(i => i.isSelected = selected);
+    items.forEach(i => {
+      if (Number(i.availableStock) > 0 || !Number.isFinite(Number(i.availableStock))) {
+        i.isSelected = selected;
+      } else {
+        i.isSelected = false;
+      }
+    });
     this.saveItems(items);
   },
 
   getSelectedItems() {
-    return this.getItems().filter(i => i.isSelected !== false);
+    return this.getItems().filter(i => i.isSelected !== false && (Number(i.availableStock) > 0 || !Number.isFinite(Number(i.availableStock))));
   },
 
   getSelectedSubtotal() {
@@ -129,7 +136,7 @@ export const CartManager = {
         size: variant.size,
         color: variant.color,
         price: Math.round(base * (1 - Number(product.discountPercentage || 0) / 100) * 100) / 100,
-        availableStock: Number(variant.currentStock || 0)
+        availableStock: Number(variant.availableStock ?? variant.currentStock ?? 0)
       };
     });
     this.saveItems(updated);

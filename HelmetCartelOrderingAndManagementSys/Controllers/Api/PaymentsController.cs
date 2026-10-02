@@ -83,6 +83,55 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
             }
         }
 
+        [HttpPost]
+        [Route("simulate")]
+        public async Task<IHttpActionResult> SimulatePayment([FromBody] SimulatePaymentRequestDto request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.OrderNumber))
+            {
+                return BadRequest("Order number is required for payment simulation.");
+            }
+
+            var isSimulation = string.Equals(System.Configuration.ConfigurationManager.AppSettings["HitPay:SimulationMode"], "true", StringComparison.OrdinalIgnoreCase);
+            if (!isSimulation)
+            {
+                return BadRequest("Payment simulation is only enabled when HitPay:SimulationMode is true.");
+            }
+
+            string channel = string.IsNullOrWhiteSpace(request.PaymentChannel) ? AppConstants.PaymentChannels.QrPh : request.PaymentChannel.ToUpperInvariant();
+            string outcome = string.IsNullOrWhiteSpace(request.Outcome) ? "SUCCESS" : request.Outcome.ToUpperInvariant();
+
+            if (outcome == "SUCCESS")
+            {
+                string simGatewayRef = $"SIM-{channel}-{Guid.NewGuid().ToString("N").Substring(0, 8).ToUpperInvariant()}";
+                bool confirmed = await _orderService.ConfirmOnlinePaymentAsync(request.OrderNumber, simGatewayRef).ConfigureAwait(false);
+
+                if (!confirmed)
+                {
+                    return Ok(ApiResponse<object>.Fail("Order has already been processed or cannot accept payment.", AppConstants.ErrorCodes.OrderNotFound));
+                }
+
+                return Ok(ApiResponse<object>.Ok(new
+                {
+                    orderNumber = request.OrderNumber,
+                    paymentId = simGatewayRef,
+                    channel = channel,
+                    status = AppConstants.OrderStatus.Processing,
+                    paymentStatus = AppConstants.PaymentStatus.Completed
+                }, "Simulated payment completed successfully."));
+            }
+            else
+            {
+                // Record failed payment attempt in database using stored procedure
+                await _adminData.QueryAsync(
+                    "dbo.sp_RecordPaymentFailure",
+                    AdminDataRepository.Param("@OrderNumber", request.OrderNumber)
+                ).ConfigureAwait(false);
+
+                return Ok(ApiResponse<object>.Fail("Payment simulation failed: Insufficient funds or card declined.", "SIMULATED_PAYMENT_DECLINED"));
+            }
+        }
+
         private Task LogWebhookAsync(string paymentId, string reference, Dictionary<string, string> payload,
             string signature, bool valid, string status, string error)
         {

@@ -72,6 +72,14 @@ namespace HelmetCartelOrderingAndManagementSys.Constants
             public const string CashOnDelivery = "CashOnDelivery";
         }
 
+        public static class PaymentChannels
+        {
+            public const string QrPh = "QRPH";
+            public const string GCash = "GCASH";
+            public const string Maya = "MAYA";
+            public const string Card = "CARD";
+        }
+
         public static class PaymentStatus
         {
             public const string Pending = "Pending";

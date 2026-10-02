@@ -38,6 +38,11 @@ END
 GO
 
 -- 3. Backfill existing records with user profile defaults if null
+-- Existing tables created by migration 21 use NVARCHAR(30); widen without losing values.
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.UserAddresses') AND name = N'PhoneNumber' AND max_length < 100)
+    ALTER TABLE dbo.UserAddresses ALTER COLUMN PhoneNumber NVARCHAR(50) NULL;
+GO
+
 UPDATE a
 SET a.RecipientName = ISNULL(NULLIF(LTRIM(RTRIM(a.RecipientName)), N''), CONCAT(u.FirstName, N' ', u.LastName)),
     a.PhoneNumber = ISNULL(NULLIF(LTRIM(RTRIM(a.PhoneNumber)), N''), u.PhoneNumber)

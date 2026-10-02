@@ -25,10 +25,21 @@ export const APP_CONSTANTS = Object.freeze({
     ORDERS: '/api/v1/orders',
     ORDERS_INSTORE: '/api/v1/orders/in-store',
     ORDER_TRACK: (orderNumber) => `/api/v1/orders/track/${orderNumber}`,
+    ORDER_CANCEL: (id) => `/api/v1/orders/${id}/cancel`,
     ADMIN_SELLABLE_VARIANTS: '/api/v1/admin/sellable-variants',
     ORDER_STATUS: (id) => `/api/v1/orders/${id}/status`,
     REPORTS_SALES: '/api/v1/reports/sales-summary',
-    REPORTS_INVENTORY: '/api/v1/reports/inventory-valuation'
+    REPORTS_INVENTORY: '/api/v1/reports/inventory-valuation',
+    PAYMENTS_SIMULATE: '/api/v1/payments/simulate',
+    REVIEWS: '/api/v1/reviews',
+    REVIEWS_REPORT: '/api/v1/reviews/report',
+    REVIEWS_PRODUCT: (productId) => `/api/v1/reviews/product/${productId}`,
+    ADMIN_REVIEWS: '/api/v1/reviews/admin',
+    ADMIN_REVIEW_TOGGLE: (id) => `/api/v1/reviews/admin/${id}/toggle-visibility`,
+    RETURNS: '/api/v1/returns',
+    RETURNS_ORDER: (orderId) => `/api/v1/returns/order/${orderId}`,
+    ADMIN_RETURNS: '/api/v1/admin/returns',
+    ADMIN_RETURN_PROCESS: (id) => `/api/v1/admin/returns/${id}/process`
   },
 
   ORDER_STATUS: {
@@ -71,6 +82,13 @@ export const APP_CONSTANTS = Object.freeze({
     CASH_ON_DELIVERY: 'CashOnDelivery'
   },
 
+  PAYMENT_CHANNELS: {
+    QRPH: 'QRPH',
+    GCASH: 'GCASH',
+    MAYA: 'MAYA',
+    CARD: 'CARD'
+  },
+
   PAYMENT_STATUS: {
     PENDING: 'Pending',
     COMPLETED: 'Completed'
@@ -99,6 +117,7 @@ export const APP_CONSTANTS = Object.freeze({
     AUTH_TOKEN: 'hc_auth_token',
     USER_PROFILE: 'hc_user_profile',
     CART_ITEMS: 'hc_cart_items',
+    BUY_NOW_ITEM: 'hc_buy_now_item',
     FAVORITES_ITEMS: 'hc_favorites_items',
     CART_PROMO: 'hc_cart_promo',
     SEARCH_HISTORY: 'hc_search_history',
@@ -132,6 +151,7 @@ export const APP_CONSTANTS = Object.freeze({
     ADMIN_REPORTS: '/Pages/Admin/Reports/Reports.aspx',
     ADMIN_USERS: '/Pages/Admin/Users/Users.aspx',
     ADMIN_REVIEWS: '/Pages/Admin/Reviews/Reviews.aspx',
+    ADMIN_RETURNS: '/Pages/Admin/Returns/Returns.aspx',
     ADMIN_PAYMENTS: '/Pages/Admin/Payments/Payments.aspx'
   }
 });

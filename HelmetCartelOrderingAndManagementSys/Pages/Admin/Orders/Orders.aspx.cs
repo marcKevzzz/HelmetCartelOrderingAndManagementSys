@@ -37,7 +37,39 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (!IsPostBack)
+            if (IsPostBack)
+            {
+                string eventTarget = Request["__EVENTTARGET"];
+                string eventArg = Request["__EVENTARGUMENT"];
+                if (!string.IsNullOrEmpty(eventTarget) && eventTarget.EndsWith("rptOrders") && !string.IsNullOrEmpty(eventArg))
+                {
+                    var parts = eventArg.Split('$');
+                    if (parts.Length >= 2 && int.TryParse(parts[1], out int orderId))
+                    {
+                        string targetStatus = parts[0];
+                        RegisterAsyncTask(new PageAsyncTask(async () =>
+                        {
+                            try
+                            {
+                                await _adminRepo.UpdateOrderStatusAsync(orderId, targetStatus).ConfigureAwait(false);
+                                try
+                                {
+                                    var orderHub = Microsoft.AspNet.SignalR.GlobalHost.ConnectionManager.GetHubContext<Hubs.OrderHub>();
+                                    orderHub.Clients.All.orderUpdated(new { orderId = orderId, status = targetStatus });
+                                }
+                                catch { }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Trace.TraceError($"Failed to update order status: {ex.Message}");
+                            }
+                            await LoadOrdersDataAsync().ConfigureAwait(false);
+                        }));
+                        return;
+                    }
+                }
+            }
+            else
             {
                 if (!string.IsNullOrEmpty(Request.QueryString["status"]))
                 {
@@ -200,44 +232,36 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         {
             if (source == "INSTORE_POS")
             {
-                return "<span class=\"admin-badge admin-badge--role-staff\">POS Counter</span>";
+                return "<span class=\"admin-badge\">POS Counter</span>";
             }
-            return "<span class=\"admin-badge admin-badge--role-customer\">Online Store</span>";
+            return "<span class=\"admin-badge\">Online Store</span>";
+        }
+
+        protected string RenderDeliveryCell(string shippingMethod, string shippingRegion, string courier, string trackingNumber)
+        {
+            if (string.Equals(shippingMethod, "Delivery", StringComparison.OrdinalIgnoreCase))
+            {
+                return "<span>Delivery</span>";
+            }
+            return "<span>Store Pickup</span>";
         }
 
         protected string RenderFulfillmentCell(string shippingMethod, string shippingRegion, string courier, string trackingNumber)
         {
-            if (string.Equals(shippingMethod, "Delivery", StringComparison.OrdinalIgnoreCase))
-            {
-                var sb = new StringBuilder();
-                sb.Append("<div class=\"admin-variant-cell\">");
-                sb.Append("<span class=\"admin-badge admin-badge--ready\">Delivery</span>");
-                if (!string.IsNullOrWhiteSpace(shippingRegion))
-                {
-                    sb.Append($"<span class=\"admin-cell-mono-muted admin-cell-contacts\">{Server.HtmlEncode(shippingRegion)}</span>");
-                }
-                if (!string.IsNullOrWhiteSpace(courier))
-                {
-                    sb.Append($"<span class=\"admin-activity-time admin-cell-contacts\">{Server.HtmlEncode(courier)}: {Server.HtmlEncode(trackingNumber ?? "N/A")}</span>");
-                }
-                sb.Append("</div>");
-                return sb.ToString();
-            }
-
-            return "<div class=\"admin-variant-cell\"><span class=\"admin-badge admin-badge--pending\">Pickup</span><span class=\"admin-cell-mono-muted admin-cell-contacts\">Flagship Hub (QC)</span></div>";
+            return RenderDeliveryCell(shippingMethod, shippingRegion, courier, trackingNumber);
         }
 
         protected string RenderPaymentBadge(string paymentStatus, string paymentMethod)
         {
             if (paymentStatus == "Completed")
             {
-                return "<span class=\"admin-badge admin-badge--in-stock\">Paid</span>";
+                return "<span>Paid</span>";
             }
             if (string.Equals(paymentMethod, "CashOnDelivery", StringComparison.OrdinalIgnoreCase))
             {
-                return "<span class=\"admin-badge admin-badge--role-staff\">COD Pending</span>";
+                return "<span>COD Pending</span>";
             }
-            return "<span class=\"admin-badge admin-badge--pending\">Pending</span>";
+            return "<span>Pending</span>";
         }
 
         protected string RenderStatusBadge(string status)
@@ -249,11 +273,11 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 case "ReadyForPickup":
                     return "<span class=\"admin-badge admin-badge--ready\">Ready for Pickup</span>";
                 case "Shipped":
-                    return "<span class=\"admin-badge admin-badge--role-staff\">In Transit / Shipped</span>";
+                    return "<span class=\"admin-badge admin-badge--shipped\">In Transit</span>";
                 case "Delivered":
-                    return "<span class=\"admin-badge admin-badge--in-stock\">Delivered</span>";
+                    return "<span class=\"admin-badge admin-badge--delivered\">Delivered</span>";
                 case "Processing":
-                    return "<span class=\"admin-badge admin-badge--processing\">Processing</span>";
+                    return "<span class=\"admin-badge admin-badge--processing\">Preparing Order</span>";
                 case "PendingPayment":
                     return "<span class=\"admin-badge admin-badge--pending\">Pending Payment</span>";
                 case "Cancelled":
@@ -276,24 +300,25 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 {
                     return $"<button type=\"button\" onclick=\"openDispatchModal({orderId}, '{safeOrderNo}', '{safeCustomer}', '{safeCity}'); return false;\" class=\"btn-pill-sm btn-pill--primary\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"1\" y=\"3\" width=\"15\" height=\"13\"></rect><polygon points=\"16 8 20 8 23 11 23 16 16 16 16 8\"></polygon><circle cx=\"5.5\" cy=\"18.5\" r=\"2.5\"></circle><circle cx=\"18.5\" cy=\"18.5\" r=\"2.5\"></circle></svg><span>Dispatch</span></button>";
                 }
-                return $"<button type=\"submit\" name=\"ctl00$MainContent$rptOrders$ctl{orderId}$btnAct\" data-admin-confirm=\"true\" data-confirm-title=\"Mark order ready\" data-confirm-message=\"Move this order to Ready for Pickup?\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','ReadyForPickup${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--primary\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg><span>Mark Ready</span></button>";
+                return $"<button type=\"button\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','ReadyForPickup${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--primary\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg><span>Mark Ready</span></button>";
             }
             if (status == "ReadyForPickup")
             {
-                return $"<button type=\"submit\" name=\"ctl00$MainContent$rptOrders$ctl{orderId}$btnAct\" data-admin-confirm=\"true\" data-confirm-title=\"Complete order\" data-confirm-message=\"Mark this order as collected by customer?\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','Completed${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--outline\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"></path><polyline points=\"22 4 12 14.01 9 11.01\"></polyline></svg><span>Collected</span></button>";
+                return $"<button type=\"button\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','Completed${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--outline\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"></path><polyline points=\"22 4 12 14.01 9 11.01\"></polyline></svg><span>Collected</span></button>";
             }
             if (status == "Shipped")
             {
                 bool isCod = string.Equals(paymentMethod, "CashOnDelivery", StringComparison.OrdinalIgnoreCase);
-                string confirmMsg = isCod
-                    ? $"Confirm parcel handover and collection of Cash on Delivery payment (&#8369;{totalAmount:N2})? Payment will be marked Paid and order marked Delivered."
-                    : "Mark this parcel as successfully delivered by the courier?";
+                if (isCod)
+                {
+                    return $"<button type=\"button\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','Completed${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--primary\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"></path><polyline points=\"22 4 12 14.01 9 11.01\"></polyline></svg><span>Mark Fulfilled</span></button>";
+                }
 
-                return $"<button type=\"submit\" name=\"ctl00$MainContent$rptOrders$ctl{orderId}$btnAct\" data-admin-confirm=\"true\" data-confirm-title=\"Mark Delivered\" data-confirm-message=\"{confirmMsg}\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','Delivered${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--primary\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg><span>Mark Delivered</span></button>";
+                return $"<button type=\"button\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','Delivered${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--primary\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg><span>Mark Delivered</span></button>";
             }
             if (status == "Delivered")
             {
-                return $"<button type=\"submit\" name=\"ctl00$MainContent$rptOrders$ctl{orderId}$btnAct\" data-admin-confirm=\"true\" data-confirm-title=\"Finalize order\" data-confirm-message=\"Finalize this delivered order as completed?\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','Completed${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--outline\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"></path><polyline points=\"22 4 12 14.01 9 11.01\"></polyline></svg><span>Finalize</span></button>";
+                return $"<button type=\"button\" onclick=\"__doPostBack('ctl00$MainContent$rptOrders','Completed${orderId}'); return false;\" class=\"btn-pill-sm btn-pill--outline\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"></path><polyline points=\"22 4 12 14.01 9 11.01\"></polyline></svg><span>Finalize</span></button>";
             }
             return "<span class=\"admin-activity-time\">&mdash;</span>";
         }

@@ -61,11 +61,12 @@ namespace HelmetCartelOrderingAndManagementSys.Services
             try
             {
                 var inv = await _inventoryRepository.GetInventoryByVariantIdAsync(variantId).ConfigureAwait(false);
-                InventoryHub.BroadcastStockUpdate(variantId, inv?.SKU ?? "N/A", newStock,
+                var availableStock = inv?.AvailableStock ?? Math.Max(0, newStock);
+                InventoryHub.BroadcastStockUpdate(variantId, inv?.SKU ?? "N/A", availableStock,
                     inv?.IsLowStock ?? false, changeType);
                 if (inv != null && inv.IsLowStock)
-                    InventoryHub.BroadcastLowStockAlert(inv.InventoryId, inv.SKU, newStock,
-                        newStock == 0 ? "CRITICAL_ZERO" : "LOW_STOCK");
+                    InventoryHub.BroadcastLowStockAlert(inv.InventoryId, inv.SKU, availableStock,
+                        availableStock == 0 ? "CRITICAL_ZERO" : "LOW_STOCK");
             }
             catch (Exception ex) { System.Diagnostics.Trace.TraceWarning($"Committed stock notification failed: {ex}"); }
         }

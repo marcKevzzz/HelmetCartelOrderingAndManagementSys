@@ -1,7 +1,7 @@
 <%@ Page Title="My Account & Order Tracking" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Profile.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Pages.ProfilePage" ResponseEncoding="utf-8" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
-    <link rel="stylesheet" href="~/Content/css/storefront/profile.css?v=8" runat="server" />
+    <link rel="stylesheet" href='<%= ResolveUrl("~/Content/css/storefront/profile.css?v=8") %>' />
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
@@ -158,7 +158,7 @@
                             </svg>
                             <h3>No Orders Found</h3>
                             <p>You haven't placed any orders matching this search or filter criteria.</p>
-                            <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx" CssClass="btn btn--primary btn--sm">Explore Catalog</asp:HyperLink>
+                            <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx" CssClass="btn btn--primary btn--sm">Explore Shop</asp:HyperLink>
                         </div>
 
                         <!-- Orders Cards List Container (Dynamically populated with stacking deck images) -->
@@ -499,6 +499,104 @@
         </div>
     </div>
 
+    <!-- 6. Order Cancellation Confirmation Modal -->
+    <div id="profileCancelOrderModal" class="admin-modal-backdrop is-hidden" hidden role="dialog" aria-modal="true" aria-labelledby="profileCancelOrderTitle">
+        <div class="admin-modal admin-modal--confirm">
+            <div class="admin-modal-icon-circle admin-modal-icon-circle--danger">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+            </div>
+            <h3 class="admin-modal-title" id="profileCancelOrderTitle">Cancel Order</h3>
+            <p class="admin-modal-desc-subtle" id="profileCancelOrderDesc">
+                Are you sure you want to cancel order <strong id="cancel-order-num-text"></strong>? Any reserved stock will be immediately released back into inventory.
+            </p>
+            <div class="form-group cancel-reason-wrap">
+                <label for="cancel-order-reason-select" class="form-label">Reason for cancellation *</label>
+                <select id="cancel-order-reason-select" class="form-input">
+                    <option value="Changed mind / found alternative">Changed mind / found alternative</option>
+                    <option value="Ordered wrong helmet size / color">Ordered wrong helmet size / color</option>
+                    <option value="Delivery address error">Delivery address error</option>
+                    <option value="Payment method issue">Payment method issue</option>
+                    <option value="Duplicate order placed">Duplicate order placed</option>
+                    <option value="Other">Other reason</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="cancel-order-notes" class="form-label">Additional Comments (Optional)</label>
+                <textarea id="cancel-order-notes" class="form-input" rows="2" placeholder="Details about why you are cancelling..."></textarea>
+            </div>
+            <div id="profileCancelOrderError" class="auth-error-msg is-hidden"></div>
+            <div class="admin-modal-footer">
+                <button type="button" class="btn btn--outline btn--sm" id="btnDismissCancelOrder">Keep Order</button>
+                <button type="button" class="btn btn--danger btn--sm" id="btnConfirmCancelOrder">Confirm Cancellation</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. Order Return & Exchange Modal -->
+    <div id="profileRmaModal" class="receipt-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="profileRmaTitle">
+        <div class="receipt-modal-container address-modal-container">
+            <div class="receipt-modal-header">
+                <div>
+                    <h3 class="receipt-modal-title" id="profileRmaTitle">Request Return / Exchange</h3>
+                    <p class="receipt-modal-subtitle">Submit a return or exchange request for your delivered order.</p>
+                </div>
+                <button type="button" class="receipt-modal-close" id="btn-close-profile-rma" aria-label="Close RMA modal">&times;</button>
+            </div>
+            <div class="receipt-modal-body address-modal-body">
+                <input type="hidden" id="profile-rma-order-id" value="" />
+                
+                <div class="form-group">
+                    <label for="profile-rma-item-select" class="form-label">Select Item to Return / Exchange *</label>
+                    <select id="profile-rma-item-select" class="form-input" required></select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Request Type *</label>
+                    <div class="rma-radio-group">
+                        <label class="rma-radio-label">
+                            <input type="radio" name="profile-rma-type" value="RETURN" checked />
+                            <span>Return for Refund</span>
+                        </label>
+                        <label class="rma-radio-label">
+                            <input type="radio" name="profile-rma-type" value="EXCHANGE" />
+                            <span>Exchange for Size / Color</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="profile-rma-reason" class="form-label">Reason *</label>
+                    <select id="profile-rma-reason" class="form-input">
+                        <option value="WRONG_SIZE">Wrong Size / Fit Issue</option>
+                        <option value="DEFECTIVE">Defective or Damaged Gear</option>
+                        <option value="NOT_AS_DESCRIBED">Item Not as Described</option>
+                        <option value="CHANGED_MIND">Changed Mind / Unused</option>
+                        <option value="OTHER">Other Reason</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="profile-rma-notes" class="form-label">Details &amp; Explanations</label>
+                    <textarea id="profile-rma-notes" class="form-input" rows="3" placeholder="Provide any details about the fit issue, defect, or preferred replacement..."></textarea>
+                </div>
+
+                <div class="profile-rma-policy-notice">
+                    &#9432; Returned gear must be unridden with factory tags, visor protective film, and original packaging intact.
+                </div>
+
+                <div id="profile-rma-error" class="auth-error-msg is-hidden"></div>
+            </div>
+            <div class="receipt-modal-footer">
+                <button type="button" class="btn btn--outline btn--sm" id="btn-cancel-profile-rma">Cancel</button>
+                <button type="button" class="btn btn--primary btn--sm" id="btn-submit-profile-rma">Submit Request</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Page Specific Script -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/profile.js?v=9") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/profile.js?v=10") %>'></script>
 </asp:Content>

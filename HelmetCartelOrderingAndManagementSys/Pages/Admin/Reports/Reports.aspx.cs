@@ -31,6 +31,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         public string ChartLabelsJson { get; set; } = "[]";
         public string ChartRevenueJson { get; set; } = "[]";
         public string ChartOrdersJson { get; set; } = "[]";
+        public string SalesPerformanceJson { get; set; } = "[]";
 
         public int CurrentDailySalesPage
         {
@@ -197,6 +198,13 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 // Adding 1 day to endDate because SQL sp_AdminSalesDaily uses: PaidAt < @EndDate
                 var sales = await _adminRepo.GetDailySalesAsync(startDate.Date, endDate.Date.AddDays(1)).ConfigureAwait(false);
 
+
+                // Load item-level sales performance data
+                var performanceItems = await _adminRepo.GetSalesPerformanceAsync(startDate.Date, endDate.Date.AddDays(1)).ConfigureAwait(false);
+                SalesPerformanceJson = JsonConvert.SerializeObject(performanceItems);
+
+
+
                 decimal periodRevenue = sales.Sum(s => s.Revenue);
                 int periodOrders = sales.Sum(s => s.PaymentCount);
                 decimal aov = periodOrders > 0 ? (periodRevenue / periodOrders) : 0m;
@@ -289,17 +297,8 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     CurrentDailySalesPage,
                     dailySalesTotalPages);
 
-                // 5. Update UI labels and active badge
-                string rangeSubtitle = $"Performance from {startDate:MMMM dd, yyyy} to {endDate:MMMM dd, yyyy}";
-                litChartSubtitle.Text = Server.HtmlEncode(rangeSubtitle);
+                // 5. Update UI labels
                 litRevenueSubtitle.Text = Server.HtmlEncode($"Settled revenue ({startDate:MMM dd} - {endDate:MMM dd})");
-
-                string badgeText = ActivePreset == "today" ? "Today" :
-                                   ActivePreset == "week" ? "This Week" :
-                                   ActivePreset == "month" ? "This Month" :
-                                   ActivePreset == "30days" ? "Last 30 Days" :
-                                   $"{startDate:MMM dd} - {endDate:MMM dd}";
-                litActiveRangeBadge.Text = Server.HtmlEncode(badgeText);
 
                 UpdatePresetButtons();
             }
@@ -318,7 +317,47 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 ChartLabelsJson = "[]";
                 ChartRevenueJson = "[]";
                 ChartOrdersJson = "[]";
+                SalesPerformanceJson = "[]";
             }
+        }
+
+        private static List<AdminSalesDimensionReportDto> PrepareSalesDimensionReport(
+            IEnumerable<AdminSalesDimensionReportDto> reports)
+        {
+            var list = reports?.ToList() ?? new List<AdminSalesDimensionReportDto>();
+            int topUnits = list.Count == 0 ? 0 : list.Max(report => report.UnitsSold);
+            decimal topRevenue = list.Count == 0 ? 0m : list.Max(report => report.Revenue);
+
+            foreach (var report in list)
+            {
+                report.IsTopSeller = topUnits > 0 && report.UnitsSold == topUnits;
+                report.IsTopRevenue = topRevenue > 0m && report.Revenue == topRevenue;
+            }
+
+            return list
+                .OrderByDescending(report => report.UnitsSold)
+                .ThenByDescending(report => report.Revenue)
+                .ThenBy(report => report.DimensionName)
+                .ToList();
+        }
+
+        private static string BuildSalesWinnerSummary(string dimensionLabel, IEnumerable<AdminSalesDimensionReportDto> reports)
+        {
+            var list = reports?.ToList() ?? new List<AdminSalesDimensionReportDto>();
+            if (list.Count == 0) return "No completed sales in the selected period.";
+
+            var topSeller = list.FirstOrDefault(report => report.IsTopSeller);
+            var topRevenue = list.FirstOrDefault(report => report.IsTopRevenue);
+            if (topSeller == null) return "No completed sales in the selected period.";
+            string label = HttpUtility.HtmlEncode(dimensionLabel);
+            string summary = $"Top {label} by units: <strong>{HttpUtility.HtmlEncode(topSeller.DimensionName)}</strong> &mdash; {topSeller.UnitsSold:N0} units sold";
+
+            if (topRevenue != null && !string.Equals(topRevenue.DimensionName, topSeller.DimensionName, StringComparison.OrdinalIgnoreCase))
+            {
+                summary += $" <span class=\"admin-sales-winner-secondary\">Top revenue: <strong>{HttpUtility.HtmlEncode(topRevenue.DimensionName)}</strong> &mdash; &#8369;{topRevenue.Revenue:N2}</span>";
+            }
+
+            return summary;
         }
 
         private void UpdatePresetButtons()
@@ -463,23 +502,55 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             RegisterAsyncTask(new PageAsyncTask(async () =>
             {
                 var brandReport = await _adminRepo.GetInventoryReportAsync().ConfigureAwait(false);
+                TryGetSelectedReportDates(out DateTime startDate, out DateTime endDate);
+                var salesBreakdown = await _adminRepo.GetSalesByBrandAndCategoryAsync(
+                    startDate.Date, endDate.Date.AddDays(1)).ConfigureAwait(false);
+                var brandSales = PrepareSalesDimensionReport(salesBreakdown.Brands);
+                var categorySales = PrepareSalesDimensionReport(salesBreakdown.Categories);
                 var sb = new StringBuilder();
+                sb.AppendLine("Sales report period");
+                sb.AppendLine($"{startDate:yyyy-MM-dd} to {endDate:yyyy-MM-dd}");
+                sb.AppendLine();
+                sb.AppendLine("Sales by brand");
+                sb.AppendLine("Brand,UnitsSold,OrderCount,Revenue,AverageUnitPrice,TopSeller,TopRevenue");
+
+                foreach (var sale in brandSales)
+                {
+                    sb.AppendLine($"{Csv(sale.DimensionName)},{sale.UnitsSold},{sale.OrderCount},{sale.Revenue:N2},{sale.AverageUnitPrice:N2},{sale.IsTopSeller},{sale.IsTopRevenue}");
+                }
+
+                sb.AppendLine();
+                sb.AppendLine("Sales by category");
+                sb.AppendLine("Category,UnitsSold,OrderCount,Revenue,AverageUnitPrice,TopSeller,TopRevenue");
+
+                foreach (var sale in categorySales)
+                {
+                    sb.AppendLine($"{Csv(sale.DimensionName)},{sale.UnitsSold},{sale.OrderCount},{sale.Revenue:N2},{sale.AverageUnitPrice:N2},{sale.IsTopSeller},{sale.IsTopRevenue}");
+                }
+
+                sb.AppendLine();
+                sb.AppendLine("Brand inventory");
                 sb.AppendLine("Brand,VariantCount,OnHandStock,AvailableStock,LowStockCount");
 
                 foreach (var b in brandReport)
                 {
-                    sb.AppendLine($"\"{b.Brand}\",{b.VariantCount},{b.OnHandStock},{b.AvailableStock},{b.LowStockCount}");
+                    sb.AppendLine($"{Csv(b.Brand)},{b.VariantCount},{b.OnHandStock},{b.AvailableStock},{b.LowStockCount}");
                 }
 
                 Response.Clear();
                 Response.Buffer = true;
-                Response.AddHeader("content-disposition", "attachment;filename=HelmetCartel_Brand_Inventory_Report.csv");
+                Response.AddHeader("content-disposition", "attachment;filename=HelmetCartel_Sales_and_Inventory_Report.csv");
                 Response.Charset = "utf-8";
                 Response.ContentType = "text/csv";
                 Response.Output.Write(sb.ToString());
                 Response.Flush();
                 Response.End();
             }));
+        }
+
+        private static string Csv(string value)
+        {
+            return $"\"{(value ?? string.Empty).Replace("\"", "\"\"")}\"";
         }
     }
 }

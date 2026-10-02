@@ -58,16 +58,10 @@ namespace HelmetCartelOrderingAndManagementSys.Services
                 {
                     var orderResult = await _orderRepository.CreateOrderAsync(request, orderNumber, AppConstants.OrderSources.Online, userId).ConfigureAwait(false);
 
-                    // Atomic stock deduction for committed orders
-                    foreach (var item in request.Items)
-                    {
-                        var deduction = await _inventoryService.ProcessSaleDeductionAsync(item.VariantId, item.Quantity, userId, AppConstants.StockAuditChangeType.OnlineSale, orderNumber).ConfigureAwait(false);
-                        if (!deduction.Success)
-                        {
-                            return ApiResponse<OrderSummaryDto>.Fail(deduction.Message, AppConstants.ErrorCodes.InsufficientStock);
-                        }
-                    }
-
+                    // CreateOrderAsync reserves the requested quantity atomically. Cash pickup and
+                    // COD are not completed sales yet, so do not deduct CurrentStock here. The
+                    // reservation is converted to a sale when the order is fulfilled and payment
+                    // is recorded by the order-status stored procedure.
                     await NotifySafelyAsync(() => BroadcastCommittedStockAsync(request.Items, AppConstants.StockAuditChangeType.OnlineSale)).ConfigureAwait(false);
                     NotifySafely(() => OrderHub.NotifyNewOrder(orderResult));
 
@@ -84,20 +78,12 @@ namespace HelmetCartelOrderingAndManagementSys.Services
 
                 if (isSimulation)
                 {
-                    // Instant payment simulation: mark as paid & processing, deduce stock, and notify hubs
-                    var simGatewayRef = $"SIM-{Guid.NewGuid().ToString("N").Substring(0, 12).ToUpperInvariant()}";
-                    var confirmed = await _orderRepository.ConfirmHitPayOrderAsync(orderNumber, simGatewayRef).ConfigureAwait(false);
-                    if (confirmed)
-                    {
-                        // Note: dbo.sp_ConfirmHitPayOrder ALREADY performs atomic stock deduction in MSSQL via UPDLOCK, ROWLOCK.
-                        // We ONLY broadcast the updated stock levels over SignalR here, do NOT deduct twice!
-                        await NotifySafelyAsync(() => BroadcastCommittedStockAsync(request.Items, AppConstants.StockAuditChangeType.OnlineSale)).ConfigureAwait(false);
-                        order.PaymentStatus = AppConstants.PaymentStatus.Completed;
-                        order.Status = AppConstants.OrderStatus.Processing;
-                        NotifySafely(() => OrderHub.NotifyOrderStatusChanged(order.Id, orderNumber, AppConstants.OrderStatus.Processing));
-                        NotifySafely(() => OrderHub.NotifyNewOrder(order));
-                        return ApiResponse<OrderSummaryDto>.Ok(order, "Order placed and payment simulated successfully (Simulation Mode).");
-                    }
+                    // Interactive simulation mode: Return order as PendingPayment so the customer can interact with the simulation modal
+                    order.PaymentStatus = AppConstants.PaymentStatus.Pending;
+                    order.Status = AppConstants.OrderStatus.PendingPayment;
+                    order.CheckoutUrl = null;
+                    NotifySafely(() => OrderHub.NotifyNewOrder(order));
+                    return ApiResponse<OrderSummaryDto>.Ok(order, "Order created in Simulation Mode. Ready for simulated payment.");
                 }
 
                 // 2. Generate HitPay payment checkout link for online e-wallet / card payments
@@ -155,9 +141,9 @@ namespace HelmetCartelOrderingAndManagementSys.Services
                 var stock = await _inventoryService.GetStockByVariantAsync(item.VariantId).ConfigureAwait(false);
                 if (stock != null)
                 {
-                    InventoryHub.BroadcastStockUpdate(item.VariantId, stock.SKU, stock.CurrentStock, stock.IsLowStock, source);
+                    InventoryHub.BroadcastStockUpdate(item.VariantId, stock.SKU, stock.AvailableStock, stock.IsLowStock, source);
                     if (stock.IsLowStock)
-                        InventoryHub.BroadcastLowStockAlert(stock.InventoryId, stock.SKU, stock.CurrentStock, "Low");
+                        InventoryHub.BroadcastLowStockAlert(stock.InventoryId, stock.SKU, stock.AvailableStock, "Low");
                 }
             }
         }

@@ -1,5 +1,224 @@
 # AI Change Log & Architectural Evolution: Helmet Cartel
 
+## [2026-10-02] — OrderDetail Layout Overhaul, Orders Table Simplification, Return/Exchange Modal Fix, Dashboard Velocity Timeframe & Sales Performance Analytics
+
+- **Admin OrderDetail Visual Layout & Architecture Overhaul (`OrderDetail.aspx` & `OrderDetail.aspx.cs`):**
+  - **Streamlined 4-Card Status Strip:** Configured the top KPI cards to display:
+    1. **Delivery** (Plain text: "Delivery" / "Store Pickup", destination city subtext)
+    2. **Payment** (Plain text: "Paid" / "Pending" / "COD Pending", gateway subtext)
+    3. **Order Status** (Status badge pill)
+    4. **Date** (Formatted order placement date & time)
+  - **Structured 2-Column Workspace:**
+    - Left column: Detailed ordered items table with product thumbnail, name, color, size badge, SKU, unit price, quantity badge, and line total, followed by Financial Summary and Delivery Instructions/Notes.
+    - Right column: Stacked cards for Customer & Contact Information, Delivery & Logistics Details (destination address, shipping region, courier partner, tracking number), Payment Record, and Dispatch Modal.
+  - **Zero Inline Styles Compliance:** Replaced all inline styles with semantic CSS classes adhering strictly to the Shop.co / Helmet Cartel design system tokens.
+
+- **Orders Table Simplification (`Orders.aspx` & `Orders.aspx.cs`):**
+  - Converted Delivery and Payment table cells to clean, normal text (removing pill badges) for greater scannability.
+  - Reduced redundant customer contact columns (email/phone) from the table view, routing deep inspection to `OrderDetail.aspx?id={orderId}`.
+
+- **Storefront Return & Exchange Modal Fix (`Profile.aspx`, `profile.js`, `track-order.js`):**
+  - Fixed issue where clicking "Return / Exchange" resulted in no action.
+  - Removed conflicting `.is-hidden` CSS class from `#profileRmaModal`.
+  - Updated `openRmaModal` to open the modal immediately on click (`is-open` and `modal-open`), preloading order items asynchronously without UI delay.
+  - Updated order status eligibility in both `Profile.aspx` and `TrackOrder.aspx` to support both `Completed` and `Delivered` orders.
+
+- **Dashboard Revenue & Order Velocity Timeframe Switcher (`Dashboard.aspx`, `Dashboard.aspx.cs`, `dashboard.js`):**
+  - Added interactive timeframe tabs (`Day`, `Week`, `Month`) directly in the chart card header.
+  - Created `dbo.sp_AdminSalesHourly` (Migration 30) providing a 24-hour hourly revenue breakdown for today.
+  - Pre-calculated and passed `Day`, `Week`, and `Month` velocity datasets into `data-*` attributes, allowing instant client-side switching and animation.
+
+- **Sales Performance Analytics Razor-Sharp Vector Graph & Monochrome Overhaul (`Reports.aspx`, `reports.js`, `admin.css`):**
+  - **Complete Elimination of Canvas Blurriness (Native DOM/Vector Graphics):**
+    - Replaced the raster `<canvas>` rendering engine with a 100% vector-based HTML/CSS layout.
+    - Native OS DirectWrite/FreeType text rendering guarantees crystal-clear, zero-blur text and tick labels on every screen scale (100%, 125%, 150%, 200%, Retina, and 4K displays).
+  - **Strictly Top 5 (Removed `topTabs`):**
+    - Eliminated the `Top 5 / 10 / 20` segmented tabs limit switcher (`#topTabs`) per requirements.
+    - Slices strictly to the **Top 5** ranking entities across all dimensions.
+  - **Retained Interactive Dimension & Metric Filters:**
+    - **Dimension View:** `Item` (Helmet models), `Brand` (Aggregated brands), and `Category` (Aggregated riding styles).
+    - **Metric View:** `Units Sold` (Volume), `Revenue` (`₱` settlement amount), and `Orders` (Transaction count).
+  - **Monochrome Black & White Palette (Matching Reference Image):**
+    - Top #1 rank rendered in solid deep black (`#18181B`).
+    - Subsequent ranks (#2 to #5) rendered in soft neutral monochrome gray (`#E4E4E7`).
+    - Values formatted and placed directly adjacent to the tip of each horizontal bar in bold `#18181B`.
+    - Subtle vertical dashed grid lines extending upwards from numeric bottom X-axis ticks.
+    - Solid vertical Y-axis baseline border with right-aligned product labels.
+
+
+- **Order Cancellation Bug Fix & Stock Restoration (Migration 29 / `sp_CustomerCancelOrder`):**
+  - **Payment Check Constraint:** Fixed `CK_Payments_Status` check constraint on `dbo.Payments` to include `N'Cancelled'`. Previously, cancelling an order threw `500/400 Conflict with CK_Payments_Status`.
+  - **Stock Restoration Logic:** In `dbo.sp_CustomerCancelOrder`, if an order was paid (`Status = 'Processing'`), the previously decremented `CurrentStock` is now atomically restored (`inv.CurrentStock + oi.Quantity`), and an audit log with `ChangeType = 'RESTOCK'` is recorded. If unpaid (`PendingPayment`), reserved stock is released.
+  - **Payment Status Update:** Payments are marked `Refunded` for completed payments and `Cancelled` for pending payments.
+
+- **Analytics "Completed Orders" Scope Isolation (Migration 29):**
+  - Fixed `dbo.sp_AdminSalesReport`, `dbo.sp_AdminSalesDaily`, and `dbo.sp_AdminSalesByBrandAndCategory` to strictly filter by `o.Status IN (N'Completed', N'Delivered')`.
+  - Paid orders still in `Processing` (Preparing Order) are no longer counted as "Completed Orders" or final revenue until they are collected or delivered.
+
+- **Activity Feed Encoding & 8-Hour Timezone Discrepancy Fix (`Dashboard.aspx.cs`):**
+  - **Character Encoding:** Replaced raw unicode bullet characters with clean `&bull;` in `sp_AdminRecentActivity` and sanitized `â€¢` / `•` in `FormatActivityDetail`.
+  - **Timezone Normalization:** Fixed `FormatActivityTime` in `Dashboard.aspx.cs`. UTC database timestamps parsed as `DateTimeKind.Unspecified` were previously misidentified as local time by `.ToUniversalTime()`, subtracting 8 hours a second time and displaying "8h ago" instead of "just now". Explicitly specified `DateTimeKind.Utc` and formatted relative age accurately.
+
+- **Dedicated Admin Order Detail View (`OrderDetail.aspx` & `OrderDetail.aspx.cs`):**
+  - Added a "View" action button with eye icon in `Orders.aspx` linking to `OrderDetail.aspx?id={orderId}`.
+  - Built comprehensive `OrderDetail.aspx` page showing:
+    - Customer details: full name, email, phone number.
+    - Delivery details: delivery method (Store Pickup vs. Door-to-Door Delivery), complete destination address, courier partner, tracking number, and delivery notes.
+    - Items itemization table: product thumbnail, name, brand, SKU, color, size, unit price, quantity, and line total.
+    - Financial summary: items subtotal, delivery fee, discount amount, and total amount.
+    - Payment information: gateway / channel and live payment status.
+    - Operational state transitions: Dispatch modal (for courier delivery), Mark Ready for Pickup, Mark Collected, Mark Delivered, and Finalize Order.
+
+- **Variant Stock Limits & Out-of-Stock Handling:**
+  - **Shop / Product Detail (`product-detail.js` & `storefront.css`):**
+    - Size pills for variants with 0 stock are visually struck through and disabled (`.is-out-of-stock`).
+    - Attempting to click an out-of-stock size triggers a toast informing the customer the size is unavailable.
+    - Quantity stepper max limit is clamped to the selected variant's `availableStock`. "Add to Cart" and "Buy Now" buttons are disabled and labelled "Out of Stock" when inventory is depleted.
+  - **Shopping Cart (`Cart.aspx`, `cart.js`, and `site.js`):**
+    - Items in cart with 0 available stock display an "Out of Stock" badge (`.cart-item__stock-badge--oos`) and disabled steppers.
+    - Checkbox selection for out-of-stock items is disabled and automatically excluded from checkout selection.
+  - **Wishlist / Favorites (`favorites.js`):**
+    - Products in wishlist where all variants are out of stock display an "Out of Stock" badge on the thumbnail card.
+  - **Cart vs. Buy Now Isolation (`checkout.js`):**
+    - Regular cart checkout strictly removes checked-out items via type-safe numeric comparison (`Number(c.variantId) === Number(item.variantId)`).
+    - Buy Now preserves existing cart items untouched, but automatically refreshes cart item stock against the server in the background so depleted items become visibly disabled.
+
+- **Terminology Standardization ("Delivery" over "Fulfillment"):**
+  - Replaced "Fulfillment" with "Delivery" across all customer and admin views (`Cart.aspx`, `Checkout.aspx`, `TrackOrder.aspx`, `Orders.aspx`, `OrderDetail.aspx`, `checkout.js`, `track-order.js`).
+  - Standardized labels to "Delivery Method", "Delivery Fee", "Delivery Address", and "Delivery Status & ETA".
+
+- **Profile Active Tab Persistence (`profile.js`):**
+  - Updated `switchTab(tabName)` to persist active tab selection in `sessionStorage` and sync the URL query string via `window.history.replaceState`.
+  - Upon page reload or navigation, `Profile.aspx` automatically restores the customer's exact active section (Orders, Addresses, Wishlist, Security).
+
+- **System-Wide Status Consistency & Visual Alignment:**
+  - **Status Texts:** Standardized order statuses across storefront (`Profile.aspx`, `TrackOrder.aspx`) and admin dashboard (`Orders.aspx`):
+    - `Processing`: Uniformly displayed as **"Preparing Order"** for both Store Pickup and Door-to-Door Delivery (replacing inconsistent "Waiting for delivery" and "Processing").
+    - `ReadyForPickup`: **"Ready for Pickup"**
+    - `Shipped`: **"In Transit"**
+    - `Delivered`: **"Delivered"**
+    - `Completed`: **"Completed"**
+    - `PendingPayment`: **"Pending Payment"**
+    - `Cancelled`: **"Cancelled"**
+  - **Design & Colors:** Unified pill badge styling, font weight, border-radius, and harmonious color scheme between Admin and Storefront:
+    - `Preparing Order` / `Pending Payment`: Warm Amber (`#FEF3C7` bg, `#92400E` text, `#FDE68A` border)
+    - `Ready for Pickup` / `In Transit`: Indigo (`#EEF2FF` bg, `#4338CA` text, `#C7D2FE` border)
+    - `Delivered` / `Completed`: Soft Emerald (`#ECFDF5` bg, `#047857` text, `#A7F3D0` border)
+    - `Cancelled`: Soft Red (`#FEF2F2` bg, `#B91C1C` text, `#FECACA` border)
+  - **No Icons on Status:** Removed pulsing dots, icons, and glyphs from all status badges to ensure pure, clean text pills.
+
+- **Admin Orders Action Buttons & Direct Execution (`Orders.aspx.cs`):**
+  - Resolved issue where clicking "Mark Ready" popped up a confirmation dialog and failed to execute the status change.
+  - Removed intrusive `data-admin-confirm="true"` popups from operational buttons (`Mark Ready`, `Collected`, `Mark Fulfilled`, `Mark Delivered`, `Finalize`).
+  - Added postback detection in `Orders.aspx.cs` `Page_Load` for `rptOrders` events, executing `_adminRepo.UpdateOrderStatusAsync(orderId, targetStatus)` and triggering real-time SignalR notifications via `OrderHub`.
+
+- **Recent Activity Feed Human-Readable Single-Log Format (`sp_AdminRecentActivity` / Migration 28):**
+  - Consolidated order activities into strictly **1 descriptive log per order** instead of generating a separate cryptic stock log (`... - ONLINE_SALE -1`).
+  - Orders format descriptive, human-readable details: e.g. `Placed order for AGV Red Bull Graphic Full-Face Helmet (Orange Red Graphic, L) x1 • Store Pickup • Paid via HitPay (₱32,990.00)`.
+  - Filtered out `ONLINE_SALE` and `INSTORE_SALE` from `Stock` audit activity so only staff inventory restocks and adjustments appear under Stock movements.
+
+- **Stock In History Clean Isolation (`Inventory.aspx.cs`):**
+  - Excluded sales decrements (`ONLINE_SALE`, `INSTORE_SALE`) from the "Stock In History" tab in Admin Inventory.
+  - Ensured "Stock In History" strictly accounts for inward stock additions and manual adjustments, preventing customer purchases from displaying as `+1 unit` stock additions.
+
+- **Analytics / Reports Revenue & Category Breakdown (Migration 27):**
+  - Created and verified `dbo.sp_AdminSalesByBrandAndCategory` in `HelmetCartelDB`, enabling accurate breakdown of units sold, revenue, and average unit price by certified brand and helmet category.
+
+- **SignalR WebSocket Back-Forward Cache (bfcache) Resilience (`realtime.js`):**
+  - Added `pagehide` and `pageshow` listeners in `realtime.js` to cleanly disconnect SignalR hubs before browser page freezing and reconnect on page restoration, eliminating WebSocket cache drop errors in the browser console.
+
+
+- **Direct Single-Item "Buy Now" Checkout Architecture:**
+  - **Problem Solved:** Previously, clicking "Buy Now" on the Product Detail page (`ProductDetail.aspx`) appended the item to `CartManager` (`localStorage`), incremented the cart badge, and routed to Checkout where all other previously selected items in the user's cart were included in the order.
+  - **Single-Item Isolation:**
+    - Added dedicated storage key `APP_CONSTANTS.STORAGE_KEYS.BUY_NOW_ITEM: 'hc_buy_now_item'` in `Scripts/constants.js`.
+    - Updated `product-detail.js`: "Buy Now" (`#btn-buy-now`) directly packages the selected variant, size, color, quantity, and price into `BUY_NOW_ITEM` storage without calling `CartManager.addItem()` and without modifying the persistent cart or cart badge.
+    - Routes directly to `/Pages/Storefront/Checkout/Checkout.aspx?mode=buynow`.
+  - **Contextualized Checkout Experience (`Checkout.aspx`, `checkout.js`):**
+    - Checkout detects `isBuyNowMode` and calls `getCheckoutItems()`, returning exclusively the single `BUY_NOW_ITEM`. The regular shopping cart is never loaded or mixed into the order.
+    - Order summary sidebar, totals, and review item list calculate and render strictly for that single item.
+    - Contextualized navigation:
+      - Breadcrumb updates from `Home > Cart > Checkout` to `Home > [Product Name] > Checkout`.
+      - Step 1 Back button switches from "Back to Cart" to "Back to Product" (`ProductDetail.aspx?id=...`).
+      - Step 3 Edit link switches from "Edit Cart" to "Change Options" (`ProductDetail.aspx?id=...`).
+    - Order completion clears `BUY_NOW_ITEM` upon success while leaving all items previously in the user's shopping cart completely preserved and untouched.
+
+## [2026-10-02] — Order History Cancel/Return Actions, Real Item Images, HitPay QR Ph Simulation, and Atomic Inventory & COD Fulfillment Standard
+
+- **Storefront Order History Enhancements (`Profile.aspx`, `profile.css`, `profile.js`):**
+  - Removed redundant dropdown info strip (`Fulfillment: ...`, `Payment: ...`, `Destination: ...`) from the order card dropdown footer, as destination and delivery status are already tracked in the dedicated Track Order view.
+  - Replaced with dynamic, state-aware action buttons in `.order-dropdown-secondary-actions`:
+    - **Cancel Order Button:** Conditionally rendered for `PendingPayment` or `Processing` orders prior to dispatch. Triggers `#profileCancelOrderModal`, allowing customers to provide a cancellation reason and confirm.
+    - **Return / Exchange Button:** Conditionally rendered for `Delivered` or `Completed` orders. Triggers `#profileRmaModal`, allowing customers to select specific purchased gear, request type (`RETURN` or `EXCHANGE`), reason, and notes.
+    - Status hint displayed for in-transit orders or cancelled orders with zero inline styles and strict CSS variable tokens.
+- **Order Item & Stacking Deck Image Integrity:**
+  - Resolved root cause of identical black placeholder helmet images appearing across order items in profile history:
+    - Updated `dbo.Products` image references: Shoei RF-1400 Dedicated Helmet (`/Content/images/products/helmets/shoei/images-2.jpg`) and AGV Pista GP RR Carbon Helmet (`/Content/images/products/helmets/agv/pistagprrgc7.webp`).
+    - Added `MainImageUrl` and `ImageUrl` to `OrderItemSummaryDto` and updated `UserRepository.cs` / `dbo.sp_GetUserOrderDetails` to select and map product images to item details.
+    - Enhanced `dbo.sp_GetUserOrders` with `PreviewImages` aggregated via `STRING_AGG(p.MainImageUrl, ';')` and populated `PreviewImageList` in `UserOrderSummaryDto`.
+    - Updated `createStackingDeckHtml` in `profile.js` to immediately render actual product thumbnails from `previewImageList` upon initial render without waiting for accordion expand.
+- **HitPay QR Ph-Only Channel & Minimalist Simulation Modal (`Checkout.aspx`, `checkout.css`, `checkout.js`, `PaymentsController.cs`):**
+  - Updated HitPay payment method selection to strictly feature **QR Ph** (`PaymentChannels.QrPh = "QRPH"` in `AppConstants.cs`), removing extraneous GCash and Maya options.
+  - Redesigned `#payment-simulation-modal` to a clean, focused dialog strictly showing:
+    - Amount to pay (`#sim-order-amount`)
+    - Dynamic QR code frame with scanner beam
+    - Simulated process controls (`#btn-success-sim` and `#btn-fail-sim`)
+    - Modal close button (`#btn-close-sim-modal`)
+    - Completely eliminated extraneous timer widgets, app selectors, and merchant information boxes.
+- **SQL Server QUOTED_IDENTIFIER ON Recompilation (Migration 26):**
+  - **Root Cause:** Encountered `409 Conflict: UPDATE failed because the following SET options have incorrect settings: 'QUOTED_IDENTIFIER'` when calling `dbo.sp_ReserveStockAtomic` during order placement. In MSSQL, tables with indexed views, computed columns, or filtered indexes require `QUOTED_IDENTIFIER ON` at the time stored procedures are created (`sys.sql_modules.uses_quoted_identifier`).
+  - **Resolution:** Created `database/schema/26_fix_quoted_identifiers.sql` with explicit `SET ANSI_NULLS ON;` and `SET QUOTED_IDENTIFIER ON;` directives. Recompiled `dbo.sp_ReserveStockAtomic`, `dbo.sp_CustomerCancelOrder`, `dbo.sp_AdminUpdateOrderStatus`, `dbo.sp_CreateReturnRequest`, and `dbo.sp_GetUserOrders`. Verified via `sys.sql_modules` that zero procedures remain with `uses_quoted_identifier = 0`. Verified order creation via `POST /api/v1/orders` now returns `200 OK`.
+- **Root Favicon 404 Resolution (`favicon.ico`):**
+  - Generated standard binary `favicon.ico` in the application root (`HelmetCartelOrderingAndManagementSys/favicon.ico`) to prevent automatic browser 404 errors.
+  - Linked both `<link rel="icon" type="image/x-icon" href="~/favicon.ico" />` and `<link rel="icon" type="image/svg+xml" href="~/Content/images/favicon.svg" />` in `Site.Master` and `Portal.Master`. Verified HTTP 200 OK on `/favicon.ico`.
+
+## [2026-10-02] — Returns & Exchanges (RMA), Reviews Moderation, Interactive Payment Simulation & Storefront CSS Resolution
+
+- **Storefront CSS 404 Resolution:**
+  - Resolved `storefront.css` and `checkout.css` 404 errors caused by unresolved ASP.NET Web Forms `~/` tildes rendered literally inside `<asp:Content PlaceHolderID="HeadContent">` blocks across storefront pages (`Checkout.aspx`, `Cart.aspx`, `Favorites.aspx`, `Shop.aspx`, `ProductDetail.aspx`, `Default.aspx`, `TrackOrder.aspx`, `Profile.aspx`).
+  - Wrapped page-specific stylesheet links with `<%= ResolveUrl("~/Content/...") %>` and eliminated redundant duplicate `storefront.css` tags. Verified HTTP 200 OK across all storefront assets.
+- **Unified Modal System Design Standards:**
+  - Standardized `.modal-backdrop`, `.modal-dialog`, `.modal-header`, `.modal-body`, `.modal-footer`, `.modal-alert`, `.modal-close-btn` classes in `Content/css/components.css`.
+  - Guaranteed zero inline styles across all dialogs in strict adherence to Rule 5 & Rule 11 of `AGENTS.md`.
+- **Interactive Payment Simulation Module:**
+  - Created `SimulatePaymentRequestDto` in `Models/DTOs/HitPayDTOs.cs` and added `POST /api/v1/payments/simulate` in `Controllers/Api/PaymentsController.cs`.
+  - Implemented interactive checkout payment modal (`#payment-simulation-modal`) in `Checkout.aspx` and `Scripts/storefront/checkout.js` with selectable simulated channels (GCash, Maya, Card, QRPH), testing both successful authorizations (with transactional stock decrement via `ConfirmOnlinePaymentAsync`) and declined simulations (logging failure status in `dbo.Payments` via dedicated stored procedure `dbo.sp_RecordPaymentFailure`).
+- **Customer Reviews & Admin Moderation Module:**
+  - Added Admin Reviews Moderation API: `GET /api/v1/reviews/admin` and `POST /api/v1/reviews/admin/{id}/toggle-visibility` with stored procedures `dbo.sp_AdminGetReviews` and `dbo.sp_AdminToggleReviewVisibility`.
+  - Built responsive Admin Reviews page (`Pages/Admin/Reviews/Reviews.aspx` and `Scripts/admin/reviews.js`) featuring segmented status filter tabs (`All`, `Flagged / Reported`, `Published`, `Hidden`), live search, inspect dialog, and instant hide/unhide toggling.
+  - Verified storefront star ratings, report dialog (`#report-review-modal`), and new review submission (`#write-review-modal`) in `ProductDetail.aspx` and `Scripts/storefront/product-detail.js`.
+- **Returns & Exchanges (RMA) Module:**
+  - **Database Architecture (Migration 25):** Created `dbo.ReturnRequests` table and stored procedures `dbo.sp_CreateReturnRequest`, `dbo.sp_GetCustomerReturnRequests`, `dbo.sp_AdminGetReturnRequests`, and `dbo.sp_AdminProcessReturnRequest`.
+  - **Concurrency & ACID Inventory Safety:** Enforced atomic stock restock in `dbo.sp_AdminProcessReturnRequest` with `UPDLOCK, ROWLOCK` on `dbo.Inventories`, recording an audit entry in `dbo.StockAuditLogs` with `ChangeType = 'RETURN'`, serialized with the unique RMA reference number.
+  - **Backend Layer:** Created `ReturnRequest.cs`, `ReturnRequestDtos.cs`, `IReturnRepository.cs`, `ReturnRepository.cs`, and `ReturnsController.cs` (`POST /api/v1/returns`, `GET /api/v1/returns/order/{orderId}`, `GET /api/v1/admin/returns`, `POST /api/v1/admin/returns/{id}/process`).
+  - **Storefront Tracking & RMA Submission:** Added item-level Return/Exchange triggers and standardized `#customer-rma-modal` to `Pages/Storefront/TrackOrder/TrackOrder.aspx` and `Scripts/storefront/track-order.js` for completed orders.
+  - **Admin RMA Management:** Integrated "Returns / RMA" into `Pages/Admin/Portal.master` sidebar; built `Pages/Admin/Returns/Returns.aspx` and `Scripts/admin/returns.js` with status tabs, search debounce, and a comprehensive RMA Decision modal.
+- **Verification:**
+  - Full project compiled via MSBuild (`0 Warning(s)`, `0 Error(s)`).
+  - Runtime end-to-end API and database test verified: created RMA `RMA-202610020001`, processed with restock, verified `dbo.Inventories.CurrentStock` incremented from 14 to 15, and verified `dbo.StockAuditLogs` logged `ChangeType = 'RETURN'`.
+
+## [2026-10-02] — Remove redundant Users.FullName
+
+- Added migration 24 to drop Users.FullName after updating active-only global search to derive the name from FirstName/LastName. Existing DTO FullName result aliases remain compatible. Added a dependency guard, migration-range support in the backed-up upgrade runner, and fresh-setup inclusion.
+- Audited table columns and documented normalization boundaries in database/schema/NORMALIZATION.md. Preserve historical transaction/review/payment facts, address-specific recipients, and SQL computed expressions supporting constraints/indexes; repeated values alone do not demonstrate a 3NF violation.
+- Applied migration 24 after a new checksum-verified backup. Verified the column is absent, no direct u.FullName references remain, and login/profile/admin users/search/address/dashboard procedures execute successfully.
+
+## [2026-10-02] — Cross-Device Environment Synchronization & IIS Express 500.19 (0x80070003) Resolution
+
+- **Root Cause Identification:** Resolved IIS Express `HTTP Error 500.19 (0x80070003 - Path Not Found)` caused by machine-specific paths committed to Git (`.vs/.../applicationhost.config` pointing to `C:\Users\QCU\...` when pulled on a device with user `Admin`).
+- **Immediate Fix Verified:** Corrected `physicalPath` in `.vs/HelmetCartelOrderingAndManagementSys.slnx/config/applicationhost.config` to match the local repository path. Restarted IIS Express and verified runtime `200 OK` on both `http://localhost:61909/` and `https://localhost:44359/`.
+- **Permanent Cross-Device Git Hygiene:**
+  - Updated `.gitignore` to strictly exclude `.vs/`, `*.user`, `*.suo`, `[Bb]in/`, and `[Oo]bj/`, preventing machine-specific paths and compiled binaries from leaking between devices.
+  - Untracked `.vs/`, `bin/`, and `obj/` from git index (`git rm -r --cached`) so pull/push operations across different machines never overwrite local directory paths or lock compiled binaries.
+  - Created `Start-DevServer.ps1` helper script that dynamically inspects and auto-syncs `applicationhost.config` to the current local repository folder before starting IIS Express on any workstation.
+
+## [2026-10-02] — Safe upgrade through migration 23
+
+- Hardened migration 22: removed the invented phone-number backfill, validate normalized duplicates, preserve unknown legacy phones using a filtered unique index, and retain FullName as a computed compatibility column. Validate existing name equivalence before conversion.
+- Preserve address-specific recipient/contact columns across migrations 22–23; widen existing address phone fields to support the latest procedure contract without narrowing existing values.
+- Updated fresh-database generation through migration 23, placing these migrations after legacy sample seeding. Added Update-LatestSchema.ps1 with rollback-only validation, a unique COPY_ONLY/CHECKSUM backup, RESTORE VERIFYONLY, and transactional migration application.
+- Applied migrations 18–23 to the configured HelmetCartelDB after verified backup. Build passed; login/profile/orders/payments/addresses/admin/dashboard/multi-brand procedure checks and rollback-only recipient-contact write checks passed. One legacy missing phone remains unknown until the account owner supplies a real number.
+
 ## [2026-10-01] — Modular Directory Restructuring, Zero-Inline Script/Style Decoupling & Legacy 301 Routing
 
 - **Zero-Inline JavaScript & CSS Mandate Achieved:**
@@ -956,3 +1175,16 @@ This file maintains a historical ledger of major architectural decisions, direct
 - Updated `Scripts/site.js` and `Scripts/storefront/storefront.js` DOM selectors to seamlessly support both kebab-case and camelCase control IDs.
 - Validated via MSBuild (0 errors, 0 warnings) and verified live HTTP 200 responses across all storefront endpoints on IIS Express.
 
+## [2026-10-02] — Brand and category sales reporting
+
+- Added `dbo.sp_AdminSalesByBrandAndCategory` migration 27 to aggregate completed order-line units, distinct orders, revenue, and average unit price by brand and category for the selected reporting period.
+- Added brand and category sales breakdown tables to the admin Analytics & Reports page, with top-seller and top-revenue badges and date-range-aware winner summaries.
+- Extended CSV export to include sales by brand, sales by category, and the existing brand inventory report.
+
+
+## [2026-10-02] — Stock reservation lifecycle correction
+
+- Fixed cash-pickup and COD checkout flow so reserved stock is not deducted a second time before payment or fulfillment.
+- HitPay confirmation now converts a reservation into a sale once and fulfillment avoids duplicate deductions, including legacy orders with an existing online-sale audit entry.
+- Product-detail stock responses now expose `CurrentStock`, `ReservedStock`, and `AvailableStock`; storefront quantity checks use `AvailableStock` to match Admin inventory.
+- Migration 31 includes an idempotent repair for legacy pending cash/COD orders that were both reserved and deducted.

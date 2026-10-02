@@ -7,7 +7,7 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string Amount { get; set; }
         public string Currency { get; set; } = "PHP";
         [JsonProperty("payment_methods")]
-        public string[] PaymentMethods { get; set; } = new[] { "gcash", "paymaya", "card", "qrph" };
+        public string[] PaymentMethods { get; set; } = new[] { "qrph" };
         public string Email { get; set; }
         public string Name { get; set; }
         public string Phone { get; set; }
@@ -40,5 +40,12 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string Amount { get; set; }
         public string Currency { get; set; }
         public string Hmac { get; set; }
+    }
+
+    public class SimulatePaymentRequestDto
+    {
+        public string OrderNumber { get; set; }
+        public string PaymentChannel { get; set; } = "QRPH";
+        public string Outcome { get; set; } = "SUCCESS";
     }
 }

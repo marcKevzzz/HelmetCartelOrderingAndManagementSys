@@ -90,7 +90,7 @@
      2. BALANCED TYPOGRAPHY SYSTEM
      Balanced sizing to prevent text from overwhelming the viewport
      ------------------------------------------------------------------------- */
-  --font-display: "Archivo Black", "Cabinet Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Satoshi", "Cabinet Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-body: "Satoshi", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", Consolas, monospace;
 

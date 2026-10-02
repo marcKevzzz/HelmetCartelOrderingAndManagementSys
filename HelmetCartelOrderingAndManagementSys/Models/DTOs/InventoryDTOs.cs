@@ -13,6 +13,7 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string Color { get; set; }
         public int CurrentStock { get; set; }
         public int ReservedStock { get; set; }
+        public int AvailableStock => Math.Max(0, CurrentStock - ReservedStock);
         public int ReorderPoint { get; set; }
         public bool IsLowStock { get; set; }
         public DateTime? LastRestockedAt { get; set; }

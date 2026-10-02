@@ -51,11 +51,12 @@ export function renderCartView() {
         `;
 
         html += items.map(item => {
-            const isChecked = item.isSelected !== false;
+            const isOutOfStock = Number(item.availableStock) <= 0;
+            const isChecked = !isOutOfStock && item.isSelected !== false;
             const productUrl = APP_CONSTANTS.ROUTES.PRODUCT_DETAIL(Number(item.productId));
             return `
-            <div class="cart-item ${isChecked ? '' : 'cart-item--unselected'}" data-variant-id="${escapeHtml(item.variantId)}">
-                <button type="button" class="cart-drawer-item__check ${isChecked ? 'is-checked' : ''} btn-toggle-check" data-variant-id="${escapeHtml(item.variantId)}" title="${isChecked ? 'Deselect item' : 'Select for checkout'}" aria-label="Toggle selection">
+            <div class="cart-item ${isOutOfStock ? 'is-out-of-stock' : (isChecked ? '' : 'cart-item--unselected')}" data-variant-id="${escapeHtml(item.variantId)}">
+                <button type="button" class="cart-drawer-item__check ${isOutOfStock ? 'is-disabled' : (isChecked ? 'is-checked' : '')} btn-toggle-check" data-variant-id="${escapeHtml(item.variantId)}" ${isOutOfStock ? 'disabled title="Out of stock"' : `title="${isChecked ? 'Deselect item' : 'Select for checkout'}"`} aria-label="Toggle selection">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                         <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
@@ -68,7 +69,7 @@ export function renderCartView() {
                     <p class="cart-item__variant-text">Size: <strong>${escapeHtml(item.size)}</strong></p>
                     <p class="cart-item__variant-text">Color: <strong>${escapeHtml(item.color)}</strong></p>
                     <div class="cart-item__price">&#8369;${Number(item.price).toLocaleString()}</div>
-                    ${Number(item.availableStock) < Number(item.quantity) ? '<p class="cart-item__stock-note">Insufficient stock. Update or remove this item before checkout.</p>' : ''}
+                    ${isOutOfStock ? '<span class="cart-item__stock-badge cart-item__stock-badge--oos">Out of Stock</span>' : (Number(item.availableStock) < Number(item.quantity) ? '<p class="cart-item__stock-note">Insufficient stock. Update or remove this item before checkout.</p>' : '')}
                 </div>
                 <div class="cart-item__actions">
                     <button type="button" class="btn-remove-item" data-variant-id="${escapeHtml(item.variantId)}" title="Remove Item" aria-label="Remove ${escapeHtml(item.name)}">
@@ -78,9 +79,9 @@ export function renderCartView() {
                         </svg>
                     </button>
                     <div class="quantity-stepper">
-                        <button type="button" class="stepper-btn btn-qty-minus" data-variant-id="${escapeHtml(item.variantId)}" aria-label="Decrease quantity of ${escapeHtml(item.name)}">-</button>
+                        <button type="button" class="stepper-btn btn-qty-minus" ${isOutOfStock ? 'disabled' : ''} data-variant-id="${escapeHtml(item.variantId)}" aria-label="Decrease quantity of ${escapeHtml(item.name)}">-</button>
                         <span class="stepper-value">${item.quantity}</span>
-                        <button type="button" class="stepper-btn btn-qty-plus" data-variant-id="${escapeHtml(item.variantId)}" aria-label="Increase quantity of ${escapeHtml(item.name)}">+</button>
+                        <button type="button" class="stepper-btn btn-qty-plus" ${isOutOfStock ? 'disabled' : ''} data-variant-id="${escapeHtml(item.variantId)}" aria-label="Increase quantity of ${escapeHtml(item.name)}">+</button>
                     </div>
                 </div>
             </div>

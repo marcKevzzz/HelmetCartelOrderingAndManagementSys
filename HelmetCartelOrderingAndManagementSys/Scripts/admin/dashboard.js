@@ -7,21 +7,25 @@ document.addEventListener('DOMContentLoaded', function () {
   const salesCanvas = document.getElementById('salesVelocityChart');
   if (salesCanvas && window.Chart) {
     try {
-      const salesLabels = JSON.parse(salesCanvas.getAttribute('data-labels') || '[]');
-      const salesData = JSON.parse(salesCanvas.getAttribute('data-values') || '[]');
+      const dayLabels = JSON.parse(salesCanvas.getAttribute('data-day-labels') || '[]');
+      const dayData = JSON.parse(salesCanvas.getAttribute('data-day-values') || '[]');
+      const weekLabels = JSON.parse(salesCanvas.getAttribute('data-week-labels') || salesCanvas.getAttribute('data-labels') || '[]');
+      const weekData = JSON.parse(salesCanvas.getAttribute('data-week-values') || salesCanvas.getAttribute('data-values') || '[]');
+      const monthLabels = JSON.parse(salesCanvas.getAttribute('data-month-labels') || '[]');
+      const monthData = JSON.parse(salesCanvas.getAttribute('data-month-values') || '[]');
 
       const ctx = salesCanvas.getContext('2d');
       const gradient = ctx.createLinearGradient(0, 0, 0, 220);
       gradient.addColorStop(0, 'rgba(24, 24, 27, 0.15)');
       gradient.addColorStop(1, 'rgba(24, 24, 27, 0.00)');
 
-      new window.Chart(ctx, {
+      const velocityChart = new window.Chart(ctx, {
         type: 'line',
         data: {
-          labels: salesLabels,
+          labels: weekLabels,
           datasets: [{
             label: 'Revenue (\u20B1)',
-            data: salesData,
+            data: weekData,
             borderColor: '#18181B',
             backgroundColor: gradient,
             borderWidth: 2,
@@ -71,6 +75,32 @@ document.addEventListener('DOMContentLoaded', function () {
             }
           }
         }
+      });
+
+      // Timeframe buttons
+      const subtitleEl = document.getElementById('velocityTimeframeSubtitle');
+      const timeframeBtns = document.querySelectorAll('.admin-chart-header [data-timeframe]');
+      timeframeBtns.forEach(btn => {
+        btn.addEventListener('click', function () {
+          const tf = this.getAttribute('data-timeframe');
+          timeframeBtns.forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+
+          if (tf === 'day') {
+            velocityChart.data.labels = dayLabels;
+            velocityChart.data.datasets[0].data = dayData;
+            if (subtitleEl) subtitleEl.textContent = "Today's hourly performance across online and POS transactions";
+          } else if (tf === 'month') {
+            velocityChart.data.labels = monthLabels;
+            velocityChart.data.datasets[0].data = monthData;
+            if (subtitleEl) subtitleEl.textContent = "30-day performance across online and POS transactions";
+          } else {
+            velocityChart.data.labels = weekLabels;
+            velocityChart.data.datasets[0].data = weekData;
+            if (subtitleEl) subtitleEl.textContent = "7-day performance across online and POS transactions";
+          }
+          velocityChart.update();
+        });
       });
     } catch (e) {
       console.warn('Dashboard sales chart init error:', e);
