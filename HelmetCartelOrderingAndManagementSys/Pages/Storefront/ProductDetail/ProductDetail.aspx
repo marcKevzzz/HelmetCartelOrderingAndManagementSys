@@ -40,6 +40,7 @@
             <!-- Details & Actions -->
             <div class="product-info">
                 <h1 class="product-info__title" id="detail-title"><%= ProductItem != null ? Server.HtmlEncode(ProductItem.Name.ToUpperInvariant()) : "PRODUCT UNAVAILABLE" %></h1>
+                <p id="detail-stock-message" class="product-info__stock-message" aria-live="polite"></p>
                 <div class="product-card__rating product-detail-rating">
                     <div class="stars" id="detail-stars">
                         <% decimal rating = ProductItem != null ? ProductItem.Rating : 0m;
@@ -147,7 +148,6 @@
                         </svg>
                     </button>
                 </div>
-                <p id="detail-stock-message" class="product-info__stock-message" aria-live="polite"></p>
             </div>
         </div>
 

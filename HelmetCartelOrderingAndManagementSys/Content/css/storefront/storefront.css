@@ -234,6 +234,8 @@
   transition: border-color var(--transition-fast), transform var(--transition-fast);
   flex-shrink: 0;
   position: relative;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
 
 .gallery-thumb:hover {
@@ -248,6 +250,9 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
+  display: block;
+  transition: transform var(--transition-smooth);
 }
 
 /* Hidden thumbnails past 5th slot in rail */
@@ -305,12 +310,16 @@
   justify-content: center;
   overflow: hidden;
   position: relative;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
 
 .product-gallery__main img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
+  display: block;
   transition: transform var(--transition-smooth);
 }
 
@@ -332,6 +341,7 @@
   font-weight: 800;
   line-height: 1.15;
   margin: 0;
+  margin-top: var(--space-2);
   color: var(--color-text-main);
   text-transform: uppercase;
   letter-spacing: -0.03em;
@@ -532,10 +542,10 @@
 
 .stock-status-tag {
   display: inline-block;
-  font-size: 0.8125rem;
+  font-size: var(--text-body-sm);
   font-weight: 600;
-  margin-top: var(--space-2);
   width: fit-content;
+  color: var(--color-text-secondary);
 }
 
 .cart-item.is-out-of-stock {
@@ -2267,7 +2277,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  flex-shrink: 0;
 }
 
 .order-summary-card {
@@ -2344,8 +2359,13 @@
 }
 
 .cart-item__img {
-  max-height: 85%;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  transform: scale(1.02);
+  transition: transform var(--transition-smooth);
 }
 
 .cart-item__title {

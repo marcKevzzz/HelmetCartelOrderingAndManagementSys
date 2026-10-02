@@ -49,5 +49,11 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
         protected global::System.Web.UI.WebControls.TextBox txtCourier;
         protected global::System.Web.UI.WebControls.TextBox txtTrackingNumber;
         protected global::System.Web.UI.WebControls.Button btnConfirmDispatch;
+        protected global::System.Web.UI.WebControls.Literal litSummaryItemCount;
+        protected global::System.Web.UI.WebControls.Literal litPaidAmountText;
+        protected global::System.Web.UI.WebControls.Literal litCustomerChannel;
+        protected global::System.Web.UI.WebControls.Literal litShippingSectionTitle;
+        protected global::System.Web.UI.WebControls.Literal litShippingRecipient;
+        protected global::System.Web.UI.WebControls.Literal litCardFulfillmentActions;
     }
 }

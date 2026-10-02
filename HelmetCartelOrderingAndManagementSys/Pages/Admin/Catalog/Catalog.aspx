@@ -27,6 +27,7 @@
                 <div class="admin-segmented-tabs">
                     <asp:LinkButton ID="btnTabAll" runat="server" CssClass="admin-tab-btn" CommandArgument="all" OnClick="FilterTab_Click">All Products</asp:LinkButton>
                     <asp:LinkButton ID="btnTabActive" runat="server" CssClass="admin-tab-btn" CommandArgument="active" OnClick="FilterTab_Click">Active</asp:LinkButton>
+                    <asp:LinkButton ID="btnTabDrafts" runat="server" CssClass="admin-tab-btn" CommandArgument="drafts" OnClick="FilterTab_Click">Drafts</asp:LinkButton>
                     <asp:LinkButton ID="btnTabFeatured" runat="server" CssClass="admin-tab-btn" CommandArgument="featured" OnClick="FilterTab_Click">Featured</asp:LinkButton>
                 </div>
             </div>
@@ -111,16 +112,16 @@
                                 </td>
                                 <td class="admin-table-align-right">
                                     <div class="admin-actions-cell admin-actions-cell--right">
-                                        <button type="button" class="btn-pill-sm btn-pill--outline btn-preview-product"
-                                            data-preview-url='/Pages/ProductDetail.aspx?id=<%# Eval("Id") %>'
-                                            data-name='<%# System.Web.HttpUtility.HtmlAttributeEncode(Convert.ToString(Eval("Name"))) %>'
-                                            title="Preview Product Detail">
-                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path>
-                                                <circle cx="12" cy="12" r="3"></circle>
+                                        <%# Convert.ToBoolean(Eval("IsActive")) ? @"<button type=""button"" class=""btn-pill-sm btn-pill--outline btn-preview-product""
+                                            data-preview-url='/Pages/Storefront/ProductDetail/ProductDetail.aspx?slug=" + Eval("Slug") + @"'
+                                            data-name='" + System.Web.HttpUtility.HtmlAttributeEncode(Convert.ToString(Eval("Name"))) + @"'
+                                            title=""Preview Product Detail"">
+                                            <svg viewBox=""0 0 24 24"" width=""14"" height=""14"" fill=""none"" stroke=""currentColor"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round"" aria-hidden=""true"">
+                                                <path d=""M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z""></path>
+                                                <circle cx=""12"" cy=""12"" r=""3""></circle>
                                             </svg>
                                             <span>Preview</span>
-                                        </button>
+                                        </button>" : "" %>
                                         <a href='/Admin/CatalogItem.aspx?id=<%# Eval("Id") %>' class="btn-pill-sm btn-pill--outline" title="Edit Helmet Model">
                                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -200,41 +201,40 @@
         </div>
     </div>
 
-    <!-- Concise Delete Confirmation Modal Preview (Requirement 2) -->
-    <div id="adminDeleteProductModal" class="admin-modal-backdrop is-hidden" hidden>
-        <div class="admin-modal admin-modal--confirm">
-            <div class="admin-modal-icon-circle admin-modal-icon-circle--danger">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
-            </div>
-            <h3 class="admin-modal-title">Delete Helmet Model</h3>
-            <p class="admin-modal-desc-subtle">
-                Are you sure you want to delete this product? If historical orders exist, it will be safely deactivated and archived.
-            </p>
+    <!-- Enhanced Delete Confirmation Modal matching Design System -->
+    <div id="adminDeleteProductModal" class="admin-quick-modal-backdrop is-hidden" hidden role="dialog" aria-modal="true" aria-labelledby="delModalHeading">
+        <div class="admin-quick-modal">
+            <header class="admin-quick-modal-header">
+                <h3 class="admin-quick-modal-title" id="delModalHeading">Delete Helmet Model</h3>
+                <button type="button" class="admin-modal-close-btn" id="btnCloseDeleteModal" aria-label="Close delete modal">&times;</button>
+            </header>
+            <div class="admin-quick-modal-body">
+                <p class="admin-modal-description" style="margin:0;font-size:var(--text-body-sm);color:var(--color-text-secondary);line-height:1.5;">
+                    Are you sure you want to delete this product? If historical orders exist, it will be safely deactivated and archived.
+                </p>
 
-            <!-- Concise Modal Preview -->
-            <div class="admin-delete-preview-card">
-                <img id="delModalImage" src="/Content/images/products/helmets/agv/images.jpg" alt="Product Preview" class="admin-delete-preview-thumb" />
-                <div class="admin-delete-preview-info">
-                    <span id="delModalName" class="admin-delete-preview-name">Helmet Model</span>
-                    <div class="admin-delete-preview-tags">
-                        <span id="delModalBrand" class="admin-badge admin-badge--active">Brand</span>
-                        <span id="delModalCategory" class="admin-badge admin-badge--role-staff">Category</span>
-                        <span id="delModalSku" class="admin-cell-sku">sku-identifier</span>
-                    </div>
-                    <div class="admin-delete-preview-summary">
-                        <span id="delModalVariantsSummary">0 Variant SKUs configured</span>
+                <!-- Concise Modal Preview -->
+                <div class="admin-delete-preview-card">
+                    <img id="delModalImage" src="/Content/images/placeholder-helmet.png" alt="Product Preview" class="admin-delete-preview-thumb" />
+                    <div class="admin-delete-preview-info">
+                        <span id="delModalName" class="admin-delete-preview-name">Helmet Model</span>
+                        <div class="admin-delete-preview-tags">
+                            <span id="delModalBrand" class="admin-badge admin-badge--active">Brand</span>
+                            <span id="delModalCategory" class="admin-badge admin-badge--role-staff">Category</span>
+                            <span id="delModalSku" class="admin-cell-sku">sku-identifier</span>
+                        </div>
+                        <div class="admin-delete-preview-summary">
+                            <span id="delModalVariantsSummary">0 Variant SKUs configured</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <asp:HiddenField ID="hfDeleteProductId" runat="server" ClientIDMode="Static" />
-            <div class="admin-modal-footer">
+            <footer class="admin-quick-modal-footer">
                 <button type="button" class="btn-pill btn-pill--outline" id="btnCancelDelete">Cancel</button>
                 <asp:Button ID="btnConfirmDeleteProduct" runat="server" Text="Confirm Delete" CssClass="btn-pill btn-pill--primary btn-pill--danger" OnClick="btnConfirmDeleteProduct_Click" ClientIDMode="Static" />
-            </div>
+            </footer>
         </div>
     </div>
 

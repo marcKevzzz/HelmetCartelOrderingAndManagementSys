@@ -83,7 +83,7 @@
         <div class="products-grid" id="new-arrivals-grid">
             <asp:Repeater ID="rptNewArrivals" runat="server">
                 <ItemTemplate>
-                    <asp:HyperLink runat="server" CssClass="product-card" NavigateUrl='<%# "~/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=" + Eval("Id") %>'>
+                    <asp:HyperLink runat="server" CssClass="product-card" NavigateUrl='<%# "~/Pages/Storefront/ProductDetail/ProductDetail.aspx?slug=" + Eval("Slug") %>'>
                         <div class="product-card__img-wrap">
                             <img src="<%# Eval("MainImageUrl") %>" alt="<%# Server.HtmlEncode((string)Eval("Name")) %>" class="product-card__img" loading="lazy" />
                         </div>
@@ -124,7 +124,7 @@
         <div class="products-grid" id="top-selling-grid">
             <asp:Repeater ID="rptTopSelling" runat="server">
                 <ItemTemplate>
-                    <asp:HyperLink runat="server" CssClass="product-card" NavigateUrl='<%# "~/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=" + Eval("Id") %>'>
+                    <asp:HyperLink runat="server" CssClass="product-card" NavigateUrl='<%# "~/Pages/Storefront/ProductDetail/ProductDetail.aspx?slug=" + Eval("Slug") %>'>
                         <div class="product-card__img-wrap">
                             <img src="<%# Eval("MainImageUrl") %>" alt="<%# Server.HtmlEncode((string)Eval("Name")) %>" class="product-card__img" loading="lazy" />
                         </div>

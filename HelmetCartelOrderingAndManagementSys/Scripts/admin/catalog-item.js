@@ -214,17 +214,23 @@
       try {
         const loadedVariants = JSON.parse(dom.hdnVariantsJson.value || '[]');
         if (Array.isArray(loadedVariants) && loadedVariants.length > 0) {
-          variants = loadedVariants.map((v) => ({
-            id: v.Id || v.id || 0,
-            productColorId: v.ProductColorId || v.productColorId || 0,
-            color: v.Color || v.color || '',
-            colorHex: v.ColorHex || v.colorHex || '',
-            size: v.Size || v.size || 'M',
-            sku: v.SKU || v.sku || '',
-            priceAdjustment: v.PriceAdjustment || v.priceAdjustment || 0,
-            initialStock: v.CurrentStock || v.currentStock || v.initialStock || 0,
-            reorderPoint: v.ReorderPoint || v.reorderPoint || 3
-          }));
+          const currentBase = parseFloat(dom.txtBasePrice ? dom.txtBasePrice.value : 0) || 0;
+          variants = loadedVariants.map((v) => {
+            const adj = v.PriceAdjustment || v.priceAdjustment || 0;
+            const itemPrice = (v.Price || v.price) ? (v.Price || v.price) : (currentBase + adj);
+            return {
+              id: v.Id || v.id || 0,
+              productColorId: v.ProductColorId || v.productColorId || 0,
+              color: v.Color || v.color || '',
+              colorHex: v.ColorHex || v.colorHex || '',
+              size: v.Size || v.size || 'M',
+              sku: v.SKU || v.sku || '',
+              price: itemPrice,
+              priceAdjustment: adj,
+              initialStock: v.CurrentStock || v.currentStock || v.initialStock || 0,
+              reorderPoint: v.ReorderPoint || v.reorderPoint || 3
+            };
+          });
           const existingSizes = new Set(variants.map((v) => v.size));
           document.querySelectorAll('.admin-size-pill').forEach((pill) => {
             const hasSize = existingSizes.has(pill.dataset.size);
@@ -232,6 +238,7 @@
             pill.setAttribute('aria-pressed', hasSize ? 'true' : 'false');
           });
           renderVariantMatrix();
+          renderPricingMatrix();
         }
       } catch (e) {
         console.warn('Could not parse variants:', e);
@@ -264,6 +271,7 @@
 
     updateStatusBadge();
     renderGalleryTiles();
+    renderPricingMatrix();
     updatePricingPreview();
   }
 
@@ -748,6 +756,7 @@
           updatedVariants.push(existing);
         } else {
           const autoSku = `${brandCode}-${modelCode}-${colorCode}-${size}`;
+          const currentBase = parseFloat(dom.txtBasePrice ? dom.txtBasePrice.value : 0) || 0;
           updatedVariants.push({
             id: 0,
             productColorId: color.id || 0,
@@ -755,6 +764,7 @@
             colorHex: color.colorType === 'LINEAR_GRADIENT' && color.stops && color.stops.length > 0 ? color.stops[0] : (color.solidHex || '#18181B'),
             size: size,
             sku: autoSku,
+            price: currentBase,
             priceAdjustment: 0.00,
             initialStock: 0,
             reorderPoint: 3
@@ -765,65 +775,141 @@
 
     variants = updatedVariants;
     renderVariantMatrix();
+    renderPricingMatrix();
   }
 
   function renderVariantMatrix() {
-    if (!dom.tbodyVariantMatrix) return;
-    dom.tbodyVariantMatrix.innerHTML = '';
+    const container = document.getElementById('variantPillsContainer') || dom.tbodyVariantMatrix;
+    if (!container) return;
+    container.innerHTML = '';
+
+    const countBadge = document.getElementById('lblVariantMatrixCount');
+    if (countBadge) {
+      countBadge.textContent = `${variants.length} combinations`;
+    }
 
     if (variants.length === 0) {
-      dom.tbodyVariantMatrix.innerHTML = `
-        <tr id="rowEmptyMatrix">
-          <td colspan="7" class="admin-empty-cell-msg">
-            Add at least one color above to automatically generate size variant combinations.
-          </td>
-        </tr>`;
+      container.innerHTML = `
+        <span class="admin-empty-cell-msg" id="msgEmptyVariants">
+          Add at least one color and select sizes above to generate variant pills.
+        </span>`;
       serializeVariants();
       return;
     }
 
     variants.forEach((v, index) => {
-      const tr = document.createElement('tr');
+      const pill = document.createElement('div');
+      pill.className = 'admin-variant-item-pill';
 
-      // Color Swatch & Label
-      const tdColor = document.createElement('td');
-      tdColor.innerHTML = `
-        <div class="admin-matrix-cell-color">
-          <span style="display:inline-block;width:14px;height:14px;border-radius:var(--radius-pill);background:${v.colorHex || '#18181B'};border:1px solid var(--color-border-subtle);"></span>
-          <span style="font-weight:var(--weight-medium);">${escapeHtml(v.color)}</span>
-        </div>`;
+      // Color Swatch
+      const swatch = document.createElement('span');
+      swatch.className = 'admin-variant-pill-swatch';
+      swatch.style.background = v.colorHex || '#18181B';
+
+      // Color Name
+      const label = document.createElement('span');
+      label.className = 'admin-variant-pill-label';
+      label.textContent = v.color;
 
       // Size Badge
-      const tdSize = document.createElement('td');
-      tdSize.innerHTML = `<span class="admin-badge admin-badge--neutral">${v.size}</span>`;
+      const sizeBadge = document.createElement('span');
+      sizeBadge.className = 'admin-variant-pill-size';
+      sizeBadge.textContent = v.size;
 
       // SKU Input
-      const tdSku = document.createElement('td');
       const inputSku = document.createElement('input');
       inputSku.type = 'text';
-      inputSku.className = 'admin-form-input admin-matrix-input';
+      inputSku.className = 'admin-variant-pill-sku-input';
       inputSku.value = v.sku;
-      inputSku.style.width = '140px';
+      inputSku.title = 'SKU (Auto-generated or custom)';
+      inputSku.placeholder = 'SKU...';
       inputSku.required = true;
       inputSku.addEventListener('input', () => {
         v.sku = inputSku.value.trim();
         if (v.sku) inputSku.classList.remove('is-invalid');
         isDirty = true;
         serializeVariants();
+        renderPricingMatrix();
       });
-      tdSku.appendChild(inputSku);
 
-      // Price Adjustment Input
+      // Remove Button
+      const btnRemove = document.createElement('button');
+      btnRemove.type = 'button';
+      btnRemove.className = 'admin-variant-pill-remove';
+      btnRemove.innerHTML = '&times;';
+      btnRemove.title = `Remove ${v.color} - ${v.size}`;
+      btnRemove.addEventListener('click', () => {
+        variants.splice(index, 1);
+        renderVariantMatrix();
+        renderPricingMatrix();
+        isDirty = true;
+      });
+
+      pill.appendChild(swatch);
+      pill.appendChild(label);
+      pill.appendChild(sizeBadge);
+      pill.appendChild(inputSku);
+      pill.appendChild(btnRemove);
+
+      container.appendChild(pill);
+    });
+
+    serializeVariants();
+  }
+
+  function renderPricingMatrix() {
+    const tbody = document.getElementById('tbodyPricingMatrix');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (variants.length === 0) {
+      tbody.innerHTML = `
+        <tr id="rowEmptyPricingMatrix">
+          <td colspan="5" class="admin-empty-cell-msg">
+            Configure colors and sizes in the Variants step to generate pricing matrix.
+          </td>
+        </tr>`;
+      return;
+    }
+
+    const currentBasePrice = parseFloat(dom.txtBasePrice ? dom.txtBasePrice.value : 0) || 0;
+
+    variants.forEach((v) => {
+      if (typeof v.price === 'undefined' || v.price === null || v.price === 0) {
+        v.price = (currentBasePrice > 0 ? currentBasePrice : 0) + (v.priceAdjustment || 0);
+      }
+
+      const tr = document.createElement('tr');
+
+      // Variant (Color & Size)
+      const tdVariant = document.createElement('td');
+      tdVariant.innerHTML = `
+        <div class="admin-matrix-cell-color">
+          <span style="display:inline-block;width:14px;height:14px;border-radius:var(--radius-pill);background:${v.colorHex || '#18181B'};border:1px solid var(--color-border-subtle);"></span>
+          <span style="font-weight:var(--weight-medium);">${escapeHtml(v.color)} &bull; <strong>${v.size}</strong></span>
+        </div>`;
+
+      // SKU Readonly/Display
+      const tdSku = document.createElement('td');
+      tdSku.innerHTML = `<code style="font-size:var(--font-xs);font-weight:var(--weight-semibold);">${escapeHtml(v.sku)}</code>`;
+
+      // Price Input
       const tdPrice = document.createElement('td');
       const inputPrice = document.createElement('input');
       inputPrice.type = 'number';
       inputPrice.step = '0.01';
+      inputPrice.min = '0';
       inputPrice.className = 'admin-form-input admin-matrix-input admin-matrix-input--price';
-      inputPrice.value = v.priceAdjustment || 0;
+      inputPrice.value = (v.price || 0) > 0 ? v.price : '';
+      inputPrice.placeholder = '0.00';
+      inputPrice.style.width = '110px';
       inputPrice.addEventListener('input', () => {
-        v.priceAdjustment = parseFloat(inputPrice.value) || 0;
+        v.price = parseFloat(inputPrice.value) || 0;
+        syncBasePriceFromVariants();
+        if (v.price > 0) inputPrice.classList.remove('is-invalid');
         isDirty = true;
         serializeVariants();
+        updatePricingPreview();
       });
       tdPrice.appendChild(inputPrice);
 
@@ -834,10 +920,12 @@
       inputStock.min = '0';
       inputStock.className = 'admin-form-input admin-matrix-input admin-matrix-input--stock';
       inputStock.value = v.initialStock || 0;
+      inputStock.style.width = '90px';
       inputStock.addEventListener('input', () => {
         v.initialStock = parseInt(inputStock.value, 10) || 0;
         isDirty = true;
         serializeVariants();
+        updateReviewSummary();
       });
       tdStock.appendChild(inputStock);
 
@@ -848,6 +936,7 @@
       inputReorder.min = '0';
       inputReorder.className = 'admin-form-input admin-matrix-input admin-matrix-input--reorder';
       inputReorder.value = v.reorderPoint || 3;
+      inputReorder.style.width = '90px';
       inputReorder.addEventListener('input', () => {
         v.reorderPoint = parseInt(inputReorder.value, 10) || 3;
         isDirty = true;
@@ -855,33 +944,30 @@
       });
       tdReorder.appendChild(inputReorder);
 
-      // Action: Remove Variant Row
-      const tdAction = document.createElement('td');
-      tdAction.style.textAlign = 'right';
-      const btnRemove = document.createElement('button');
-      btnRemove.type = 'button';
-      btnRemove.className = 'admin-spec-remove-btn';
-      btnRemove.innerHTML = '&times;';
-      btnRemove.title = 'Remove this variant combination';
-      btnRemove.addEventListener('click', () => {
-        variants.splice(index, 1);
-        renderVariantMatrix();
-        isDirty = true;
-      });
-      tdAction.appendChild(btnRemove);
-
-      tr.appendChild(tdColor);
-      tr.appendChild(tdSize);
+      tr.appendChild(tdVariant);
       tr.appendChild(tdSku);
       tr.appendChild(tdPrice);
       tr.appendChild(tdStock);
       tr.appendChild(tdReorder);
-      tr.appendChild(tdAction);
 
-      dom.tbodyVariantMatrix.appendChild(tr);
+      tbody.appendChild(tr);
     });
 
-    serializeVariants();
+    syncBasePriceFromVariants();
+  }
+
+  function syncBasePriceFromVariants() {
+    if (!variants || variants.length === 0) return;
+    const validPrices = variants.map(v => v.price || 0).filter(p => p > 0);
+    if (validPrices.length > 0) {
+      const minPrice = Math.min(...validPrices);
+      if (dom.txtBasePrice) {
+        dom.txtBasePrice.value = minPrice.toFixed(2);
+      }
+      variants.forEach(v => {
+        v.priceAdjustment = Math.max(0, (v.price || minPrice) - minPrice);
+      });
+    }
   }
 
   function serializeColors() {
@@ -1787,14 +1873,18 @@
         }
       }
     } else if (stepNumber === 4) {
-      // Base Price
+      // Pricing Matrix Validation (every configured variant must have price > 0)
+      syncBasePriceFromVariants();
       const basePrice = parseFloat(dom.txtBasePrice ? dom.txtBasePrice.value : 0);
-      if (!dom.txtBasePrice || isNaN(basePrice) || basePrice <= 0) {
-        showInlineError('errBasePrice', dom.txtBasePrice);
+      const invalidVariantPrice = variants.some(v => typeof v.price === 'undefined' || v.price === null || isNaN(v.price) || v.price <= 0);
+
+      if (variants.length === 0 || invalidVariantPrice || isNaN(basePrice) || basePrice <= 0) {
+        showInlineError('errPricingMatrix');
         isValid = false;
-        if (!firstInvalidEl) firstInvalidEl = dom.txtBasePrice;
+        const invalidInput = document.querySelector('#tablePricingMatrix .admin-matrix-input--price');
+        if (!firstInvalidEl) firstInvalidEl = invalidInput;
       } else {
-        clearInlineError('errBasePrice');
+        clearInlineError('errPricingMatrix');
       }
     } else if (stepNumber === 5) {
       // Images
@@ -1907,6 +1997,12 @@
       const paneStep = parseInt(pane.getAttribute('data-pane'), 10);
       pane.classList.toggle('active', paneStep === stepNumber);
     });
+
+    // Re-render pricing matrix if switching to step 4
+    if (stepNumber === 4) {
+      renderPricingMatrix();
+      updatePricingPreview();
+    }
 
     // Update review summary if moving to step 6
     if (stepNumber === 6) {

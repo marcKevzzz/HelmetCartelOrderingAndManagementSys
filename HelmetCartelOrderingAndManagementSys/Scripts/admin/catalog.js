@@ -81,11 +81,21 @@
       }
     });
 
-    if (btnCancelDelete && deleteModal) {
-      btnCancelDelete.addEventListener('click', () => {
+    const btnCloseDelete = document.getElementById('btnCloseDeleteModal');
+
+    const closeDeleteModal = () => {
+      if (deleteModal) {
         deleteModal.classList.add('is-hidden');
         deleteModal.setAttribute('hidden', '');
-        if (hfDeleteProductId) hfDeleteProductId.value = '';
+      }
+      if (hfDeleteProductId) hfDeleteProductId.value = '';
+    };
+
+    if (btnCancelDelete) btnCancelDelete.addEventListener('click', closeDeleteModal);
+    if (btnCloseDelete) btnCloseDelete.addEventListener('click', closeDeleteModal);
+    if (deleteModal) {
+      deleteModal.addEventListener('click', (e) => {
+        if (e.target === deleteModal) closeDeleteModal();
       });
     }
 

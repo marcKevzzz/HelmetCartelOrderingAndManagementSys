@@ -190,10 +190,15 @@ export const TrackOrderController = {
       paymentRefEl.textContent = order.gatewayReference ? `Ref: ${order.gatewayReference}` : `Method: ${pGateway}`;
     }
 
-    // Info Card 3: Delivery Destination
+    // Info Card 3: Delivery Destination / Store Pickup
+    const destinationLabelEl = document.getElementById('track-destination-label');
     const recipientEl = document.getElementById('track-recipient-name');
     const destinationEl = document.getElementById('track-delivery-destination');
     const landmarkEl = document.getElementById('track-delivery-landmark');
+
+    if (destinationLabelEl) {
+      destinationLabelEl.textContent = isDelivery ? 'DELIVERY DESTINATION' : 'STORE PICKUP LOCATION';
+    }
 
     if (recipientEl) recipientEl.textContent = order.customerName || 'Cartel Member';
 

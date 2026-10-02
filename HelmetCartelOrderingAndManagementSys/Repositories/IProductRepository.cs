@@ -8,6 +8,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
     {
         Task<PagedResult<ProductListDto>> GetProductsAsync(ProductFilterParams filter);
         Task<ProductListDto> GetProductByIdAsync(int id);
+        Task<ProductListDto> GetProductBySlugAsync(string slug);
         Task<List<ProductListDto>> GetRelatedProductsAsync(int productId);
         Task<List<ProductSpecificationDto>> GetProductSpecificationsAsync(int productId);
         Task<List<ProductListDto>> GetFeaturedProductsAsync();

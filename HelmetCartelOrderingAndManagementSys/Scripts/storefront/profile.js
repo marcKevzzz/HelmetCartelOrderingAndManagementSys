@@ -41,7 +41,8 @@ export const ProfileController = {
 
     // Check query params or session storage for tab (e.g. ?tab=wishlist)
     const urlParams = new URLSearchParams(window.location.search);
-    const requestedTab = urlParams.get("tab") || sessionStorage.getItem("hc_profile_active_tab");
+    const requestedTab =
+      urlParams.get("tab") || sessionStorage.getItem("hc_profile_active_tab");
     if (requestedTab) {
       this.switchTab(requestedTab);
     }
@@ -110,32 +111,17 @@ export const ProfileController = {
 
     const roleEl = document.getElementById("profile-role-text");
     if (roleEl) {
-      let firstLoginDate = null;
-      const storedFirstLogin = localStorage.getItem("hc_first_login_time");
-      if (storedFirstLogin) {
-        firstLoginDate = new Date(storedFirstLogin);
-      } else if (u.createdAt) {
-        firstLoginDate = new Date(u.createdAt);
-        localStorage.setItem("hc_first_login_time", u.createdAt);
+      if (u.createdAt) {
+        const createdDate = new Date(u.createdAt);
+        const formattedDate = createdDate.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+        roleEl.textContent = `Created: ${formattedDate}`;
       } else {
-        firstLoginDate = new Date();
-        localStorage.setItem(
-          "hc_first_login_time",
-          firstLoginDate.toISOString(),
-        );
+        roleEl.textContent = "Created: Cartel Member";
       }
-
-      const formattedDate = firstLoginDate.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-      const formattedTime = firstLoginDate.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
-      roleEl.textContent = `First login: ${formattedDate} ${formattedTime}`;
     }
 
     // Populate edit profile inputs
@@ -177,25 +163,27 @@ export const ProfileController = {
     });
 
     // Listen to mobile nav drawer tab links when on Profile page
-    document.querySelectorAll('#mobile-nav-drawer a[href*="tab="]').forEach((link) => {
-      link.addEventListener("click", (e) => {
-        try {
-          const url = new URL(link.href, window.location.origin);
-          const tab = url.searchParams.get("tab");
-          if (tab) {
-            e.preventDefault();
-            this.switchTab(tab);
-            const drawer = document.getElementById("mobile-nav-drawer");
-            const overlay = document.getElementById("mobile-nav-overlay");
-            drawer?.classList.remove("is-open");
-            overlay?.classList.remove("is-open");
-            drawer?.setAttribute("aria-hidden", "true");
-            document.body.classList.remove("drawer-locked");
-            window.history.pushState(null, "", `?tab=${tab}`);
-          }
-        } catch (_) {}
+    document
+      .querySelectorAll('#mobile-nav-drawer a[href*="tab="]')
+      .forEach((link) => {
+        link.addEventListener("click", (e) => {
+          try {
+            const url = new URL(link.href, window.location.origin);
+            const tab = url.searchParams.get("tab");
+            if (tab) {
+              e.preventDefault();
+              this.switchTab(tab);
+              const drawer = document.getElementById("mobile-nav-drawer");
+              const overlay = document.getElementById("mobile-nav-overlay");
+              drawer?.classList.remove("is-open");
+              overlay?.classList.remove("is-open");
+              drawer?.setAttribute("aria-hidden", "true");
+              document.body.classList.remove("drawer-locked");
+              window.history.pushState(null, "", `?tab=${tab}`);
+            }
+          } catch (_) {}
+        });
       });
-    });
 
     // Listen to favorites changes
     window.addEventListener("favoritesUpdated", () => {
@@ -239,7 +227,7 @@ export const ProfileController = {
         details: "Account details",
         wishlist: "Wishlist",
         addresses: "Addresses",
-        payments: "Payment methods",
+        payments: "Payment history",
         security: "Security & Password",
       };
       breadcrumbLabel.textContent = labels[tabName] || "Account";
@@ -551,21 +539,33 @@ export const ProfileController = {
 
           <div class="order-dropdown-footer">
             <div class="order-dropdown-secondary-actions">
-              ${canCancel ? `
+              ${
+                canCancel
+                  ? `
                 <button type="button" class="btn btn--outline btn--sm btn-cancel-order" data-order-id="${order.id}" data-order-number="${this.escapeHtml(order.orderNumber)}">
                   <span>Cancel Order</span>
                 </button>
-              ` : ""}
-              ${canReturn ? `
+              `
+                  : ""
+              }
+              ${
+                canReturn
+                  ? `
                 <button type="button" class="btn btn--outline btn--sm btn-return-order" data-order-id="${order.id}" data-order-number="${this.escapeHtml(order.orderNumber)}">
                   <span>Return / Exchange</span>
                 </button>
-              ` : ""}
-              ${!canCancel && !canReturn ? `
+              `
+                  : ""
+              }
+              ${
+                !canCancel && !canReturn
+                  ? `
                 <span class="order-status-hint ${status === "Cancelled" ? "order-status-hint--cancelled" : ""}">
                   ${status === "Cancelled" ? "Order Cancelled &mdash; Reserved stock released" : "Order in transit &mdash; Return available upon delivery"}
                 </span>
-              ` : ""}
+              `
+                  : ""
+              }
             </div>
             <div class="order-dropdown-actions">
               <a href="${trackOrderUrl}" class="btn btn--outline btn--sm">
@@ -592,7 +592,11 @@ export const ProfileController = {
     let images = [];
     if (items && items.length > 0) {
       images = items.map((i) => i.mainImageUrl || i.imageUrl).filter(Boolean);
-    } else if (order && order.previewImageList && order.previewImageList.length > 0) {
+    } else if (
+      order &&
+      order.previewImageList &&
+      order.previewImageList.length > 0
+    ) {
       images = order.previewImageList;
     } else if (order && order.previewImages) {
       images = order.previewImages.split(";").filter(Boolean);
@@ -612,11 +616,13 @@ export const ProfileController = {
 
     return `
       ${previewImages
-        .map((imgUrl, idx) => `
+        .map(
+          (imgUrl, idx) => `
           <div class="deck-item deck-item--${idx}">
             <img src="${this.escapeHtml(imgUrl)}" alt="Gear thumbnail" />
           </div>
-        `)
+        `,
+        )
         .join("")}
       ${extraCount > 0 ? `<span class="deck-badge">+${extraCount}</span>` : ""}
     `;
@@ -775,19 +781,29 @@ export const ProfileController = {
 
     confirmBtn?.addEventListener("click", async () => {
       if (!this.currentCancelOrderId) return;
-      const reasonSelect = document.getElementById("cancel-order-reason-select");
+      const reasonSelect = document.getElementById(
+        "cancel-order-reason-select",
+      );
       const notesInput = document.getElementById("cancel-order-notes");
       const errEl = document.getElementById("profileCancelOrderError");
 
-      const reason = [reasonSelect?.value, notesInput?.value?.trim()].filter(Boolean).join(" - ");
+      const reason = [reasonSelect?.value, notesInput?.value?.trim()]
+        .filter(Boolean)
+        .join(" - ");
 
       confirmBtn.disabled = true;
       confirmBtn.textContent = "Cancelling...";
 
       try {
-        const res = await ApiClient.cancelOrder(this.currentCancelOrderId, reason);
+        const res = await ApiClient.cancelOrder(
+          this.currentCancelOrderId,
+          reason,
+        );
         if (res && (res.success || res.status === "Cancelled")) {
-          RealtimeManager.showToast("Order has been cancelled and reserved stock released.", "info");
+          RealtimeManager.showToast(
+            "Order has been cancelled and reserved stock released.",
+            "info",
+          );
           this.closeCancelOrderModal();
           this.orderDetailsCache.delete(this.currentCancelOrderId);
           await this.loadUserOrders();
@@ -799,7 +815,10 @@ export const ProfileController = {
           errEl.textContent = err.message || "Failed to cancel order.";
           errEl.classList.remove("is-hidden");
         } else {
-          RealtimeManager.showToast(err.message || "Failed to cancel order.", "alert");
+          RealtimeManager.showToast(
+            err.message || "Failed to cancel order.",
+            "alert",
+          );
         }
       } finally {
         confirmBtn.disabled = false;
@@ -855,7 +874,8 @@ export const ProfileController = {
             )
             .join("");
         } else {
-          itemSelect.innerHTML = '<option value="">No items found for this order</option>';
+          itemSelect.innerHTML =
+            '<option value="">No items found for this order</option>';
         }
       } catch (err) {
         itemSelect.innerHTML = '<option value="">Error loading items</option>';
@@ -888,7 +908,9 @@ export const ProfileController = {
     submitBtn?.addEventListener("click", async () => {
       if (!this.currentRmaOrderId) return;
       const itemSelect = document.getElementById("profile-rma-item-select");
-      const typeRadio = document.querySelector('input[name="profile-rma-type"]:checked');
+      const typeRadio = document.querySelector(
+        'input[name="profile-rma-type"]:checked',
+      );
       const reasonSelect = document.getElementById("profile-rma-reason");
       const notesInput = document.getElementById("profile-rma-notes");
       const errEl = document.getElementById("profile-rma-error");
@@ -916,7 +938,10 @@ export const ProfileController = {
 
         const res = await ApiClient.createReturnRequest(payload);
         if (res && res.success) {
-          RealtimeManager.showToast(res.message || "Return / Exchange request submitted successfully!", "info");
+          RealtimeManager.showToast(
+            res.message || "Return / Exchange request submitted successfully!",
+            "info",
+          );
           close();
           await this.loadUserOrders();
         } else {
@@ -927,7 +952,10 @@ export const ProfileController = {
           errEl.textContent = err.message || "Failed to submit return request.";
           errEl.classList.remove("is-hidden");
         } else {
-          RealtimeManager.showToast(err.message || "Failed to submit return request.", "alert");
+          RealtimeManager.showToast(
+            err.message || "Failed to submit return request.",
+            "alert",
+          );
         }
       } finally {
         submitBtn.disabled = false;
@@ -1187,14 +1215,19 @@ export const ProfileController = {
       if (e.target === overlay) closeModal();
     });
 
-    ["addr-recipient-name", "addr-phone", "addr-label", "addr-street", "addr-city", "addr-province"].forEach(
-      (id) => {
-        const el = document.getElementById(id);
-        el?.addEventListener("input", () =>
-          this.clearFieldError(id, `err-${id}`),
-        );
-      },
-    );
+    [
+      "addr-recipient-name",
+      "addr-phone",
+      "addr-label",
+      "addr-street",
+      "addr-city",
+      "addr-province",
+    ].forEach((id) => {
+      const el = document.getElementById(id);
+      el?.addEventListener("input", () =>
+        this.clearFieldError(id, `err-${id}`),
+      );
+    });
 
     form?.addEventListener("submit", (e) => this.handleAddressFormSubmit(e));
 
@@ -1226,19 +1259,26 @@ export const ProfileController = {
     const form = document.getElementById("form-address-modal");
     if (!overlay || !form) return;
 
-    ["addr-recipient-name", "addr-phone", "addr-label", "addr-street", "addr-city", "addr-province"].forEach(
-      (id) => {
-        this.clearFieldError(id, `err-${id}`);
-      },
-    );
+    [
+      "addr-recipient-name",
+      "addr-phone",
+      "addr-label",
+      "addr-street",
+      "addr-city",
+      "addr-province",
+    ].forEach((id) => {
+      this.clearFieldError(id, `err-${id}`);
+    });
 
     if (addr) {
       if (title) title.textContent = "Edit Delivery Address";
       document.getElementById("addr-id").value = addr.id;
       const rName = document.getElementById("addr-recipient-name");
-      if (rName) rName.value = addr.recipientName || this.currentUser?.fullName || "";
+      if (rName)
+        rName.value = addr.recipientName || this.currentUser?.fullName || "";
       const rPhone = document.getElementById("addr-phone");
-      if (rPhone) rPhone.value = addr.phoneNumber || this.currentUser?.phoneNumber || "";
+      if (rPhone)
+        rPhone.value = addr.phoneNumber || this.currentUser?.phoneNumber || "";
       document.getElementById("addr-label").value = addr.addressLabel || "";
       document.getElementById("addr-street").value = addr.streetAddress || "";
       document.getElementById("addr-brgy").value = addr.barangay || "";
@@ -1279,7 +1319,9 @@ export const ProfileController = {
       document.getElementById("addr-id")?.value || "0",
       10,
     );
-    const recipientName = document.getElementById("addr-recipient-name")?.value.trim();
+    const recipientName = document
+      .getElementById("addr-recipient-name")
+      ?.value.trim();
     const phoneNumber = document.getElementById("addr-phone")?.value.trim();
     const label = document.getElementById("addr-label")?.value.trim();
     const street = document.getElementById("addr-street")?.value.trim();

@@ -53,7 +53,7 @@
                     <asp:Repeater ID="rptCatalog" runat="server">
                         <ItemTemplate>
                             <article class="product-card product-card--with-favorite" data-product-id='<%# Eval("Id") %>'>
-                              <asp:HyperLink runat="server" CssClass="product-card__link" NavigateUrl='<%# "~/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=" + Eval("Id") %>'>
+                              <asp:HyperLink runat="server" CssClass="product-card__link" NavigateUrl='<%# "~/Pages/Storefront/ProductDetail/ProductDetail.aspx?slug=" + Eval("Slug") %>'>
                                 <div class="product-card__img-wrap">
                                     <img src='<%# System.Web.HttpUtility.HtmlAttributeEncode(Convert.ToString(Eval("MainImageUrl"))) %>' alt='<%# System.Web.HttpUtility.HtmlAttributeEncode(Convert.ToString(Eval("Name"))) %>' class="product-card__img" loading="lazy" />
                                 </div>

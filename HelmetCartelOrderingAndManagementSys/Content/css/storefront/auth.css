@@ -70,7 +70,7 @@
 }
 
 .auth-showcase__brand-text {
-  font-family: var(--font-display);
+  font-family: var(--font-heading);
   font-size: var(--text-h3);
   letter-spacing: -0.03em;
   text-transform: uppercase;
@@ -101,7 +101,7 @@
 }
 
 .auth-showcase__headline {
-  font-family: var(--font-display);
+  font-family: var(--font-heading);
   font-size: clamp(2rem, 3.5vw, 3.25rem);
   line-height: var(--leading-tight);
   letter-spacing: -0.02em;
@@ -263,7 +263,7 @@
 }
 
 .auth-header__title {
-  font-family: var(--font-display);
+  font-family: var(--font-heading);
   font-size: var(--text-h2);
   letter-spacing: -0.02em;
   text-transform: uppercase;

@@ -68,7 +68,7 @@
 
                 <!-- Console Footer -->
                  <footer class="auth-showcase__footer">
-                    <span>&copy; 2026 HELMET CARTEL PHILIPPINES</span>
+                    <span>&copy; 2026 HELMET CARTEL</span>
                     <span>ALL RIGHTS RESERVED</span>
                 </footer>
             </div>

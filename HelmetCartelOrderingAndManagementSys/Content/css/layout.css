@@ -114,7 +114,7 @@
 }
 
 .brand-logo {
-  font-family: var(--font-display);
+  font-family: var(--font-heading);
   font-size: clamp(1rem, 1.25vw, 3rem);
   font-weight: var(--weight-black);
   letter-spacing: -0.03em;
@@ -595,11 +595,16 @@
   width: 40px;
   height: 40px;
   border-radius: var(--radius-sm, 6px);
-  object-fit: contain;
-  background-color: #FAFAFA;
+  object-fit: cover;
+  object-position: center;
+  background-color: var(--color-surface-subtle);
   border: 1px solid var(--color-border-subtle, #F4F4F5);
   flex-shrink: 0;
-  padding: 2px;
+  padding: 0;
+  overflow: hidden;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  transform: scale(1.02);
 }
 
 .search-item-info,
@@ -847,7 +852,7 @@
 }
 
 .hero-content__title {
-  font-family: var(--font-display);
+  font-family: var(--font-heading);
   font-size: var(--hero-title-size);
   line-height: 1.02;
   font-weight: 900;
@@ -1424,12 +1429,16 @@ body.drawer-locked {
   overflow: hidden;
   text-decoration: none;
   cursor: pointer;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
 
 .cart-drawer-item__img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center;
+  display: block;
   transition: transform var(--transition-fast);
 }
 

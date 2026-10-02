@@ -469,7 +469,7 @@
                         <span>Addresses</span>
                     </asp:HyperLink>
                     <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Profile/Profile.aspx?tab=payments" CssClass="mobile-nav-link">
-                        <span>Payment methods</span>
+                        <span>Payment history</span>
                     </asp:HyperLink>
                     <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Profile/Profile.aspx?tab=security" CssClass="mobile-nav-link">
                         <span>Security &amp; Password</span>

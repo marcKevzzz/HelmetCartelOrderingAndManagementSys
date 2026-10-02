@@ -88,8 +88,10 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
             litCreatedAt.Text = order.CreatedAt.ToString("MMMM dd, yyyy h:mm tt");
             litOrderSource.Text = order.OrderSource == "INSTORE_POS" ? "POS Counter" : "Online Store";
 
-            // Header Badges - keep Order Status as badge
-            litHeaderBadges.Text = RenderStatusBadge(order.Status);
+            // Header Badges - Payment Status badge and Fulfillment/Order Status badge
+            string paymentBadge = RenderPaymentBadge(order.PaymentStatus, order.PaymentMethod);
+            string statusBadge = RenderStatusBadge(order.Status);
+            litHeaderBadges.Text = $"{paymentBadge} {statusBadge}";
 
             // Action Buttons
             litActionButtons.Text = RenderActionButtons(order);
@@ -128,32 +130,38 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
             litCustomerName.Text = Server.HtmlEncode(order.CustomerName ?? "Valued Customer");
             litCustomerEmail.Text = Server.HtmlEncode(order.CustomerEmail ?? "N/A");
             litCustomerPhone.Text = Server.HtmlEncode(order.CustomerPhone ?? "N/A");
+            litCustomerChannel.Text = order.OrderSource == "INSTORE_POS" ? "In-Store POS" : "Online Storefront";
 
-            // Delivery
+            // Delivery & Address
             bool isDelivery = string.Equals(order.ShippingMethod, "Delivery", StringComparison.OrdinalIgnoreCase);
-            litDeliveryMethod.Text = isDelivery ? "Door-to-Door Delivery" : "Store Pickup (QC Flagship Hub)";
+            if (litDeliveryMethod != null) litDeliveryMethod.Text = isDelivery ? "Door-to-Door Delivery" : "Store Pickup (QC Flagship Hub)";
+            if (litShippingSectionTitle != null) litShippingSectionTitle.Text = isDelivery ? "Shipping Address" : "Pickup Location";
+            if (litShippingRecipient != null) litShippingRecipient.Text = Server.HtmlEncode(order.CustomerName ?? "Valued Customer");
+            if (litKpiDeliveryMethod != null) litKpiDeliveryMethod.Text = isDelivery ? "Delivery" : "Store Pickup";
 
-            // KPI Summary Cards: Delivery, Payment, Order Status, Date
-            litKpiDeliveryMethod.Text = isDelivery ? "Delivery" : "Store Pickup";
-            litKpiDeliveryCity.Text = isDelivery
-                ? (string.IsNullOrWhiteSpace(order.ShippingCity) ? "Door-to-Door" : order.ShippingCity)
-                : "Flagship Hub (QC)";
+            int totalUnits = 0;
+            if (order.Items != null)
+            {
+                foreach (var item in order.Items)
+                {
+                    totalUnits += item.Quantity;
+                }
+            }
+            if (litSummaryItemCount != null) litSummaryItemCount.Text = totalUnits.ToString();
 
             string paymentText = order.PaymentStatus == "Completed" ? "Paid" :
                 (string.Equals(order.PaymentMethod, "CashOnDelivery", StringComparison.OrdinalIgnoreCase) ? "COD Pending" : "Pending");
-            litKpiPaymentStatus.Text = Server.HtmlEncode(paymentText);
-            litKpiPaymentMethod.Text = string.Equals(order.PaymentMethod, "HitPay", StringComparison.OrdinalIgnoreCase)
-                ? "HitPay Gateway"
-                : (string.Equals(order.PaymentMethod, "CashOnDelivery", StringComparison.OrdinalIgnoreCase) ? "Cash on Delivery" : "In-Store Cash");
+            if (litKpiPaymentStatus != null) litKpiPaymentStatus.Text = Server.HtmlEncode(paymentText);
 
-            litKpiOrderStatus.Text = RenderStatusBadge(order.Status);
+            if (litKpiOrderStatus != null) litKpiOrderStatus.Text = RenderStatusBadge(order.Status);
 
-            litKpiOrderDate.Text = order.CreatedAt.ToString("MMM dd, yyyy");
-            litKpiOrderTime.Text = order.CreatedAt.ToString("h:mm tt");
+            decimal paidAmount = string.Equals(order.PaymentStatus, "Completed", StringComparison.OrdinalIgnoreCase) ? order.TotalAmount : 0m;
+            if (litPaidAmountText != null) litPaidAmountText.Text = $"&#8369;{paidAmount:N2}";
+
+            if (litCardFulfillmentActions != null) litCardFulfillmentActions.Text = litActionButtons != null ? litActionButtons.Text : "";
 
             if (isDelivery)
             {
-                phDeliveryAddress.Visible = true;
                 var addressParts = new StringBuilder();
                 if (!string.IsNullOrWhiteSpace(order.ShippingAddress)) addressParts.Append(order.ShippingAddress);
                 if (!string.IsNullOrWhiteSpace(order.ShippingBarangay)) addressParts.Append($", Brgy. {order.ShippingBarangay}");
@@ -161,7 +169,6 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
                 if (!string.IsNullOrWhiteSpace(order.ShippingProvince)) addressParts.Append($", {order.ShippingProvince}");
                 if (!string.IsNullOrWhiteSpace(order.ShippingPostalCode)) addressParts.Append($" {order.ShippingPostalCode}");
                 litFullAddress.Text = Server.HtmlEncode(addressParts.ToString());
-                litDeliveryRegion.Text = Server.HtmlEncode(order.ShippingRegion ?? "N/A");
 
                 if (!string.IsNullOrWhiteSpace(order.Courier) || !string.IsNullOrWhiteSpace(order.TrackingNumber))
                 {
@@ -176,7 +183,7 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
             }
             else
             {
-                phDeliveryAddress.Visible = false;
+                litFullAddress.Text = "Helmet Cartel QC Flagship Hub &mdash; 107 Kamuning Rd, Quezon City, Metro Manila";
                 phCourierInfo.Visible = false;
             }
 

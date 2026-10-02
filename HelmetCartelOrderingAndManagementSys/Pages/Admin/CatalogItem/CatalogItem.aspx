@@ -32,6 +32,7 @@
                     </svg>
                     <span>Discard Changes</span>
                 </button>
+                <% if (IsDraft) { %>
                 <asp:LinkButton ID="btnSaveDraft" runat="server" CssClass="btn-pill btn-pill--secondary" OnClick="btnSaveDraft_Click" ClientIDMode="Static">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
@@ -40,11 +41,12 @@
                     </svg>
                     <span>Save as Draft</span>
                 </asp:LinkButton>
+                <% } %>
                 <asp:LinkButton ID="btnPublish" runat="server" CssClass="btn-pill btn-pill--primary" OnClick="btnPublish_Click" ClientIDMode="Static">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                    <span>Publish Helmet</span>
+                    <span><%= (ProductId > 0 && !IsDraft) ? "Save Changes" : "Publish Helmet" %></span>
                 </asp:LinkButton>
             </div>
         </header>
@@ -73,7 +75,7 @@
             </button>
             <button type="button" class="admin-wizard-tab-btn" data-step="3" role="tab" onclick="switchWizardTab(3);">
                 <span class="tab-step-num">3</span>
-                <span>Variants &amp; Stock</span>
+                <span>Variants</span>
             </button>
             <button type="button" class="admin-wizard-tab-btn" data-step="4" role="tab" onclick="switchWizardTab(4);">
                 <span class="tab-step-num">4</span>
@@ -141,11 +143,8 @@
                 <span class="inline-error-msg" id="errDescription">Product description is required.</span>
             </div>
 
-            <div class="admin-form-row-checkbox">
-                <label class="admin-checkbox-label">
-                    <asp:CheckBox ID="chkIsFeatured" runat="server" ClientIDMode="Static" />
-                    <span>Feature this helmet on storefront home banners and highlights</span>
-                </label>
+            <div class="is-hidden">
+                <asp:CheckBox ID="chkIsFeatured" runat="server" ClientIDMode="Static" />
             </div>
 
             <div class="admin-wizard-footer">
@@ -301,31 +300,16 @@
                 </div>
                 <span class="inline-error-msg" id="errSizes">At least one helmet size must be selected.</span>
             </div>
-
-            <!-- Generated Variant Matrix Table -->
+            <!-- Generated Variant Matrix (Pill Cards Container) -->
             <div class="admin-form-group">
-                <label class="admin-form-label">Generated Variant Matrix &amp; Initial Stock (Auto-generated SKU)</label>
-                <div class="admin-matrix-table-wrap">
-                    <table class="admin-matrix-table" id="tableVariantMatrix">
-                        <thead>
-                            <tr>
-                                <th>Colorway</th>
-                                <th>Size</th>
-                                <th>SKU <span class="admin-required-star">*</span></th>
-                                <th>Price Adj. (&#8369;)</th>
-                                <th>Initial Stock</th>
-                                <th>Reorder Point</th>
-                                <th class="admin-table-align-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbodyVariantMatrix">
-                            <tr id="rowEmptyMatrix">
-                                <td colspan="7" class="admin-empty-cell-msg">
-                                    Add at least one color above to automatically generate size variant combinations.
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="admin-matrix-pill-header">
+                    <span class="admin-form-label">Generated Variants</span>
+                    <span class="admin-matrix-pill-count" id="lblVariantMatrixCount">0 combinations</span>
+                </div>
+                <div class="admin-variant-pills-container" id="variantPillsContainer">
+                    <span class="admin-empty-cell-msg" id="msgEmptyVariants">
+                        Add at least one color above to automatically generate size variant combinations.
+                    </span>
                 </div>
                 <span class="inline-error-msg" id="errVariants">At least one size variant combination with a valid SKU is required.</span>
             </div>
@@ -340,60 +324,77 @@
              TAB 4: Pricing & Discount
              ==================================================================== -->
         <div class="admin-wizard-pane" data-pane="4">
-            <div class="admin-form-grid-2">
-                <div class="admin-form-group">
-                    <label class="admin-form-label" for="txtBasePrice">Base Retail Price (&#8369;) <span class="admin-required-star">*</span></label>
-                    <asp:TextBox ID="txtBasePrice" runat="server" CssClass="admin-form-input" placeholder="34000.00" ClientIDMode="Static"></asp:TextBox>
-                    <span class="inline-error-msg" id="errBasePrice">Valid positive retail price is required.</span>
-                </div>
+            <!-- Hidden ASP.NET base price control to maintain backend entity serialization -->
+            <asp:TextBox ID="txtBasePrice" runat="server" CssClass="is-hidden" ClientIDMode="Static"></asp:TextBox>
 
-                <!-- Joined Discount Input Group matching Screenshot 1 -->
-                <div class="admin-form-group">
-                    <label class="admin-form-label" for="txtDiscountValue">Promotional Discount</label>
-                    <div class="admin-input-joined">
-                        <asp:TextBox ID="txtDiscountValue" runat="server" CssClass="admin-form-input" placeholder="0" ClientIDMode="Static"></asp:TextBox>
-                        <asp:DropDownList ID="ddlDiscountUnit" runat="server" CssClass="admin-form-select" ClientIDMode="Static">
-                            <asp:ListItem Text="%" Value="Percentage" Selected="True"></asp:ListItem>
-                            <asp:ListItem Text="&#8369;" Value="FixedAmount"></asp:ListItem>
-                        </asp:DropDownList>
+            <!-- Variant Pricing & Stock Matrix Table -->
+            <div class="admin-form-group">
+                <div class="admin-matrix-pill-header">
+                    <span class="admin-matrix-pill-badge">VARIANT PRICING &amp; INVENTORY MATRIX</span>
+                    <span class="admin-form-hint">Set the retail price (&#8369;), initial warehouse stock, and low-stock reorder thresholds for each SKU.</span>
+                </div>
+                <div class="admin-matrix-table-wrap">
+                    <table class="admin-matrix-table" id="tablePricingMatrix">
+                        <thead>
+                            <tr>
+                                <th>Variant (Color &amp; Size)</th>
+                                <th>SKU</th>
+                                <th>Price (&#8369;) <span class="admin-required-star">*</span></th>
+                                <th>Initial Stock</th>
+                                <th>Reorder Point</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyPricingMatrix">
+                            <tr id="rowEmptyPricingMatrix">
+                                <td colspan="5" class="admin-empty-cell-msg">
+                                    Configure colors and sizes in the Variants step to generate pricing matrix.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <span class="inline-error-msg" id="errPricingMatrix">Valid positive price is required for all configured variants.</span>
+            </div>
+
+            <div class="admin-form-section">
+                <span class="admin-form-label admin-form-label-title">Promotional Discount (Optional)</span>
+                <div class="admin-form-grid-2">
+                    <!-- Joined Discount Input Group -->
+                    <div class="admin-form-group">
+                        <label class="admin-form-label" for="txtDiscountValue">Discount Value</label>
+                        <div class="admin-input-joined">
+                            <asp:TextBox ID="txtDiscountValue" runat="server" CssClass="admin-form-input" placeholder="0" ClientIDMode="Static"></asp:TextBox>
+                            <asp:DropDownList ID="ddlDiscountUnit" runat="server" CssClass="admin-form-select" ClientIDMode="Static">
+                                <asp:ListItem Text="%" Value="Percentage" Selected="True"></asp:ListItem>
+                                <asp:ListItem Text="&#8369;" Value="FixedAmount"></asp:ListItem>
+                            </asp:DropDownList>
+                        </div>
+                    </div>
+
+                    <!-- Segmented Pill Toggle -->
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Discount Campaign Status</label>
+                        <div class="admin-segmented-pill" id="pillDiscountStatusToggle" role="radiogroup" aria-label="Discount Status">
+                            <button type="button" class="admin-pill-segment true is-active" data-val="Active" role="radio" aria-checked="true">ACTIVE</button>
+                            <button type="button" class="admin-pill-segment" data-val="Inactive" role="radio" aria-checked="false">INACTIVE</button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="admin-form-grid-2">
-                <!-- Segmented Pill Toggle matching Screenshot 2 -->
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Discount Campaign Status</label>
-                    <div class="admin-segmented-pill" id="pillDiscountStatusToggle" role="radiogroup" aria-label="Discount Status">
-                        <button type="button" class="admin-pill-segment true is-active" data-val="Active" role="radio" aria-checked="true">ACTIVE</button>
-                        <button type="button" class="admin-pill-segment" data-val="Inactive" role="radio" aria-checked="false">INACTIVE</button>
+                <div class="admin-form-grid-2">
+                    <div class="admin-form-group">
+                        <label class="admin-form-label" for="txtDiscountStartDate">Schedule Start Date (Optional)</label>
+                        <asp:TextBox ID="txtDiscountStartDate" runat="server" TextMode="Date" CssClass="admin-form-input" ClientIDMode="Static"></asp:TextBox>
                     </div>
-                </div>
-
-            </div>
-
-            <div class="admin-form-grid-2">
-                <div class="admin-form-group">
-                    <label class="admin-form-label" for="txtDiscountStartDate">Schedule Start Date (Optional)</label>
-                    <asp:TextBox ID="txtDiscountStartDate" runat="server" TextMode="Date" CssClass="admin-form-input" ClientIDMode="Static"></asp:TextBox>
-                </div>
-                <div class="admin-form-group">
-                    <label class="admin-form-label" for="txtDiscountEndDate">Schedule End Date (Optional)</label>
-                    <asp:TextBox ID="txtDiscountEndDate" runat="server" TextMode="Date" CssClass="admin-form-input" ClientIDMode="Static"></asp:TextBox>
-                </div>
-            </div>
-
-            <!-- Live Price Calculation Preview Box (Matching Previous Design) -->
-            <div class="admin-effective-preview-box">
-                <div class="admin-effective-preview-label">Effective Customer Price Preview</div>
-                <div id="pricingEffectivePreview" class="admin-effective-preview-val">
-                    Effective Price: <strong id="lblPreviewEffectivePrice">&#8369;0.00</strong>
-                    <span id="lblPreviewDiscount" class="admin-effective-discount-tag">(No discount applied)</span>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label" for="txtDiscountEndDate">Schedule End Date (Optional)</label>
+                        <asp:TextBox ID="txtDiscountEndDate" runat="server" TextMode="Date" CssClass="admin-form-input" ClientIDMode="Static"></asp:TextBox>
+                    </div>
                 </div>
             </div>
 
             <div class="admin-wizard-footer">
-                <button type="button" class="btn-pill btn-pill--outline" onclick="switchWizardTab(3);">&larr; Back: Variants &amp; Stock</button>
+                <button type="button" class="btn-pill btn-pill--outline" onclick="switchWizardTab(3);">&larr; Back: Variants</button>
                 <button type="button" class="btn-pill btn-pill--primary" onclick="switchWizardTab(5);">Next: Images &amp; Upload &rarr;</button>
             </div>
         </div>

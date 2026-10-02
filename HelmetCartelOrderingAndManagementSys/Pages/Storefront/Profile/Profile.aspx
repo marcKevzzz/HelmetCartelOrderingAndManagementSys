@@ -28,7 +28,7 @@
                             <div class="profile-sidebar-avatar" id="profile-avatar">HC</div>
                             <div class="profile-sidebar-user-meta">
                                 <h2 class="profile-sidebar-name" id="profile-user-name">Loading Rider...</h2>
-                                <span class="profile-sidebar-time-subtle" id="profile-role-text">First login: Loading...</span>
+                                <span class="profile-sidebar-time-subtle" id="profile-role-text">Created: Loading...</span>
                             </div>
                         </div>
                     </div>
@@ -83,7 +83,7 @@
                                         <rect x="2" y="5" width="20" height="14" rx="2"></rect>
                                         <line x1="2" y1="10" x2="22" y2="10"></line>
                                     </svg>
-                                    <span>Payment methods</span>
+                                    <span>Payment history</span>
                                     <span class="profile-nav-count" id="nav-count-payments" style="display: none;"></span>
                                 </button>
                             </li>

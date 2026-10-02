@@ -48,7 +48,8 @@ namespace HelmetCartelOrderingAndManagementSys.Pages
 
         private async Task LoadProductAsync()
         {
-            int productId = 1;
+            string slug = Request.QueryString["slug"];
+            int productId = 0;
             if (!string.IsNullOrEmpty(Request.QueryString["id"]) && int.TryParse(Request.QueryString["id"], out int parsedId))
             {
                 productId = parsedId;
@@ -56,11 +57,22 @@ namespace HelmetCartelOrderingAndManagementSys.Pages
 
             try
             {
-                ProductItem = await _productRepository.GetProductByIdAsync(productId).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(slug))
+                {
+                    ProductItem = await _productRepository.GetProductBySlugAsync(slug).ConfigureAwait(false);
+                }
+                else if (productId > 0)
+                {
+                    ProductItem = await _productRepository.GetProductByIdAsync(productId).ConfigureAwait(false);
+                }
+                else
+                {
+                    ProductItem = await _productRepository.GetProductByIdAsync(1).ConfigureAwait(false);
+                }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ProductDetail] Error loading product {productId}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[ProductDetail] Error loading product (id: {productId}, slug: {slug}): {ex.Message}");
             }
 
             if (ProductItem == null)

@@ -51,7 +51,8 @@ namespace HelmetCartelOrderingAndManagementSys.Services
                 LastName = user.LastName,
                 FullName = user.FullName,
                 PhoneNumber = user.PhoneNumber,
-                Role = user.RoleName
+                Role = user.RoleName,
+                CreatedAt = user.CreatedAt
             };
 
             var token = _jwtTokenProvider.GenerateToken(profile, request.RememberMe);
@@ -106,7 +107,8 @@ namespace HelmetCartelOrderingAndManagementSys.Services
                 LastName = request.LastName.Trim(),
                 FullName = (request.FirstName.Trim() + " " + request.LastName.Trim()).Trim(),
                 PhoneNumber = request.PhoneNumber?.Trim(),
-                Role = AppConstants.Roles.Customer
+                Role = AppConstants.Roles.Customer,
+                CreatedAt = DateTime.UtcNow
             };
 
             var token = _jwtTokenProvider.GenerateToken(profile);

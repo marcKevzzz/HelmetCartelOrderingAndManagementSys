@@ -45,7 +45,10 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         {
             if (!IsPostBack)
             {
-                string q = Request.QueryString["q"] ?? Request.QueryString["search"] ?? Request.QueryString["brand"];
+                string q =
+                    Request.QueryString["q"]
+                    ?? Request.QueryString["search"]
+                    ?? Request.QueryString["brand"];
                 if (!string.IsNullOrWhiteSpace(q))
                 {
                     CurrentSearch = q.Trim();
@@ -60,13 +63,20 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 string msg = Request.QueryString["msg"];
                 if (!string.IsNullOrWhiteSpace(msg))
                 {
-                    string alertText = msg == "draft_saved" ? "Draft saved successfully." :
-                                       msg == "published" ? "Helmet model published successfully." :
-                                       msg == "deleted" ? "Product deleted successfully." : null;
+                    string alertText =
+                        msg == "draft_saved" ? "Draft saved successfully."
+                        : msg == "published" ? "Helmet model published successfully."
+                        : msg == "deleted" ? "Product deleted successfully."
+                        : null;
                     if (alertText != null)
                     {
                         string cleanMsg = HttpUtility.JavaScriptStringEncode(alertText);
-                        ClientScript.RegisterStartupScript(this.GetType(), "msgToast", $"document.addEventListener('DOMContentLoaded', function() {{ if (typeof showAdminToast === 'function') showAdminToast('{cleanMsg}'); }});", true);
+                        ClientScript.RegisterStartupScript(
+                            this.GetType(),
+                            "msgToast",
+                            $"document.addEventListener('DOMContentLoaded', function() {{ if (typeof showAdminToast === 'function') showAdminToast('{cleanMsg}'); }});",
+                            true
+                        );
                     }
                 }
 
@@ -97,6 +107,10 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             {
                 products = products.Where(p => p.IsActive).ToList();
             }
+            else if (CurrentTab == "drafts")
+            {
+                products = products.Where(p => !p.IsActive).ToList();
+            }
             else if (CurrentTab == "featured")
             {
                 products = products.Where(p => p.IsFeatured).ToList();
@@ -105,8 +119,10 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             int totalCount = products.Count;
             int totalPages = Math.Max(1, (int)Math.Ceiling((double)totalCount / PageSize));
 
-            if (CurrentPage < 1) CurrentPage = 1;
-            if (CurrentPage > totalPages) CurrentPage = totalPages;
+            if (CurrentPage < 1)
+                CurrentPage = 1;
+            if (CurrentPage > totalPages)
+                CurrentPage = totalPages;
 
             var pagedProducts = products.Skip((CurrentPage - 1) * PageSize).Take(PageSize).ToList();
 
@@ -114,16 +130,25 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             rptCatalog.DataBind();
 
             litTotalTop.Text = totalCount.ToString();
-            litShowingTop.Text = totalCount == 0 ? "0" : $"{((CurrentPage - 1) * PageSize) + 1}–{Math.Min(CurrentPage * PageSize, totalCount)}";
+            litShowingTop.Text =
+                totalCount == 0
+                    ? "0"
+                    : $"{((CurrentPage - 1) * PageSize) + 1}–{Math.Min(CurrentPage * PageSize, totalCount)}";
 
             // Centered pagination
             pnlCatalogPagination.Visible = totalPages > 1;
             if (totalPages > 1)
             {
-                lnkCatalogPrev.CssClass = "admin-pagination-btn" + (CurrentPage <= 1 ? " disabled" : "");
-                lnkCatalogNext.CssClass = "admin-pagination-btn" + (CurrentPage >= totalPages ? " disabled" : "");
+                lnkCatalogPrev.CssClass =
+                    "admin-pagination-btn" + (CurrentPage <= 1 ? " disabled" : "");
+                lnkCatalogNext.CssClass =
+                    "admin-pagination-btn" + (CurrentPage >= totalPages ? " disabled" : "");
 
-                var pageLinks = PaginationHelper.BuildPageLinks(CurrentPage, totalPages, i => i.ToString());
+                var pageLinks = PaginationHelper.BuildPageLinks(
+                    CurrentPage,
+                    totalPages,
+                    i => i.ToString()
+                );
                 rptCatalogPages.DataSource = pageLinks;
                 rptCatalogPages.DataBind();
             }
@@ -156,32 +181,58 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         {
             if (int.TryParse(hfDeleteProductId.Value, out int productId) && productId > 0)
             {
-                RegisterAsyncTask(new PageAsyncTask(async () =>
-                {
-                    try
+                RegisterAsyncTask(
+                    new PageAsyncTask(async () =>
                     {
-                        var res = await _adminRepo.DeleteProductAsync(productId).ConfigureAwait(false);
-                        if (res.Success)
+                        try
                         {
-                            string msg = res.Status == "SoftDeleted" 
-                                ? "Product has historical order transactions. It has been deactivated and archived." 
-                                : "Product and its variants were successfully deleted from catalog.";
-                            string toastScript = $"if(window.showAdminToast){{window.showAdminToast({Newtonsoft.Json.JsonConvert.SerializeObject(msg)},'success','Product Deleted');}}";
-                            ScriptManager.RegisterStartupScript(this, GetType(), "deleteSuccessToast", toastScript, true);
+                            var res = await _adminRepo
+                                .DeleteProductAsync(productId)
+                                .ConfigureAwait(false);
+                            if (res.Success)
+                            {
+                                string msg =
+                                    res.Status == "SoftDeleted"
+                                        ? "Product has historical order transactions. It has been deactivated and archived."
+                                        : "Product and its variants were successfully deleted from catalog.";
+                                string toastScript =
+                                    $"if(window.showAdminToast){{window.showAdminToast({Newtonsoft.Json.JsonConvert.SerializeObject(msg)},'success','Product Deleted');}}";
+                                ScriptManager.RegisterStartupScript(
+                                    this,
+                                    GetType(),
+                                    "deleteSuccessToast",
+                                    toastScript,
+                                    true
+                                );
+                            }
+                            else
+                            {
+                                string toastScript =
+                                    $"if(window.showAdminToast){{window.showAdminToast({Newtonsoft.Json.JsonConvert.SerializeObject(res.Message)},'error','Delete Failed');}}";
+                                ScriptManager.RegisterStartupScript(
+                                    this,
+                                    GetType(),
+                                    "deleteFailToast",
+                                    toastScript,
+                                    true
+                                );
+                            }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            string toastScript = $"if(window.showAdminToast){{window.showAdminToast({Newtonsoft.Json.JsonConvert.SerializeObject(res.Message)},'error','Delete Failed');}}";
-                            ScriptManager.RegisterStartupScript(this, GetType(), "deleteFailToast", toastScript, true);
+                            string toastScript =
+                                $"if(window.showAdminToast){{window.showAdminToast({Newtonsoft.Json.JsonConvert.SerializeObject(ex.Message)},'error','Delete Error');}}";
+                            ScriptManager.RegisterStartupScript(
+                                this,
+                                GetType(),
+                                "deleteErrToast",
+                                toastScript,
+                                true
+                            );
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        string toastScript = $"if(window.showAdminToast){{window.showAdminToast({Newtonsoft.Json.JsonConvert.SerializeObject(ex.Message)},'error','Delete Error');}}";
-                        ScriptManager.RegisterStartupScript(this, GetType(), "deleteErrToast", toastScript, true);
-                    }
-                    await LoadCatalogDataAsync().ConfigureAwait(false);
-                }));
+                        await LoadCatalogDataAsync().ConfigureAwait(false);
+                    })
+                );
             }
         }
 
@@ -199,6 +250,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         {
             btnTabAll.CssClass = "admin-tab-btn" + (CurrentTab == "all" ? " active" : "");
             btnTabActive.CssClass = "admin-tab-btn" + (CurrentTab == "active" ? " active" : "");
+            btnTabDrafts.CssClass = "admin-tab-btn" + (CurrentTab == "drafts" ? " active" : "");
             btnTabFeatured.CssClass = "admin-tab-btn" + (CurrentTab == "featured" ? " active" : "");
         }
 

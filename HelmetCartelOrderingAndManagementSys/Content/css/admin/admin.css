@@ -77,7 +77,7 @@ html.admin-sidebar-collapsed .admin-sidebar {
 }
 
 .admin-brand-title {
-  font-family: var(--font-display);
+  font-family: var(--font-heading);
   font-size: var(--text-h4);
   font-weight: var(--weight-bold);
   letter-spacing: -0.02em;
@@ -428,11 +428,16 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
   width: 38px;
   height: 38px;
   border-radius: var(--radius-sm);
-  object-fit: contain;
+  object-fit: cover;
   background-color: var(--color-surface-subtle);
   border: 1px solid var(--color-border-subtle);
   flex-shrink: 0;
-  padding: 2px;
+  padding: 0;
+  overflow: hidden;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  transform: scale(1.02);
+  transition: transform var(--transition-fast, 0.2s ease);
 }
 
 .admin-search-meta {
@@ -1013,12 +1018,18 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
   justify-content: center;
   box-sizing: border-box;
   overflow: hidden;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  flex-shrink: 0;
 }
 
 .admin-thumb-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
+  transform: scale(1.02);
+  transition: transform var(--transition-fast, 0.2s ease);
 }
 
 /* Cell Specifics */
@@ -1663,11 +1674,130 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
   padding-top: var(--space-4);
 }
 
+.admin-matrix-pill-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.admin-matrix-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px 12px;
+  background-color: var(--color-surface-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.05em;
+  color: var(--color-text-main);
+  text-transform: uppercase;
+}
+
+.admin-matrix-pill-count {
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+}
+
 .admin-matrix-table-wrap {
-  max-height: 250px;
+  max-height: 280px;
   overflow-y: auto;
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
+  background-color: var(--color-surface-card);
+}
+
+.admin-variant-pills-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  min-height: 80px;
+  align-items: center;
+}
+
+.admin-variant-item-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 12px;
+  background-color: var(--color-surface-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-caption);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.admin-variant-item-pill:hover {
+  border-color: var(--color-border-medium);
+  background-color: var(--color-surface-subtle);
+}
+
+.admin-variant-pill-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+}
+
+.admin-variant-pill-color {
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-main);
+}
+
+.admin-variant-pill-size {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 6px;
+  background-color: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-pill);
+  font-weight: var(--weight-bold);
+  font-size: 0.7rem;
+  color: var(--color-text-main);
+}
+
+.admin-variant-pill-sku-input {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  font-weight: var(--weight-medium);
+  background-color: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 3px 6px;
+  width: 140px;
+  color: var(--color-text-main);
+}
+
+.admin-variant-pill-sku-input:focus {
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+.admin-variant-pill-remove {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: var(--radius-pill);
+  transition: color var(--transition-fast);
+}
+
+.admin-variant-pill-remove:hover {
+  color: var(--color-accent-red);
 }
 
 .admin-matrix-table {
@@ -1729,6 +1859,11 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
   color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.admin-form-label-title{
+   font-size: var(--text-body);
+  color: var(--color-text);
 }
 
 .admin-form-input,
@@ -2308,6 +2443,10 @@ textarea::placeholder,
   border: 1px solid var(--color-border-subtle);
   background-color: var(--color-surface-card);
   flex-shrink: 0;
+  overflow: hidden;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  transform: scale(1.02);
 }
 
 .admin-review-header-info {
@@ -3488,9 +3627,13 @@ textarea::placeholder,
 .admin-brand-product-head img {
   width: var(--space-16);
   height: var(--space-16);
-  object-fit: contain;
+  object-fit: cover;
   background: var(--color-surface-subtle);
   border-radius: var(--radius-md);
+  overflow: hidden;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  transform: scale(1.02);
 }
 
 .admin-brand-product-head div {
@@ -4042,7 +4185,7 @@ textarea::placeholder,
   position: absolute;
   top: 0;
   left: 0;
-  width: 4px;
+  width: 2px;
   height: 110px;
   background-color: var(--color-primary, #000);
   border-radius: var(--radius-pill);
@@ -4276,6 +4419,12 @@ textarea::placeholder,
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+.admin-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 .admin-form-section-card {
@@ -5500,7 +5649,7 @@ textarea::placeholder,
   flex-direction: column;
   justify-content: space-between;
   border-left: 1px solid var(--color-border-subtle);
-  padding-left: var(--space-1);
+  padding-left: 0;
   padding-right: 70px;
   gap: var(--space-4);
 }
@@ -5843,3 +5992,98 @@ textarea::placeholder,
   color: var(--color-text-muted);
   font-size: var(--text-caption);
 }
+
+/* ==========================================================================
+   INTERACTIVE VARIANT PILLS / CHIPS
+   ========================================================================== */
+.admin-variant-pills-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  min-height: 80px;
+  align-items: center;
+}
+
+.admin-variant-item-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 12px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.admin-variant-item-pill:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.admin-variant-pill-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+}
+
+.admin-variant-pill-label {
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-main);
+  white-space: nowrap;
+}
+
+.admin-variant-pill-size {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-bold);
+  padding: 2px 8px;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-main);
+}
+
+.admin-variant-pill-sku-input {
+  width: 130px;
+  font-size: var(--text-caption);
+  font-family: var(--font-mono, monospace);
+  font-weight: var(--weight-semibold);
+  padding: 3px 8px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-main);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.admin-variant-pill-sku-input:focus {
+  border-color: var(--color-primary);
+  background: var(--color-surface-card);
+}
+
+.admin-variant-pill-remove {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  margin-left: 2px;
+  transition: color var(--transition-fast);
+}
+
+.admin-variant-pill-remove:hover {
+  color: var(--color-danger, #ef4444);
+}
