@@ -1,0 +1,703 @@
+/* ==========================================================================
+   HELMET CARTEL - VOUCHERS MANAGEMENT DESIGN SYSTEM
+   Matches modern minimalist admin portal layout & design tokens.
+   ========================================================================== */
+
+.voucher-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  box-sizing: border-box;
+}
+
+/* 1. Header & Actions */
+.admin-page-title-row p {
+  margin: var(--space-1) 0 0 0;
+  font-size: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+
+.voucher-search-wrap {
+  position: relative;
+  min-width: 240px;
+}
+
+.voucher-search-wrap svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.voucher-search-input {
+  width: 100%;
+  padding: 8px 12px 8px 36px;
+  font-size: var(--text-body-sm);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-main);
+  box-sizing: border-box;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.voucher-search-input:focus {
+  outline: none;
+  border-color: var(--color-text-main);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+}
+
+/* 2. KPI Summary Cards (Identical Layout to Dashboard KPI Cards) */
+.voucher-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 1024px) {
+  .voucher-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .voucher-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.voucher-kpi-card {
+  background-color: var(--color-surface-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  transition: border-color var(--transition-fast);
+}
+
+.voucher-kpi-card:hover {
+  border-color: var(--color-border-medium);
+}
+
+/* 3. Table Column Layout & Styling */
+.admin-table-vouchers {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table-vouchers th,
+.admin-table-vouchers td {
+  padding: var(--space-3) var(--space-4);
+  vertical-align: middle;
+}
+
+/* Code Chip with Copy Action */
+.voucher-code-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.voucher-code-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  background: #18181B;
+  color: #FFFFFF;
+  border-radius: var(--radius-sm);
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  user-select: all;
+}
+
+.voucher-code-chip svg {
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.btn-copy-code {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.btn-copy-code:hover {
+  color: var(--color-text-main);
+  background: var(--color-surface-muted);
+}
+
+/* Discount Display */
+.voucher-discount-lead {
+  font-size: var(--text-body);
+  font-weight: var(--weight-bold);
+  color: var(--color-text-main);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voucher-type-badge {
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+
+.voucher-type-badge--pct {
+  background: rgba(16, 185, 129, 0.12);
+  color: #065f46;
+}
+
+.voucher-type-badge--fixed {
+  background: rgba(59, 130, 246, 0.12);
+  color: #1e40af;
+}
+
+/* Min Spend */
+.voucher-min-spend {
+  font-size: var(--text-body-sm);
+  color: var(--color-text-main);
+}
+
+.voucher-min-spend-none {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* Usage Progress Bar */
+.voucher-usage-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 130px;
+}
+
+.voucher-usage-text {
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-main);
+  display: flex;
+  justify-content: space-between;
+}
+
+.voucher-usage-percent {
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+}
+
+.voucher-progress-track {
+  width: 100%;
+  height: 6px;
+  background: var(--color-border-subtle);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.voucher-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-green);
+  transition: width 0.3s ease;
+}
+
+.voucher-progress-fill.is-depleted {
+  background: var(--color-accent-red);
+}
+
+.voucher-progress-fill.is-high {
+  background: var(--color-accent-amber);
+}
+
+/* Validity & Expiry Cell */
+.voucher-expiry-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.voucher-expiry-date {
+  font-size: var(--text-body-sm);
+  color: var(--color-text-main);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.voucher-expiry-tag {
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+  width: fit-content;
+}
+
+.voucher-expiry-tag--valid {
+  color: var(--color-text-secondary);
+}
+
+.voucher-expiry-tag--soon {
+  color: #b45309;
+  font-weight: var(--weight-semibold);
+}
+
+.voucher-expiry-tag--expired {
+  color: var(--color-accent-red);
+  font-weight: var(--weight-semibold);
+}
+
+/* Status Badges */
+.admin-badge--expired {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+/* Actions in Table */
+.voucher-table-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.admin-action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-card);
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.admin-action-btn:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-text-main);
+  border-color: var(--color-border-medium);
+}
+
+.admin-action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.admin-empty-icon{
+  margin-inline: auto;
+}
+
+/* Single-click active toggle button */
+.admin-table-toggle-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: var(--weight-semibold);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-card);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all var(--transition-fast);
+}
+
+.admin-table-toggle-btn.is-active {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #065f46;
+}
+
+.admin-table-toggle-btn.is-inactive {
+  background: var(--color-surface-muted);
+  border-color: var(--color-border-medium);
+  color: var(--color-text-muted);
+}
+
+.admin-table-toggle-btn:hover:not(:disabled) {
+  border-color: var(--color-text-main);
+}
+
+.admin-table-toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.toggle-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* 4. Modal Dialog & Ticket Preview */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--space-4);
+  box-sizing: border-box;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.modal-backdrop.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.admin-modal-voucher {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 620px;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-xl);
+  animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes modalPopIn {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-header {
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.modal-header h2 {
+  font-family: var(--font-heading);
+  font-size: var(--text-h3);
+  font-weight: var(--weight-bold);
+  margin: 0;
+  color: var(--color-text-main);
+}
+
+.modal-header p {
+  margin: 4px 0 0 0;
+  font-size: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast);
+}
+
+.modal-close-btn:hover {
+  color: var(--color-text-main);
+}
+
+.modal-body {
+  padding: var(--space-6);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* Dynamic Live Ticket Preview Card */
+.voucher-ticket-preview {
+  position: relative;
+  background: linear-gradient(135deg, #18181B 0%, #27272A 100%);
+  color: #FFFFFF;
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow: hidden;
+}
+
+.voucher-ticket-preview::before,
+.voucher-ticket-preview::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  background: var(--color-surface-card);
+  border-radius: 50%;
+  transform: translateY(-50%);
+}
+
+.voucher-ticket-preview::before { left: -9px; }
+.voucher-ticket-preview::after { right: -9px; }
+
+.voucher-preview-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+  padding-bottom: var(--space-3);
+}
+
+.voucher-preview-brand {
+  font-size: 11px;
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voucher-preview-status {
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.voucher-preview-status.is-inactive {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.voucher-preview-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.voucher-preview-discount {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+  color: #FFFFFF;
+}
+
+.voucher-preview-code {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 16px;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px dashed rgba(255, 255, 255, 0.4);
+  border-radius: var(--radius-sm);
+  color: #FBBF24;
+}
+
+.voucher-preview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Form Grid */
+.voucher-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.voucher-modal-grid .admin-form-group--full {
+  grid-column: span 2;
+}
+
+.voucher-code-input {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.admin-input-addon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.admin-input-addon-wrap .admin-form-input {
+  padding-right: 36px;
+}
+
+.admin-input-addon-wrap--left .admin-form-input {
+  padding-left: 36px;
+  padding-right: 12px;
+}
+
+.admin-input-addon {
+  position: absolute;
+  right: 12px;
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-bold);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.admin-input-addon-wrap--left .admin-input-addon {
+  left: 12px;
+  right: auto;
+}
+
+.voucher-field-hint {
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+  margin-top: 3px;
+  display: block;
+}
+
+/* Custom Toggle Switch */
+.voucher-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  user-select: none;
+}
+
+.admin-toggle-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-toggle-track {
+  width: 40px;
+  height: 22px;
+  background: var(--color-border-medium);
+  border-radius: var(--radius-pill);
+  position: relative;
+  flex-shrink: 0;
+  transition: background-color var(--transition-fast);
+}
+
+.admin-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  background: #FFFFFF;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform var(--transition-fast);
+}
+
+.admin-toggle-input:checked + .admin-toggle-track {
+  background: var(--color-accent-green);
+}
+
+.admin-toggle-input:checked + .admin-toggle-track .admin-toggle-thumb {
+  transform: translateX(18px);
+}
+
+.voucher-toggle-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.voucher-toggle-title {
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-main);
+}
+
+.voucher-toggle-subtitle {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+}
+
+/* Modal Error Banner */
+.modal-alert {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-body-sm);
+}
+
+.modal-alert--danger {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #b91c1c;
+}
+
+.modal-alert.is-hidden {
+  display: none;
+}
+
+.modal-footer {
+  padding: var(--space-4) var(--space-6);
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-muted);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1024px) {
+  .voucher-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .voucher-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .voucher-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .voucher-modal-grid .admin-form-group--full {
+    grid-column: span 1;
+  }
+}

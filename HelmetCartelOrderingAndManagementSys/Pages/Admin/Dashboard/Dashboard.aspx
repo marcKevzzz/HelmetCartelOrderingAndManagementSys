@@ -140,6 +140,7 @@
                                 <div class="admin-activity-heading">
                                     <div class="admin-activity-heading-left">
                                         <span class="admin-activity-actor"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "actor"))) %></span>
+                                        <span class="admin-activity-role-badge admin-activity-role-badge--<%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "actorRole")).ToLowerInvariant()) %>"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "actorRole"))) %></span>
                                         <span class="admin-activity-type"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "activityType"))) %></span>
                                     </div>
                                     <span class="admin-activity-time"><%# FormatActivityTime(GetActivityValue(Container.DataItem, "createdAt")) %></span>
@@ -156,9 +157,17 @@
                     </FooterTemplate>
                 </asp:Repeater>
             </ul>
+            <div class="admin-activity-footer">
+                <button type="button" id="btnLoadMoreActivities" class="admin-btn admin-btn--outline admin-activity-load-more">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                    <span>Load More Activities</span>
+                </button>
+            </div>
         </div>
     </div>
 
     <!-- External Dashboard Scripts (Zero Inline JavaScript) -->
-    <script src="/Scripts/admin/dashboard.js?v=1"></script>
+    <script src="/Scripts/admin/dashboard.js?v=2"></script>
 </asp:Content>

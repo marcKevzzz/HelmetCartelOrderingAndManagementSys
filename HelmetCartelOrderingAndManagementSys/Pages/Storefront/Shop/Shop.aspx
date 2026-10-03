@@ -114,5 +114,5 @@
         </div>
     </div>
 
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/storefront.js?v=8") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/storefront.js?v=9") %>'></script>
 </asp:Content>

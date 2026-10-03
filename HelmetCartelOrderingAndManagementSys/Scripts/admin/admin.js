@@ -262,13 +262,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const path = window.location.pathname.toLowerCase();
         if (path.includes('/admin/catalog')) {
-          window.location.href = `/Admin/Catalog.aspx?q=${encodeURIComponent(query)}`;
+          window.location.href = `/Pages/Admin/Catalog/Catalog.aspx?q=${encodeURIComponent(query)}`;
         } else if (path.includes('/admin/orders')) {
-          window.location.href = `/Admin/Orders.aspx?q=${encodeURIComponent(query)}`;
+          window.location.href = `/Pages/Admin/Orders/Orders.aspx?q=${encodeURIComponent(query)}`;
         } else if (path.includes('/admin/users')) {
-          window.location.href = `/Admin/Users.aspx?q=${encodeURIComponent(query)}`;
+          window.location.href = `/Pages/Admin/Users/Users.aspx?q=${encodeURIComponent(query)}`;
+        } else if (path.includes('/admin/vouchers')) {
+          window.location.href = `/Pages/Admin/Vouchers/Vouchers.aspx?q=${encodeURIComponent(query)}`;
+        } else if (path.includes('/admin/reviews')) {
+          window.location.href = `/Pages/Admin/Reviews/Reviews.aspx?q=${encodeURIComponent(query)}`;
+        } else if (path.includes('/admin/returns')) {
+          window.location.href = `/Pages/Admin/Returns/Returns.aspx?q=${encodeURIComponent(query)}`;
         } else {
-          window.location.href = `/Admin/Inventory.aspx?q=${encodeURIComponent(query)}`;
+          window.location.href = `/Pages/Admin/Inventory/Inventory.aspx?q=${encodeURIComponent(query)}`;
         }
         return;
       }
@@ -385,13 +391,246 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnSignOutLink) btnSignOutLink.addEventListener('click', window.openSignOutModal);
 
   const userCapsule = document.getElementById('adminUserCapsule');
-  if (userCapsule) userCapsule.addEventListener('click', window.openSignOutModal);
+  if (userCapsule) userCapsule.addEventListener('click', () => window.openAdminProfileModal());
 
   const btnCancelSignOut = document.getElementById('btnCancelSignOut');
   if (btnCancelSignOut) btnCancelSignOut.addEventListener('click', window.closeSignOutModal);
 
   const btnConfirmSignOut = document.getElementById('btnConfirmSignOut');
   if (btnConfirmSignOut) btnConfirmSignOut.addEventListener('click', window.confirmSignOut);
+
+  // 6c. Admin User Profile & Security Modal Management
+  const adminProfileModal = document.getElementById('adminProfileModal');
+  const btnCloseAdminProfileModal = document.getElementById('btnCloseAdminProfileModal');
+  const btnCloseAdminProfile = document.getElementById('btnCloseAdminProfile');
+  const btnAdminProfileSignOut = document.getElementById('btnAdminProfileSignOut');
+
+  const adminEditProfileForm = document.getElementById('adminEditProfileForm');
+  const adminEditFirstName = document.getElementById('adminEditFirstName');
+  const adminEditLastName = document.getElementById('adminEditLastName');
+  const adminEditEmail = document.getElementById('adminEditEmail');
+  const adminEditPhone = document.getElementById('adminEditPhone');
+  const btnAdminSaveProfile = document.getElementById('btnAdminSaveProfile');
+  const errAdminFirstName = document.getElementById('errAdminFirstName');
+  const errAdminLastName = document.getElementById('errAdminLastName');
+  const errAdminPhone = document.getElementById('errAdminPhone');
+
+  const adminChangePasswordForm = document.getElementById('adminChangePasswordForm');
+  const adminPwdCurrent = document.getElementById('adminPwdCurrent');
+  const adminPwdNew = document.getElementById('adminPwdNew');
+  const adminPwdConfirm = document.getElementById('adminPwdConfirm');
+  const btnAdminSavePassword = document.getElementById('btnAdminSavePassword');
+  const errAdminPwdCurrent = document.getElementById('errAdminPwdCurrent');
+  const errAdminPwdNew = document.getElementById('errAdminPwdNew');
+  const errAdminPwdConfirm = document.getElementById('errAdminPwdConfirm');
+
+  let currentAdminUser = null;
+
+  const updateCapsuleDisplay = (user) => {
+    if (!user) return;
+    const nameEl = document.querySelector('#adminUserCapsule .admin-user-name');
+    const avatarEl = document.querySelector('#adminUserCapsule .admin-user-avatar');
+    const roleEl = document.querySelector('#adminUserCapsule .admin-user-role');
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.fullName || 'Admin';
+    if (nameEl) nameEl.textContent = fullName;
+    if (roleEl && user.role) roleEl.textContent = user.role;
+    if (avatarEl) {
+      const f = (user.firstName || 'H').charAt(0).toUpperCase();
+      const l = (user.lastName || 'C').charAt(0).toUpperCase();
+      avatarEl.textContent = `${f}${l}`;
+    }
+  };
+
+  const fetchAdminProfile = async () => {
+    try {
+      const res = await fetch('/api/v1/auth/me');
+      if (res.ok) {
+        const json = await res.json();
+        const user = json?.data || json?.Data;
+        if (user) {
+          currentAdminUser = user;
+          updateCapsuleDisplay(user);
+          if (adminEditFirstName) adminEditFirstName.value = user.firstName || '';
+          if (adminEditLastName) adminEditLastName.value = user.lastName || '';
+          if (adminEditEmail) adminEditEmail.value = user.email || '';
+          if (adminEditPhone) adminEditPhone.value = user.phoneNumber || '';
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch admin profile:', e);
+    }
+  };
+
+  fetchAdminProfile();
+
+  window.openAdminProfileModal = () => {
+    if (!adminProfileModal) return;
+    adminProfileModal.classList.remove('is-hidden');
+    adminProfileModal.removeAttribute('hidden');
+    fetchAdminProfile();
+    [errAdminFirstName, errAdminLastName, errAdminPhone, errAdminPwdCurrent, errAdminPwdNew, errAdminPwdConfirm].forEach(el => {
+      if (el) el.textContent = '';
+    });
+    if (adminPwdCurrent) adminPwdCurrent.value = '';
+    if (adminPwdNew) adminPwdNew.value = '';
+    if (adminPwdConfirm) adminPwdConfirm.value = '';
+  };
+
+  window.closeAdminProfileModal = () => {
+    if (!adminProfileModal) return;
+    adminProfileModal.classList.add('is-hidden');
+    adminProfileModal.setAttribute('hidden', 'hidden');
+  };
+
+  if (btnCloseAdminProfileModal) btnCloseAdminProfileModal.addEventListener('click', window.closeAdminProfileModal);
+  if (btnCloseAdminProfile) btnCloseAdminProfile.addEventListener('click', window.closeAdminProfileModal);
+  if (btnAdminProfileSignOut) {
+    btnAdminProfileSignOut.addEventListener('click', () => {
+      window.closeAdminProfileModal();
+      window.openSignOutModal();
+    });
+  }
+
+  adminProfileModal?.addEventListener('click', (e) => {
+    if (e.target === adminProfileModal) window.closeAdminProfileModal();
+  });
+
+  if (adminEditProfileForm) {
+    adminEditProfileForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      let hasError = false;
+
+      const firstName = (adminEditFirstName?.value || '').trim();
+      const lastName = (adminEditLastName?.value || '').trim();
+      const phone = (adminEditPhone?.value || '').trim();
+
+      if (!firstName) {
+        if (errAdminFirstName) errAdminFirstName.textContent = 'First name is required.';
+        adminEditFirstName?.classList.add('is-invalid');
+        hasError = true;
+      } else {
+        if (errAdminFirstName) errAdminFirstName.textContent = '';
+        adminEditFirstName?.classList.remove('is-invalid');
+      }
+
+      if (!lastName) {
+        if (errAdminLastName) errAdminLastName.textContent = 'Last name is required.';
+        adminEditLastName?.classList.add('is-invalid');
+        hasError = true;
+      } else {
+        if (errAdminLastName) errAdminLastName.textContent = '';
+        adminEditLastName?.classList.remove('is-invalid');
+      }
+
+      if (hasError) return;
+
+      if (btnAdminSaveProfile) {
+        btnAdminSaveProfile.disabled = true;
+        btnAdminSaveProfile.innerHTML = '<span>Saving Changes...</span>';
+      }
+
+      try {
+        const res = await fetch('/api/v1/auth/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ firstName, lastName, phoneNumber: phone })
+        });
+        const json = await res.json();
+        const isSuccess = json && (json.success === true || json.Success === true);
+
+        if (isSuccess) {
+          const updated = json.data || json.Data;
+          if (updated) updateCapsuleDisplay(updated);
+          window.showAdminToast('Profile updated successfully.', 'success', 'Profile Updated');
+        } else {
+          const msg = json?.message || json?.Message || 'Failed to update profile.';
+          window.showAdminToast(msg, 'error', 'Update Failed');
+        }
+      } catch (err) {
+        console.error('Update profile error:', err);
+        window.showAdminToast('Network error while updating profile.', 'error');
+      } finally {
+        if (btnAdminSaveProfile) {
+          btnAdminSaveProfile.disabled = false;
+          btnAdminSaveProfile.textContent = 'Save Profile Changes';
+        }
+      }
+    });
+  }
+
+  if (adminChangePasswordForm) {
+    adminChangePasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      let hasError = false;
+
+      const currentPassword = adminPwdCurrent?.value || '';
+      const newPassword = adminPwdNew?.value || '';
+      const confirmNewPassword = adminPwdConfirm?.value || '';
+
+      if (!currentPassword) {
+        if (errAdminPwdCurrent) errAdminPwdCurrent.textContent = 'Current password is required.';
+        adminPwdCurrent?.classList.add('is-invalid');
+        hasError = true;
+      } else {
+        if (errAdminPwdCurrent) errAdminPwdCurrent.textContent = '';
+        adminPwdCurrent?.classList.remove('is-invalid');
+      }
+
+      if (!newPassword || newPassword.length < 6) {
+        if (errAdminPwdNew) errAdminPwdNew.textContent = 'New password must be at least 6 characters.';
+        adminPwdNew?.classList.add('is-invalid');
+        hasError = true;
+      } else {
+        if (errAdminPwdNew) errAdminPwdNew.textContent = '';
+        adminPwdNew?.classList.remove('is-invalid');
+      }
+
+      if (newPassword !== confirmNewPassword) {
+        if (errAdminPwdConfirm) errAdminPwdConfirm.textContent = 'Passwords do not match.';
+        adminPwdConfirm?.classList.add('is-invalid');
+        hasError = true;
+      } else {
+        if (errAdminPwdConfirm) errAdminPwdConfirm.textContent = '';
+        adminPwdConfirm?.classList.remove('is-invalid');
+      }
+
+      if (hasError) return;
+
+      if (btnAdminSavePassword) {
+        btnAdminSavePassword.disabled = true;
+        btnAdminSavePassword.innerHTML = '<span>Updating Password...</span>';
+      }
+
+      try {
+        const res = await fetch('/api/v1/auth/change-password', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword })
+        });
+        const json = await res.json();
+        const isSuccess = json && (json.success === true || json.Success === true);
+
+        if (isSuccess) {
+          window.showAdminToast('Password updated successfully.', 'success', 'Security Updated');
+          if (adminPwdCurrent) adminPwdCurrent.value = '';
+          if (adminPwdNew) adminPwdNew.value = '';
+          if (adminPwdConfirm) adminPwdConfirm.value = '';
+        } else {
+          const msg = json?.message || json?.Message || 'Failed to update password.';
+          if (errAdminPwdCurrent) errAdminPwdCurrent.textContent = msg;
+          window.showAdminToast(msg, 'error', 'Security Failed');
+        }
+      } catch (err) {
+        console.error('Change password error:', err);
+        window.showAdminToast('Network error while updating password.', 'error');
+      } finally {
+        if (btnAdminSavePassword) {
+          btnAdminSavePassword.disabled = false;
+          btnAdminSavePassword.textContent = 'Update Password';
+        }
+      }
+    });
+  }
 
   // 6b. Shared confirmation modal for actions that change admin data
   const actionConfirmModal = document.getElementById('adminActionConfirmModal');
@@ -1152,7 +1391,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const imgUrlInput = document.getElementById('MainContent_txtNewImageUrl') || document.getElementById('txtNewImageUrl');
     const previewImg = document.getElementById('newProductImagePreview');
     if (previewImg && imgUrlInput) {
-      const url = imgUrlInput.value.trim() || '/Content/images/products/helmets/agv/images.jpg';
+      const url = imgUrlInput.value.trim() || '/Content/images/placeholder-helmet.png';
       previewImg.src = url;
     }
   };
@@ -1251,7 +1490,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (imgUrlInput && imgUrlInput.value.trim()) {
         thumbImg.src = imgUrlInput.value.trim();
       } else {
-        thumbImg.src = '/Content/images/products/helmets/agv/images.jpg';
+        thumbImg.src = '/Content/images/placeholder-helmet.png';
       }
     }
 

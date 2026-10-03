@@ -11,7 +11,7 @@
                 <h1 class="admin-page-title">Product Catalog</h1>
             </div>
             <div class="admin-header-actions">
-                <a href="/Admin/CatalogItem.aspx" class="btn-pill btn-pill--primary">
+                <a href="/Pages/Admin/CatalogItem/CatalogItem.aspx" class="btn-pill btn-pill--primary">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -26,9 +26,9 @@
             <div class="admin-filters-left">
                 <div class="admin-segmented-tabs">
                     <asp:LinkButton ID="btnTabAll" runat="server" CssClass="admin-tab-btn" CommandArgument="all" OnClick="FilterTab_Click">All Products</asp:LinkButton>
-                    <asp:LinkButton ID="btnTabActive" runat="server" CssClass="admin-tab-btn" CommandArgument="active" OnClick="FilterTab_Click">Active</asp:LinkButton>
-                    <asp:LinkButton ID="btnTabDrafts" runat="server" CssClass="admin-tab-btn" CommandArgument="drafts" OnClick="FilterTab_Click">Drafts</asp:LinkButton>
-                    <asp:LinkButton ID="btnTabFeatured" runat="server" CssClass="admin-tab-btn" CommandArgument="featured" OnClick="FilterTab_Click">Featured</asp:LinkButton>
+                    <asp:LinkButton ID="btnTabActive" runat="server" CssClass="admin-tab-btn" CommandArgument="published_active" OnClick="FilterTab_Click">Active</asp:LinkButton>
+                    <asp:LinkButton ID="btnTabPublishedInactive" runat="server" CssClass="admin-tab-btn" CommandArgument="published_inactive" OnClick="FilterTab_Click">Inactive</asp:LinkButton>
+                    <asp:LinkButton ID="btnTabDrafts" runat="server" CssClass="admin-tab-btn" CommandArgument="drafts" OnClick="FilterTab_Click">Draft</asp:LinkButton>
                 </div>
             </div>
 
@@ -78,7 +78,7 @@
                                              alt='<%# Server.HtmlEncode(Convert.ToString(Eval("Name"))) %>' 
                                              class="admin-thumb-img" 
                                              loading="lazy" 
-                                             onerror="this.src='/Content/images/products/helmets/agv/images.jpg';" />
+                                             onerror="this.onerror=null;this.src='/Content/images/placeholder-helmet.png';" />
                                     </div>
                                 </td>
                                 <td>
@@ -108,7 +108,9 @@
                                     <span class="admin-size-badge" title="Variant SKUs"><%# Eval("VariantCount") %></span>
                                 </td>
                                 <td>
-                                    <%# Convert.ToBoolean(Eval("IsActive")) ? "<span class=\"admin-badge admin-badge--active\">Active</span>" : "<span class=\"admin-badge admin-badge--inactive\">Draft</span>" %>
+                                    <%# string.Equals(Convert.ToString(Eval("PublicationStatus")), "Published", StringComparison.OrdinalIgnoreCase) 
+                                        ? (Convert.ToBoolean(Eval("IsActive")) ? "<span class=\"admin-badge admin-badge--published-active\">Active</span>" : "<span class=\"admin-badge admin-badge--published-inactive\">Inactive</span>")
+                                        : (string.Equals(Convert.ToString(Eval("PublicationStatus")), "Archived", StringComparison.OrdinalIgnoreCase) ? "<span class=\"admin-badge admin-badge--inactive\">Archived</span>" : "<span class=\"admin-badge admin-badge--draft\">Draft</span>") %>
                                 </td>
                                 <td class="admin-table-align-right">
                                     <div class="admin-actions-cell admin-actions-cell--right">
@@ -122,7 +124,7 @@
                                             </svg>
                                             <span>Preview</span>
                                         </button>" : "" %>
-                                        <a href='/Admin/CatalogItem.aspx?id=<%# Eval("Id") %>' class="btn-pill-sm btn-pill--outline" title="Edit Helmet Model">
+                                        <a href='/Pages/Admin/CatalogItem/CatalogItem.aspx?id=<%# Eval("Id") %>' class="btn-pill-sm btn-pill--outline" title="Edit Helmet Model">
                                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -233,7 +235,7 @@
             <asp:HiddenField ID="hfDeleteProductId" runat="server" ClientIDMode="Static" />
             <footer class="admin-quick-modal-footer">
                 <button type="button" class="btn-pill btn-pill--outline" id="btnCancelDelete">Cancel</button>
-                <asp:Button ID="btnConfirmDeleteProduct" runat="server" Text="Confirm Delete" CssClass="btn-pill btn-pill--primary btn-pill--danger" OnClick="btnConfirmDeleteProduct_Click" ClientIDMode="Static" />
+                <asp:Button ID="btnConfirmDeleteProduct" runat="server" Text="Confirm Delete" CssClass="btn-pill btn-pill--danger" OnClick="btnConfirmDeleteProduct_Click" ClientIDMode="Static" />
             </footer>
         </div>
     </div>

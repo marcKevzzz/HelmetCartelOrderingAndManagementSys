@@ -54,6 +54,5 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
         protected global::System.Web.UI.WebControls.Literal litCustomerChannel;
         protected global::System.Web.UI.WebControls.Literal litShippingSectionTitle;
         protected global::System.Web.UI.WebControls.Literal litShippingRecipient;
-        protected global::System.Web.UI.WebControls.Literal litCardFulfillmentActions;
     }
 }

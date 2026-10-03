@@ -11,11 +11,6 @@
             <div class="admin-page-title-row">
                 <h1 class="admin-page-title">Ratings &amp; Reviews Moderation</h1>
             </div>
-            <div class="admin-header-actions">
-                <div class="admin-search-wrapper">
-                    <input type="text" id="admin-review-search" class="admin-date-input" placeholder="Search product, customer, or review text..." />
-                </div>
-            </div>
         </div>
 
         <!-- Filter Sub-bar -->

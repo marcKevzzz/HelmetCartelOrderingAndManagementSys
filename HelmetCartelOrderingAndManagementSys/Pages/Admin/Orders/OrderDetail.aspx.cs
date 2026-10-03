@@ -158,8 +158,6 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
             decimal paidAmount = string.Equals(order.PaymentStatus, "Completed", StringComparison.OrdinalIgnoreCase) ? order.TotalAmount : 0m;
             if (litPaidAmountText != null) litPaidAmountText.Text = $"&#8369;{paidAmount:N2}";
 
-            if (litCardFulfillmentActions != null) litCardFulfillmentActions.Text = litActionButtons != null ? litActionButtons.Text : "";
-
             if (isDelivery)
             {
                 var addressParts = new StringBuilder();

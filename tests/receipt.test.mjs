@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const constants = await readFile(new URL('../HelmetCartelOrderingAndManagementSys/Scripts/constants.js', import.meta.url), 'utf8');
+const constantsUrl = 'data:text/javascript;base64,' + Buffer.from(constants).toString('base64');
+const source = (await readFile(new URL('../HelmetCartelOrderingAndManagementSys/Scripts/receipt.js', import.meta.url), 'utf8')).replace(/'\.\/constants\.js(?:\?[^']*)?'/, JSON.stringify(constantsUrl));
+const {renderReceipt} = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
+const order={orderNumber:'HC-TEST',createdAt:'2026-10-03T03:30:00',subtotal:1000,discountAmount:125,voucherCode:'WELCOME10',shippingFee:150,totalAmount:1025,paymentStatus:'Pending',shippingMethod:'Delivery',items:[{productName:'Helmet <script>alert(1)</script>',sku:'SKU',size:'XL',color:'Red',quantity:1,unitPrice:1000,totalPrice:1000}]};
+const unpaid=renderReceipt(order);
+assert.match(unpaid,/Order Total/); assert.doesNotMatch(unpaid,/Total Paid/); assert.match(unpaid,/1,025\.00/);
+assert.match(unpaid,/WELCOME10/); assert.match(unpaid,/-&#8369;125\.00/); assert.match(unpaid,/Delivery fee|Shipping Fee/);
+assert.match(unpaid,/&lt;script&gt;/); assert.doesNotMatch(unpaid,/<script>/); assert.doesNotMatch(unpaid,/style=/);
+assert.match(unpaid,/11:30 AM/); // UTC SQL timestamp displayed in Philippine time.
+const paid=renderReceipt({...order,paymentMethod:'HitPay',paymentStatus:'Completed',gatewayReference:'SIM-QRPH-TEST'});
+assert.match(paid,/Total Paid/); assert.match(paid,/Simulated payment/);
+assert.match(paid,/QRPh/); assert.doesNotMatch(paid,/HitPay/);
+const missing=renderReceipt({...order,paymentStatus:null,gatewayReference:null,voucherCode:null,discountAmount:0});
+assert.match(missing,/Pending/); assert.match(missing,/Unavailable/); assert.doesNotMatch(missing,/WELCOME10|Total Paid/);
+const pos=renderReceipt({...order,shippingMethod:'Pickup',shippingFee:0,discountAmount:0,voucherCode:null,totalAmount:1000,paymentStatus:'Completed',cashTendered:1500});
+assert.match(pos,/Cash received/); assert.match(pos,/Change/); assert.match(pos,/500\.00/); assert.doesNotMatch(pos,/Delivery fee/);
+console.log('PASS: receipt totals, voucher snapshots, unpaid/paid status, simulation labels, UTC dates, escaping, cash/change and no inline styles');

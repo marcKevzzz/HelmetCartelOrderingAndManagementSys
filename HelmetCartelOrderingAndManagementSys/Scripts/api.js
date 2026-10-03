@@ -151,6 +151,10 @@ export const ApiClient = {
     return this.post(APP_CONSTANTS.ENDPOINTS.ADMIN_RETURN_PROCESS(id), data);
   },
 
+  async simulatePayment(data) {
+    return this.post(APP_CONSTANTS.ENDPOINTS.PAYMENTS_SIMULATE, data);
+  },
+
   async logout() {
     return this.post(APP_CONSTANTS.ENDPOINTS.AUTH_LOGOUT);
   },
@@ -170,8 +174,10 @@ export const ApiClient = {
       const response = await fetch(url, { ...options, headers });
       const json = await response.json();
 
-      if (!response.ok) {
-        throw new Error(json.message || `HTTP ${response.status}: Request failed`);
+      if (!response.ok || json.success === false) {
+        const error = new Error(json.message || `HTTP ${response.status}: Request failed`);
+        error.errorCode = json.errorCode;
+        throw error;
       }
 
       return json.data !== undefined ? json.data : json;

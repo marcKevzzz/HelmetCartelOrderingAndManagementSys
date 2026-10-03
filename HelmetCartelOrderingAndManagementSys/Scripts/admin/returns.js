@@ -17,9 +17,17 @@ function initAdminReturns() {
     let selectedRma = null;
 
     const tbody = document.getElementById('admin-rma-tbody');
-    const searchInput = document.getElementById('admin-rma-search');
+    const searchInput = document.getElementById('adminGlobalSearch');
     const countIndicator = document.getElementById('rma-count-indicator');
     const statusTabs = document.querySelectorAll('#rma-status-tabs .admin-tab-btn');
+
+    // Check URL search param
+    const urlParams = new URLSearchParams(window.location.search);
+    const q = urlParams.get('q') || urlParams.get('search');
+    if (q) {
+        currentSearch = q.trim();
+        if (searchInput && !searchInput.value) searchInput.value = currentSearch;
+    }
 
     // Modal elements
     const modal = document.getElementById('admin-rma-modal');
@@ -50,14 +58,14 @@ function initAdminReturns() {
         });
     });
 
-    // Search with debounce
+    // Global Search with debounce
     let searchTimeout = null;
     searchInput?.addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
             currentSearch = e.target.value.trim();
             loadReturns();
-        }, 350);
+        }, 200);
     });
 
     async function loadReturns() {
@@ -145,10 +153,29 @@ function initAdminReturns() {
 
     function openProcessModal(rma) {
         selectedRma = rma;
-        if (rmaModalRefs) rmaModalRefs.innerHTML = `${escapeHtml(rma.rmaNumber)} &bull; Order: <span style="color:#38bdf8;">${escapeHtml(rma.orderNumber)}</span>`;
-        if (rmaModalCustomer) rmaModalCustomer.textContent = `${rma.customerName} (${rma.customerEmail}${rma.customerPhone ? ' • ' + rma.customerPhone : ''})`;
-        if (rmaModalItem) rmaModalItem.innerHTML = `<strong>${escapeHtml(rma.productName)}</strong> — ${escapeHtml(rma.colorName || '')} / ${escapeHtml(rma.size || '')} (Qty: ${rma.quantity}, Unit Price: &#8369;${(rma.unitPrice || 0).toLocaleString()})`;
-        if (rmaModalNotes) rmaModalNotes.textContent = `Reason: ${rma.reason} | Notes: ${rma.customerNotes || 'None provided.'}`;
+        if (rmaModalRefs) {
+            rmaModalRefs.innerHTML = `<span class="admin-cell-sku">${escapeHtml(rma.rmaNumber)}</span> <span class="admin-cell-subtext">&bull;</span> <span class="admin-rma-order-link">Order: ${escapeHtml(rma.orderNumber)}</span>`;
+        }
+        if (rmaModalCustomer) {
+            rmaModalCustomer.innerHTML = `<span class="admin-rma-customer-name">${escapeHtml(rma.customerName)}</span><span class="admin-rma-customer-meta">${escapeHtml(rma.customerEmail)}${rma.customerPhone ? ' &bull; ' + escapeHtml(rma.customerPhone) : ''}</span>`;
+        }
+        if (rmaModalItem) {
+            rmaModalItem.innerHTML = `
+                <div class="admin-rma-product-name">${escapeHtml(rma.productName)}</div>
+                <div class="admin-rma-item-meta">
+                    <span class="admin-badge admin-badge--neutral">${escapeHtml(rma.colorName || 'Default')}</span>
+                    <span class="admin-badge admin-badge--neutral">${escapeHtml(rma.size || 'STD')}</span>
+                    <span class="admin-rma-item-qty">Qty: <strong>${rma.quantity}</strong></span>
+                    <span class="admin-rma-item-price">&#8369;${(rma.unitPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+            `;
+        }
+        if (rmaModalNotes) {
+            rmaModalNotes.innerHTML = `
+                <div class="admin-rma-reason-heading"><strong>Reason:</strong> ${escapeHtml(rma.reason)}</div>
+                <div class="admin-rma-reason-body">${rma.customerNotes ? escapeHtml(rma.customerNotes) : '<span class="admin-cell-subtext">No additional customer notes.</span>'}</div>
+            `;
+        }
 
         if (rmaDecisionStatus) rmaDecisionStatus.value = rma.status !== 'Pending' ? rma.status : 'Approved';
         if (rmaDecisionResolution) rmaDecisionResolution.value = rma.resolutionType || (rma.requestType === 'EXCHANGE' ? 'REPLACEMENT' : 'REFUND');
@@ -162,10 +189,10 @@ function initAdminReturns() {
         }
         if (restockGroup) {
             if (rma.restocked) {
-                restockGroup.style.opacity = '0.5';
+                restockGroup.classList.add('is-disabled');
                 restockGroup.title = 'Item has already been restocked to inventory.';
             } else {
-                restockGroup.style.opacity = '1';
+                restockGroup.classList.remove('is-disabled');
                 restockGroup.title = '';
             }
         }

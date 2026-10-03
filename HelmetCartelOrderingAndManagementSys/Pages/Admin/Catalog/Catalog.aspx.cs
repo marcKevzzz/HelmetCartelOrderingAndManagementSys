@@ -60,11 +60,21 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     TargetProductId = targetId;
                 }
 
+                string tab = Request.QueryString["tab"];
+                if (!string.IsNullOrWhiteSpace(tab))
+                {
+                    CurrentTab = tab.ToLowerInvariant();
+                }
+                else if (Request.QueryString["msg"] == "draft_saved" || Request.QueryString["msg"] == "unpublished_saved")
+                {
+                    CurrentTab = "drafts";
+                }
+
                 string msg = Request.QueryString["msg"];
                 if (!string.IsNullOrWhiteSpace(msg))
                 {
                     string alertText =
-                        msg == "draft_saved" ? "Draft saved successfully."
+                        (msg == "draft_saved" || msg == "unpublished_saved") ? "Helmet model draft saved successfully."
                         : msg == "published" ? "Helmet model published successfully."
                         : msg == "deleted" ? "Product deleted successfully."
                         : null;
@@ -103,17 +113,18 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 products = products.OrderByDescending(p => p.Id == TargetProductId.Value).ToList();
             }
 
-            if (CurrentTab == "active")
+            if (CurrentTab == "published_active" || CurrentTab == "active")
             {
-                products = products.Where(p => p.IsActive).ToList();
+                products = products.Where(p => string.Equals(p.PublicationStatus, "Published", StringComparison.OrdinalIgnoreCase) && p.IsActive).ToList();
             }
-            else if (CurrentTab == "drafts")
+            else if (CurrentTab == "published_inactive" || CurrentTab == "inactive")
             {
-                products = products.Where(p => !p.IsActive).ToList();
+                products = products.Where(p => string.Equals(p.PublicationStatus, "Published", StringComparison.OrdinalIgnoreCase) && !p.IsActive).ToList();
             }
-            else if (CurrentTab == "featured")
+            else if (CurrentTab == "drafts" || CurrentTab == "unpublished")
             {
-                products = products.Where(p => p.IsFeatured).ToList();
+                products = products.Where(p => string.Equals(p.PublicationStatus, "Unpublished", StringComparison.OrdinalIgnoreCase) ||
+                                               string.Equals(p.PublicationStatus, "Draft", StringComparison.OrdinalIgnoreCase)).ToList();
             }
 
             int totalCount = products.Count;
@@ -249,9 +260,9 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         private void UpdateTabButtonStyles()
         {
             btnTabAll.CssClass = "admin-tab-btn" + (CurrentTab == "all" ? " active" : "");
-            btnTabActive.CssClass = "admin-tab-btn" + (CurrentTab == "active" ? " active" : "");
-            btnTabDrafts.CssClass = "admin-tab-btn" + (CurrentTab == "drafts" ? " active" : "");
-            btnTabFeatured.CssClass = "admin-tab-btn" + (CurrentTab == "featured" ? " active" : "");
+            btnTabActive.CssClass = "admin-tab-btn" + (CurrentTab == "published_active" || CurrentTab == "active" ? " active" : "");
+            btnTabPublishedInactive.CssClass = "admin-tab-btn" + (CurrentTab == "published_inactive" || CurrentTab == "inactive" ? " active" : "");
+            btnTabDrafts.CssClass = "admin-tab-btn" + (CurrentTab == "drafts" || CurrentTab == "unpublished" ? " active" : "");
         }
 
         protected string ResolveImageUrl(object urlObj)
@@ -259,7 +270,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             string url = Convert.ToString(urlObj);
             if (string.IsNullOrWhiteSpace(url))
             {
-                return "/Content/images/products/helmets/agv/images.jpg";
+                return "/Content/images/placeholder-helmet.png";
             }
             return url;
         }

@@ -467,7 +467,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 var image = first.MainImageUrl;
                 if (string.IsNullOrWhiteSpace(image) ||
                     (!image.StartsWith("/", StringComparison.Ordinal) && !image.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
-                    image = "/Content/images/products/helmets/agv/images.jpg";
+                    image = "/Content/images/placeholder-helmet.png";
                 html.Append("<section class=\"admin-brand-product\"><div class=\"admin-brand-product-head\">")
                     .Append("<img src=\"").Append(HttpUtility.HtmlAttributeEncode(image)).Append("\" alt=\"")
                     .Append(HttpUtility.HtmlAttributeEncode(first.ProductName)).Append("\" loading=\"lazy\" />")

@@ -1,5 +1,5 @@
 <#!
-Build a standalone SQLCMD-mode script from the canonical schema and migrations.
+Build a standalone SSMS script from the canonical schema and ordered migrations.
 This only writes a SQL file; it does not connect to or modify SQL Server.
 !#>
 [CmdletBinding()]
@@ -39,8 +39,26 @@ $files = @(
     'schema/22_clean_schema_and_enforce_unique_phone.sql',
     'schema/23_add_recipient_contact_to_user_addresses.sql',
     'schema/24_remove_redundant_user_fullname.sql',
+    'schema/25_rma_returns_and_reviews_moderation.sql',
+    'schema/26_fix_quoted_identifiers.sql',
     'schema/27_sales_by_brand_and_category.sql',
-    'schema/31_stock_reservation_lifecycle_fix.sql'
+    'schema/28_activity_feed_and_stock_cleanup.sql',
+    'schema/29_fix_cancel_and_analytics.sql',
+    'schema/30_sales_performance_analytics.sql',
+    'schema/31_stock_reservation_lifecycle_fix.sql',
+    'schema/32_fix_admin_catalog_drafts_visibility.sql',
+    'schema/33_add_sp_get_product_by_slug.sql',
+    'schema/34_fix_admin_product_draft_editing.sql',
+    'schema/35_fix_draft_placeholder_images.sql',
+    'schema/36_schema_enhancements_and_snapshots.sql',
+    'schema/37_drop_deprecated_fields.sql',
+    'schema/38_update_drafts_to_unpublished.sql',
+    'schema/39_inventory_variant_active_toggle.sql',
+    'schema/39_robust_product_specifications.sql',
+    'schema/40_vouchers_and_receipts.sql',
+    'schema/41_fix_catalog_save_pricing.sql',
+    'schema/42_admin_global_search_expansion.sql',
+    'schema/43_activity_feed_load_more_and_actor_role.sql'
 )
 $builder = New-Object System.Text.StringBuilder
 [void]$builder.AppendLine(@"
@@ -70,6 +88,8 @@ foreach ($relativePath in $files) {
     # Remove fixed database context from every included source. All batches
     # must stay in the new database, including migrations with bracketed USE.
     $source = [regex]::Replace($source, '(?im)^\s*USE\s+\[?HelmetCartel(?:Minimal)?DB\]?\s*;\s*$', '')
+    # Keep generated output free of trailing spaces inherited from old scripts.
+    $source = [regex]::Replace($source, '(?m)[\t ]+(?=\r?$)', '')
     [void]$builder.AppendLine("-- Source: $relativePath")
     [void]$builder.AppendLine($source)
     [void]$builder.AppendLine("`nGO")

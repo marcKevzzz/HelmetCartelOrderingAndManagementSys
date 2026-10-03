@@ -166,10 +166,6 @@
                     <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13a9 9 0 0 1 18 0v3h-5l-3 4H7l-4-4v-3Z"></path><path d="M3 14h18"></path></svg>Helmet category</dt>
                     <dd><%= Server.HtmlEncode(ProductItem.Category) %></dd>
                 </div>
-                <div>
-                    <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21 10 3m7 18L14 3M3 21h18"></path><path d="M12 7v3m0 4v3"></path></svg>Intended riding</dt>
-                    <dd><%= Server.HtmlEncode(ProductItem.RidingStyle) %></dd>
-                </div>
                 <% if (UniqueSizes != null && UniqueSizes.Count > 0) { %>
                 <div>
                     <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"></path><path d="M8 5v4m4-4v3m4-3v4"></path></svg>Sizes offered</dt>

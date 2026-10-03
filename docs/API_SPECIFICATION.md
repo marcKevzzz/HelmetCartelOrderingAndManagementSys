@@ -183,3 +183,20 @@
 ### 6.2. Low-Stock & Inventory Valuation
 - **Endpoint:** `GET /api/v1/reports/inventory-valuation`
 - **Access:** Admin, Staff
+
+
+## Online vouchers
+
+`POST /api/v1/vouchers/validate` accepts `{ "code": "WELCOME10", "items": [{ "variantId": 1, "quantity": 1 }] }`.
+Returns `ApiResponse<VoucherQuoteDto>` with `code`, `subtotal`, `discountAmount`, and `discountedSubtotal`; prices and eligibility are calculated from SQL Server. No usage is consumed by preview. Invalid codes/eligibility return HTTP 400 with `errorCode: INVALID_VOUCHER`.
+
+Admin-only endpoints (fresh active Admin authorization):
+- `GET /api/v1/admin/vouchers`: definitions, current `usageCount`, and `hasRedemptions`.
+- `POST /api/v1/admin/vouchers`: create a definition.
+- `PUT /api/v1/admin/vouchers/{id}`: edit or toggle `isActive`.
+
+Save payload: `code`, `discountType` (`PERCENTAGE` or `FIXED_AMOUNT`), `discountValue`, `minimumSpend`, nullable UTC ISO `expiresAt`, nullable positive integer `usageLimit`, and `isActive`. Codes normalize to uppercase and allow 3–30 ASCII letters/numbers/hyphens. Amounts allow two decimal places; percentage maximum is 100. Redeemed codes cannot be renamed; deactivate instead of deleting. Lowering the usage limit below current usage is rejected.
+
+Online order requests accept optional `voucherCode`. Client discount amounts are ignored. Order creation revalidates the code under a row lock inside the same transaction as order insertion and stock reservation; failures roll everything back and return `INVALID_VOUCHER` (HTTP 409). Savings apply to merchandise after existing product promotions, excluding shipping, and are capped at the merchandise subtotal. Pending orders count toward limits; cancelled orders release their use exactly once. Payment retries and returns do not change redemption counts.
+
+Order detail/customer history responses include the order-time `voucherCode` and existing `discountAmount`. Receipt detail also includes nullable `gatewayReference` and `cashTendered`. POS rejects voucher codes and retains its original pricing.

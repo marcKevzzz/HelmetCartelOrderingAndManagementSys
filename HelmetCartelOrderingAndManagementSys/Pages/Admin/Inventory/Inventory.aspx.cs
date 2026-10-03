@@ -35,7 +35,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
 
         public string CurrentStatus
         {
-            get => (ViewState["CurrentStatus"] as string) ?? "all";
+            get => (ViewState["CurrentStatus"] as string) ?? "active";
             set => ViewState["CurrentStatus"] = value;
         }
 
@@ -276,7 +276,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             litShowingRange.Text = totalCount == 0 ? "0" : $"{startItem}-{endItem}";
             litTotalCount.Text = totalCount.ToString("N0");
 
-            pnlInventoryPagination.Visible = totalCount > 0;
+            pnlInventoryPagination.Visible = totalPages > 1;
             BindPagination(CurrentPageNumber, totalPages);
             UpdateTabButtonStyles();
         }
@@ -434,9 +434,26 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         private void UpdateTabButtonStyles()
         {
             btnTabAll.CssClass = "admin-tab-btn" + (CurrentStatus == "all" ? " active" : "");
+            btnTabActive.CssClass = "admin-tab-btn" + (CurrentStatus == "active" ? " active" : "");
+            btnTabInactive.CssClass = "admin-tab-btn" + (CurrentStatus == "inactive" ? " active" : "");
             btnTabInStock.CssClass = "admin-tab-btn" + (CurrentStatus == "in_stock" ? " active" : "");
             btnTabLowStock.CssClass = "admin-tab-btn" + (CurrentStatus == "low_stock" ? " active" : "");
             btnTabOutOfStock.CssClass = "admin-tab-btn" + (CurrentStatus == "out_of_stock" ? " active" : "");
+        }
+
+        [System.Web.Services.WebMethod]
+        public static object ToggleVariantStatus(int variantId)
+        {
+            var factory = new DbConnectionFactory();
+            var repo = new AdminDataRepository(factory);
+            bool newStatus = repo.ToggleVariantActiveAsync(variantId).GetAwaiter().GetResult();
+            try
+            {
+                var hubContext = Microsoft.AspNet.SignalR.GlobalHost.ConnectionManager.GetHubContext<HelmetCartelOrderingAndManagementSys.Hubs.InventoryHub>();
+                hubContext?.Clients?.All?.variantStatusChanged(new { variantId = variantId, isActive = newStatus });
+            }
+            catch { }
+            return new { success = true, variantId = variantId, isActive = newStatus };
         }
 
         protected string ResolveImageUrl(object urlObj)
@@ -444,7 +461,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             string url = Convert.ToString(urlObj);
             if (string.IsNullOrWhiteSpace(url))
             {
-                return "/Content/images/products/helmets/agv/images.jpg";
+                return "/Content/images/placeholder-helmet.png";
             }
             return url;
         }

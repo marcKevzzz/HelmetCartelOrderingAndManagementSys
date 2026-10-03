@@ -23,8 +23,23 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         private readonly AdminDataRepository _adminRepo;
         private readonly IProductRepository _productRepo;
 
-        public bool IsDraft { get; set; } = true;
-        public int ProductId { get; set; } = 0;
+        public bool IsDraft
+        {
+            get => (ViewState["IsDraft"] as bool?) ?? true;
+            set => ViewState["IsDraft"] = value;
+        }
+
+        public int ProductId
+        {
+            get
+            {
+                if (ViewState["ProductId"] is int vId && vId > 0) return vId;
+                if (int.TryParse(Request.QueryString["id"], out int qId) && qId > 0) return qId;
+                if (int.TryParse(hdnProductId?.Value, out int hId) && hId > 0) return hId;
+                return 0;
+            }
+            set => ViewState["ProductId"] = value;
+        }
 
         public CatalogItemPage()
         {
@@ -76,21 +91,21 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     var product = await _adminRepo.GetProductCompleteAsync(ProductId).ConfigureAwait(false);
                     if (product == null)
                     {
-                        Response.Redirect("/Admin/Catalog.aspx?err=not_found", false);
+                        Response.Redirect("/Pages/Admin/Catalog/Catalog.aspx?err=not_found", false);
                         Context.ApplicationInstance.CompleteRequest();
                         return;
                     }
 
                     txtHeaderTitle.InnerText = "Edit Helmet: " + product.Name;
                     Title = "Edit Helmet: " + product.Name;
-                    IsDraft = !product.IsActive;
+                    IsDraft = string.Equals(product.PublicationStatus, "Draft", StringComparison.OrdinalIgnoreCase);
                     hdnIsActive.Value = product.IsActive ? "1" : "0";
+                    btnSaveDraft.Visible = IsDraft;
 
                     // Basic Info
                     txtProductName.Text = product.Name;
                     txtSlug.Text = product.Slug;
                     txtDescription.Text = product.Description;
-                    chkIsFeatured.Checked = product.IsFeatured;
                     ddlBrand.SelectedValue = product.BrandId.ToString();
                     ddlCategory.SelectedValue = product.CategoryId.ToString();
 
@@ -130,7 +145,8 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     txtHeaderTitle.InnerText = "New Helmet Model";
                     Title = "New Helmet Model";
                     IsDraft = true;
-                    hdnIsActive.Value = "0";
+                    hdnIsActive.Value = "1";
+                    btnSaveDraft.Visible = true;
 
                     // Explicitly reset form fields
                     txtProductName.Text = string.Empty;
@@ -141,7 +157,6 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     txtMainImageUrl.Text = string.Empty;
                     txtDiscountStartDate.Text = string.Empty;
                     txtDiscountEndDate.Text = string.Empty;
-                    chkIsFeatured.Checked = false;
                     if (ddlBrand.Items.Count > 0) ddlBrand.SelectedIndex = 0;
                     if (ddlCategory.Items.Count > 0) ddlCategory.SelectedIndex = 0;
 
@@ -161,16 +176,25 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         protected void btnSaveDraft_Click(object sender, EventArgs e)
         {
             hdnIsActive.Value = "0";
-            RegisterAsyncTask(new PageAsyncTask(() => SaveProductAsync(false)));
+            RegisterAsyncTask(new PageAsyncTask(() => SaveProductAsync(isActive: false, isPublishing: false)));
         }
+
 
         protected void btnPublish_Click(object sender, EventArgs e)
         {
-            hdnIsActive.Value = "1";
-            RegisterAsyncTask(new PageAsyncTask(() => SaveProductAsync(true)));
+            bool isActive = true;
+            if (!IsDraft && ProductId > 0)
+            {
+                isActive = (hdnIsActive.Value == "1");
+            }
+            else
+            {
+                hdnIsActive.Value = "1";
+            }
+            RegisterAsyncTask(new PageAsyncTask(() => SaveProductAsync(isActive: isActive, isPublishing: true)));
         }
 
-        private async Task SaveProductAsync(bool isActive)
+        private async Task SaveProductAsync(bool isActive, bool isPublishing)
         {
             try
             {
@@ -178,18 +202,18 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 string name = txtProductName.Text.Trim();
                 if (string.IsNullOrWhiteSpace(name))
                 {
-                    if (isActive)
+                    if (isPublishing)
                     {
                         ShowAlert("Helmet model name is required.");
                         return;
                     }
-                    name = "Untitled Helmet Draft";
+                    name = "Untitled Helmet (Draft)";
                 }
 
                 int.TryParse(ddlBrand.SelectedValue, out int brandId);
                 if (brandId <= 0)
                 {
-                    if (isActive)
+                    if (isPublishing)
                     {
                         ShowAlert("Please select a brand.");
                         return;
@@ -201,7 +225,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 int.TryParse(ddlCategory.SelectedValue, out int categoryId);
                 if (categoryId <= 0)
                 {
-                    if (isActive)
+                    if (isPublishing)
                     {
                         ShowAlert("Please select a category.");
                         return;
@@ -214,7 +238,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
 
                 if (!decimal.TryParse(txtBasePrice.Text.Trim(), out decimal basePrice) || basePrice < 0)
                 {
-                    if (isActive)
+                    if (isPublishing)
                     {
                         ShowAlert("Please enter a valid base price.");
                         return;
@@ -225,7 +249,10 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 string brandName = ddlBrand.SelectedItem != null ? ddlBrand.SelectedItem.Text : "general";
 
                 // Save any base64 images in gallery JSON first so real web paths are generated
-                string galleryJson = hdnGalleryJson.Value;
+                string galleryJson = Request.Form["ctl00$MainContent$hdnGalleryJson"]
+                    ?? Request.Form["hdnGalleryJson"]
+                    ?? Request.Form[hdnGalleryJson.UniqueID]
+                    ?? hdnGalleryJson.Value;
                 var galleryList = (!string.IsNullOrWhiteSpace(galleryJson) && galleryJson != "[]")
                     ? (JsonConvert.DeserializeObject<List<JObject>>(galleryJson) ?? new List<JObject>())
                     : new List<JObject>();
@@ -277,7 +304,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
 
                 if (string.IsNullOrWhiteSpace(mainImage))
                 {
-                    if (isActive)
+                    if (isPublishing)
                     {
                         ShowAlert("Primary thumbnail image URL is required.");
                         return;
@@ -321,7 +348,6 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     command.Parameters.Add(new SqlParameter("@Name", SqlDbType.NVarChar, 200) { Value = name });
                     command.Parameters.Add(new SqlParameter("@Slug", SqlDbType.NVarChar, 220) { Value = slug });
                     command.Parameters.Add(new SqlParameter("@Description", SqlDbType.NVarChar, -1) { Value = (object)txtDescription.Text.Trim() ?? DBNull.Value });
-                    command.Parameters.Add(new SqlParameter("@RidingStyle", SqlDbType.NVarChar, 50) { Value = DBNull.Value });
                     command.Parameters.Add(new SqlParameter("@BasePrice", SqlDbType.Decimal) { Value = basePrice });
                     command.Parameters.Add(new SqlParameter("@DiscountPercentage", SqlDbType.Int) { Value = discountPct });
                     command.Parameters.Add(new SqlParameter("@DiscountType", SqlDbType.NVarChar, 20) { Value = discountType });
@@ -329,8 +355,8 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     command.Parameters.Add(new SqlParameter("@DiscountStartDate", SqlDbType.DateTime2) { Value = (object)startDate ?? DBNull.Value });
                     command.Parameters.Add(new SqlParameter("@DiscountEndDate", SqlDbType.DateTime2) { Value = (object)endDate ?? DBNull.Value });
                     command.Parameters.Add(new SqlParameter("@MainImageUrl", SqlDbType.NVarChar, 500) { Value = (object)mainImage ?? DBNull.Value });
-                    command.Parameters.Add(new SqlParameter("@IsFeatured", SqlDbType.Bit) { Value = chkIsFeatured.Checked });
                     command.Parameters.Add(new SqlParameter("@IsActive", SqlDbType.Bit) { Value = isActive });
+                    command.Parameters.Add(new SqlParameter("@PublicationStatus", SqlDbType.NVarChar, 20) { Value = isPublishing ? "Published" : "Draft" });
 
                     await connection.OpenAsync().ConfigureAwait(false);
                     using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
@@ -350,15 +376,24 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 }
 
                 // 2. Save Technical Specifications
-                string specsJson = hdnSpecificationsJson.Value;
-                if (!string.IsNullOrWhiteSpace(specsJson) && specsJson != "[]")
-                {
-                    await _adminRepo.SaveProductSpecificationsAsync(productId, specsJson).ConfigureAwait(false);
-                }
+                string specsJson = Request.Form["ctl00$MainContent$hdnSpecificationsJson"]
+                    ?? Request.Form["hdnSpecificationsJson"]
+                    ?? Request.Form[hdnSpecificationsJson.UniqueID]
+                    ?? hdnSpecificationsJson.Value;
+
+                await _adminRepo.SaveProductSpecificationsAsync(productId, string.IsNullOrWhiteSpace(specsJson) ? "[]" : specsJson).ConfigureAwait(false);
 
                 // 3. Save Colors & Variants
-                string colorsJson = hdnColorsJson.Value;
-                string variantsJson = hdnVariantsJson.Value;
+                string colorsJson = Request.Form["ctl00$MainContent$hdnColorsJson"]
+                    ?? Request.Form["hdnColorsJson"]
+                    ?? Request.Form[hdnColorsJson.UniqueID]
+                    ?? hdnColorsJson.Value;
+
+                string variantsJson = Request.Form["ctl00$MainContent$hdnVariantsJson"]
+                    ?? Request.Form["hdnVariantsJson"]
+                    ?? Request.Form[hdnVariantsJson.UniqueID]
+                    ?? hdnVariantsJson.Value;
+
                 await ProcessColorsAndVariantsAsync(productId, colorsJson, variantsJson).ConfigureAwait(false);
 
                 // 4. Save Gallery Images
@@ -370,13 +405,13 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 {
                     Response.Redirect(customRedirect, false);
                 }
-                else if (!isActive)
+                else if (!isPublishing)
                 {
-                    Response.Redirect("/Admin/Catalog.aspx?msg=draft_saved", false);
+                    Response.Redirect($"/Pages/Admin/CatalogItem/CatalogItem.aspx?id={productId}&msg=draft_saved", false);
                 }
                 else
                 {
-                    Response.Redirect("/Admin/Catalog.aspx?msg=published", false);
+                    Response.Redirect("/Pages/Admin/Catalog/Catalog.aspx?msg=published", false);
                 }
                 Context.ApplicationInstance.CompleteRequest();
             }
@@ -479,7 +514,8 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                         cmd.Parameters.Add(new SqlParameter("@Size", SqlDbType.NVarChar, 20) { Value = size });
                         cmd.Parameters.Add(new SqlParameter("@PriceAdjustment", SqlDbType.Decimal) { Value = priceAdj });
                         cmd.Parameters.Add(new SqlParameter("@ReorderPoint", SqlDbType.Int) { Value = reorderPoint });
-                        cmd.Parameters.Add(new SqlParameter("@IsActive", SqlDbType.Bit) { Value = true });
+                        bool vActive = v["isActive"] != null ? v["isActive"].Value<bool>() : (v["IsActive"] != null ? v["IsActive"].Value<bool>() : true);
+                        cmd.Parameters.Add(new SqlParameter("@IsActive", SqlDbType.Bit) { Value = vActive });
 
                         using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
                         {

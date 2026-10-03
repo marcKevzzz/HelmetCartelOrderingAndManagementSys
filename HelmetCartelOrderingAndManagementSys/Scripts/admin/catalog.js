@@ -63,7 +63,7 @@
         const brand = delBtn.getAttribute('data-brand') || 'Brand';
         const category = delBtn.getAttribute('data-category') || 'Category';
         const sku = delBtn.getAttribute('data-sku') || '';
-        const img = delBtn.getAttribute('data-img') || '/Content/images/products/helmets/agv/images.jpg';
+        const img = delBtn.getAttribute('data-img') || '/Content/images/placeholder-helmet.png';
         const variants = delBtn.getAttribute('data-variants') || '0';
 
         if (delModalImage) delModalImage.src = img;

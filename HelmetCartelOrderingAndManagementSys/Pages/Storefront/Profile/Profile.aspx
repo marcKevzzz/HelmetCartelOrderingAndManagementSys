@@ -2,6 +2,7 @@
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
     <link rel="stylesheet" href='<%= ResolveUrl("~/Content/css/storefront/profile.css?v=8") %>' />
+    <link rel="stylesheet" href="/Content/css/receipts.css?v=1" />
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
@@ -278,7 +279,7 @@
                         <div class="profile-section-header">
                             <div>
                                 <h2 class="profile-section-card__title">Payment Transaction History</h2>
-                                <p class="profile-section-card__desc">Review gateway references, payment transaction logs, and download official receipts.</p>
+                                <p class="profile-section-card__desc">Review gateway references, payment transaction logs, and download transaction receipts.</p>
                             </div>
                         </div>
 
@@ -598,5 +599,5 @@
     </div>
 
     <!-- Page Specific Script -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/profile.js?v=10") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/profile.js?v=vouchers-12") %>'></script>
 </asp:Content>

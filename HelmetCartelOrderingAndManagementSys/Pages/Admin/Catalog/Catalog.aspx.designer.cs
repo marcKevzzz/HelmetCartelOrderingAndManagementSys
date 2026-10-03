@@ -10,8 +10,8 @@ namespace HelmetCartelOrderingAndManagementSys.Admin {
         
         protected global::System.Web.UI.WebControls.LinkButton btnTabAll;
         protected global::System.Web.UI.WebControls.LinkButton btnTabActive;
+        protected global::System.Web.UI.WebControls.LinkButton btnTabPublishedInactive;
         protected global::System.Web.UI.WebControls.LinkButton btnTabDrafts;
-        protected global::System.Web.UI.WebControls.LinkButton btnTabFeatured;
         protected global::System.Web.UI.WebControls.Literal litShowingTop;
         protected global::System.Web.UI.WebControls.Literal litTotalTop;
         protected global::System.Web.UI.WebControls.Repeater rptCatalog;

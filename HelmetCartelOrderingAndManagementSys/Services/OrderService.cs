@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
 using HelmetCartelOrderingAndManagementSys.Constants;
@@ -29,6 +30,9 @@ namespace HelmetCartelOrderingAndManagementSys.Services
         {
             if (request == null || request.Items == null || request.Items.Count == 0)
                 return ApiResponse<OrderSummaryDto>.Fail("Order must contain at least one item.", AppConstants.ErrorCodes.OrderNotFound);
+
+            try { VoucherService.NormalizeCode(request.VoucherCode, true); }
+            catch (ArgumentException e) { return ApiResponse<OrderSummaryDto>.Fail(e.Message, AppConstants.ErrorCodes.InvalidVoucher); }
 
             // 1. Check stock availability before initiating order
             foreach (var item in request.Items)
@@ -105,7 +109,8 @@ namespace HelmetCartelOrderingAndManagementSys.Services
             catch (Exception ex)
             {
                 System.Diagnostics.Trace.TraceError($"[CreateOnlineOrderAsync] Error: {ex}");
-                return ApiResponse<OrderSummaryDto>.Fail(ex.Message, AppConstants.ErrorCodes.InsufficientStock);
+                return ApiResponse<OrderSummaryDto>.Fail(ex.Message, ex is SqlException sql && sql.Number >= AppConstants.Vouchers.FirstSqlError && sql.Number <= AppConstants.Vouchers.LastSqlError
+                    ? AppConstants.ErrorCodes.InvalidVoucher : AppConstants.ErrorCodes.InsufficientStock);
             }
         }
 
@@ -113,6 +118,7 @@ namespace HelmetCartelOrderingAndManagementSys.Services
         {
             if (request == null || request.Items == null || request.Items.Count == 0)
                 return ApiResponse<OrderSummaryDto>.Fail("POS Order must contain at least one item.", AppConstants.ErrorCodes.OrderNotFound);
+            if (!string.IsNullOrWhiteSpace(request.VoucherCode)) return ApiResponse<OrderSummaryDto>.Fail("Vouchers apply to online checkout only.", AppConstants.ErrorCodes.InvalidVoucher);
             if (request.PaymentMethod != AppConstants.PaymentGateways.Cash && request.PaymentMethod != AppConstants.PaymentGateways.CardPos)
                 return ApiResponse<OrderSummaryDto>.Fail("Choose cash or card POS payment.");
             if (request.PaymentMethod == AppConstants.PaymentGateways.Cash &&

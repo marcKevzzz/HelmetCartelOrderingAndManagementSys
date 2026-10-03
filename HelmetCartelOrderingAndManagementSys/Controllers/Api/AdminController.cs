@@ -53,8 +53,8 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                 AppConstants.Roles.Admin, StringComparison.Ordinal)));
 
         [HttpGet, Route("dashboard/activity")]
-        public Task<IHttpActionResult> RecentActivity() =>
-            Rows("dbo.sp_AdminRecentActivity", P("@Limit", 8));
+        public Task<IHttpActionResult> RecentActivity(int limit = 8, int offset = 0) =>
+            Rows("dbo.sp_AdminRecentActivity", P("@Limit", limit), P("@Offset", offset));
 
         [HttpGet, Route("global-search"), AllowAnonymous]
         public async Task<IHttpActionResult> GlobalSearch(string q = null)
@@ -198,7 +198,6 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                 P("@Name", d.Name), 
                 P("@Slug", d.Slug), 
                 P("@Description", d.Description), 
-                P("@RidingStyle", d.RidingStyle),
                 P("@BasePrice", d.BasePrice), 
                 P("@DiscountPercentage", d.DiscountPercentage),
                 P("@DiscountType", d.DiscountType ?? "Percentage"),
@@ -206,8 +205,8 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                 P("@DiscountStartDate", (object)d.DiscountStartDate ?? DBNull.Value),
                 P("@DiscountEndDate", (object)d.DiscountEndDate ?? DBNull.Value),
                 P("@MainImageUrl", d.MainImageUrl), 
-                P("@IsFeatured", d.IsFeatured), 
-                P("@IsActive", d.IsActive));
+                P("@IsActive", d.IsActive),
+                P("@PublicationStatus", (object)d.PublicationStatus ?? (d.IsActive ? "Published" : "Draft")));
         }
 
         [HttpDelete, Route("catalog/products/{id:int}"), StaffAuthorize(adminOnly: true)]
@@ -252,6 +251,19 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
             if (d == null) return Task.FromResult<IHttpActionResult>(BadRequest("Variant is required."));
             return Rows("dbo.sp_AdminSaveVariant", P("@Id", d.Id), P("@ProductColorId", d.ProductColorId), P("@SKU", d.SKU),
                 P("@Size", d.Size), P("@PriceAdjustment", d.PriceAdjustment), P("@ReorderPoint", d.ReorderPoint), P("@IsActive", d.IsActive));
+        }
+
+        [HttpPost, Route("inventory/variants/{id:int}/toggle-active")]
+        public async Task<IHttpActionResult> ToggleVariantActive(int id)
+        {
+            var newStatus = await _data.ToggleVariantActiveAsync(id).ConfigureAwait(false);
+            try
+            {
+                var hubContext = Microsoft.AspNet.SignalR.GlobalHost.ConnectionManager.GetHubContext<HelmetCartelOrderingAndManagementSys.Hubs.InventoryHub>();
+                hubContext?.Clients?.All?.variantStatusChanged(new { variantId = id, isActive = newStatus });
+            }
+            catch { }
+            return Ok(ApiResponse<object>.Ok(new { variantId = id, isActive = newStatus }));
         }
 
         [HttpPost, Route("catalog/gallery"), StaffAuthorize(adminOnly: true)]

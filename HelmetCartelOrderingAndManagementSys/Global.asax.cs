@@ -58,6 +58,11 @@ namespace HelmetCartelOrderingAndManagementSys
                 var user = new Infrastructure.JwtTokenProvider().ValidateToken(token);
                 if (user != null && (user.Role == Constants.AppConstants.Roles.Admin || user.Role == Constants.AppConstants.Roles.Staff))
                 {
+                    if (appRelativePath.StartsWith("~/Pages/Admin/Vouchers/", StringComparison.OrdinalIgnoreCase) && user.Role != Constants.AppConstants.Roles.Admin)
+                    {
+                        Response.Redirect("~/Pages/Admin/Inventory/Inventory.aspx", false);
+                        CompleteRequest();
+                    }
                     return;
                 }
 

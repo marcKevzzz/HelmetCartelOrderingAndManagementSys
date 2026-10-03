@@ -1270,22 +1270,27 @@
 }
 
 .modal-close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
+  background: var(--color-surface-subtle, #F4F4F5);
+  border: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
+  width: 34px;
+  height: 34px;
+  font-size: 1.25rem;
   line-height: 1;
   color: var(--color-text-muted, rgba(0, 0, 0, 0.4));
   cursor: pointer;
-  padding: 4px;
-  border-radius: 50%;
-  display: flex;
+  padding: 0;
+  border-radius: var(--radius-pill, 9999px);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s ease;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .modal-close-btn:hover {
+  background: var(--color-surface-hover, #E4E4E7);
   color: var(--color-text-main, #000000);
+  transform: rotate(90deg);
 }
 
 .review-modal-dialog .modal-body {
@@ -1386,7 +1391,8 @@
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  padding: 16px 28px 24px;
+  padding: 16px 28px;
+  background-color: var(--color-surface-subtle, #F8F8F9);
   border-top: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
 }
 

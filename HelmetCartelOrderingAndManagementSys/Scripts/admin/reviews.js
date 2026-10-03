@@ -17,9 +17,17 @@ function initAdminReviews() {
     let selectedReview = null;
 
     const tbody = document.getElementById('admin-reviews-tbody');
-    const searchInput = document.getElementById('admin-review-search');
+    const searchInput = document.getElementById('adminGlobalSearch');
     const countIndicator = document.getElementById('review-count-indicator');
     const filterTabs = document.querySelectorAll('#review-status-tabs .admin-tab-btn');
+
+    // Check URL search param
+    const urlParams = new URLSearchParams(window.location.search);
+    const q = urlParams.get('q') || urlParams.get('search');
+    if (q) {
+        currentSearch = q.trim();
+        if (searchInput && !searchInput.value) searchInput.value = currentSearch;
+    }
 
     // Modal elements
     const modal = document.getElementById('admin-review-modal');
@@ -46,14 +54,14 @@ function initAdminReviews() {
         });
     });
 
-    // Search input with debounce
+    // Global Search input with debounce
     let searchTimeout = null;
     searchInput?.addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
             currentSearch = e.target.value.trim();
             loadReviews();
-        }, 350);
+        }, 200);
     });
 
     async function loadReviews() {

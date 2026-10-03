@@ -223,6 +223,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const loginRole = user ? (user.role || user.Role) : null;
           if (loginRole === APP_CONSTANTS.ROLES.ADMIN || loginRole === APP_CONSTANTS.ROLES.STAFF) {
             sessionStorage.setItem(APP_CONSTANTS.STORAGE_KEYS.ADMIN_LOGIN_SUCCESS, '1');
+          } else {
+            const firstName = user?.firstName || user?.FirstName || 'Rider';
+            sessionStorage.setItem('hc_login_toast', `Welcome back, ${firstName}! You have signed in successfully.`);
           }
 
           showAlert('Authentication verified. Redirecting...', 'success');
@@ -238,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (role === 'Admin' || role === 'Staff') {
               window.location.href = APP_CONSTANTS.ROUTES.ADMIN_DASHBOARD;
             } else {
-              window.location.href = APP_CONSTANTS.ROUTES.PROFILE;
+              window.location.href = APP_CONSTANTS.ROUTES.HOME;
             }
           }, 800);
         } else {
@@ -357,6 +360,9 @@ document.addEventListener('DOMContentLoaded', () => {
           if (token) localStorage.setItem('hc_auth_token', token);
           if (user) localStorage.setItem('hc_user_profile', JSON.stringify(user));
 
+          const firstName = user?.firstName || user?.FirstName || 'Rider';
+          sessionStorage.setItem('hc_login_toast', `Welcome to Helmet Cartel, ${firstName}! Your account has been registered.`);
+
           showAlert('Account created successfully! Redirecting...', 'success');
 
           setTimeout(() => {
@@ -364,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (returnUrl) {
               window.location.href = returnUrl;
             } else {
-              window.location.href = APP_CONSTANTS.ROUTES.PROFILE;
+              window.location.href = APP_CONSTANTS.ROUTES.HOME;
             }
           }, 1000);
         } else {

@@ -5,6 +5,7 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
 {
     public class CreateOrderRequestDto
     {
+        public string VoucherCode { get; set; }
         public string CustomerName { get; set; }
         public string CustomerEmail { get; set; }
         public string CustomerPhone { get; set; }
@@ -34,6 +35,7 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
     {
         public int Id { get; set; }
         public string OrderNumber { get; set; }
+        public string VoucherCode { get; set; }
         public string CustomerName { get; set; }
         public string CustomerEmail { get; set; }
         public string CustomerPhone { get; set; }
@@ -55,6 +57,8 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string DeliveryNotes { get; set; }
         public string PaymentMethod { get; set; }
         public string PaymentStatus { get; set; }
+        public string GatewayReference { get; set; }
+        public decimal? CashTendered { get; set; }
         public string CheckoutUrl { get; set; }
         public DateTime CreatedAt { get; set; }
         public string PreviewImages { get; set; }

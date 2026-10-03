@@ -609,45 +609,40 @@ export const Storefront = {
       button.addEventListener('click', () => toggle(button));
     });
 
-    const getBaseColorFromHex = hex => {
-      if (!hex || typeof hex !== 'string') return 'Black';
-      const clean = hex.trim().replace(/^#/, '');
-      if (clean.length < 6) return 'Black';
-      const r = parseInt(clean.substring(0, 2), 16);
-      const g = parseInt(clean.substring(2, 4), 16);
-      const b = parseInt(clean.substring(4, 6), 16);
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
-      const delta = max - min;
-      if (max <= 64) return 'Black';
-      if (min >= 200) return 'White';
-      if (delta <= 32) return 'Grey';
-      let hue = 0;
-      if (max === r) hue = 60 * (((g - b) / delta) % 6);
-      else if (max === g) hue = 60 * ((b - r) / delta + 2);
-      else hue = 60 * ((r - g) / delta + 4);
-      if (hue < 0) hue += 360;
-      if (hue < 15 || hue >= 345) return 'Red';
-      if (hue < 45) return 'Orange';
-      if (hue < 70) return 'Yellow';
-      if (hue < 165) return 'Green';
-      if (hue < 195) return 'Cyan';
-      if (hue < 255) return 'Blue';
-      if (hue < 315) return 'Purple';
-      return 'Pink';
+    // Match the picker to the shades actually displayed in the filter.
+    let pickerMatchedSwatch = null;
+    const nearestColorSwatch = hex => {
+      if (!/^#[0-9a-f]{6}$/i.test(hex)) return null;
+      const target = [1, 3, 5].map(offset => parseInt(hex.slice(offset, offset + 2), 16));
+      let nearest = null;
+      let minimumDistance = Infinity;
+      colorButtons.forEach(button => {
+        const channels = getComputedStyle(button).backgroundColor.match(/[\d.]+/g);
+        if (!channels || channels.length < 3) return;
+        const distance = target.reduce((sum, channel, index) => sum + (channel - Number(channels[index])) ** 2, 0);
+        if (distance < minimumDistance) { minimumDistance = distance; nearest = button; }
+      });
+      return nearest;
     };
 
     const colorPickerInput = document.getElementById('filter-color-picker-input');
     const colorPickerLabel = document.getElementById('swatch-color-picker-label');
     if (colorPickerInput && colorPickerLabel) {
       colorPickerInput.addEventListener('input', e => {
-        const hex = e.target.value;
-        const family = getBaseColorFromHex(hex);
-        colorPickerLabel.dataset.color = family;
-        colorPickerLabel.title = `Custom Color: ${hex.toUpperCase()} (${family})`;
-        colorPickerLabel.style.background = hex;
-        colorPickerLabel.classList.add('active');
-        colorPickerLabel.setAttribute('aria-pressed', 'true');
+        const match = nearestColorSwatch(e.target.value);
+        if (!match) return;
+        if (pickerMatchedSwatch && pickerMatchedSwatch !== match) {
+          pickerMatchedSwatch.classList.remove('active');
+          pickerMatchedSwatch.setAttribute('aria-pressed', 'false');
+        }
+        match.classList.add('active');
+        match.setAttribute('aria-pressed', 'true');
+        pickerMatchedSwatch = match;
+        // Only the standard swatch is selected; the picker keeps its normal appearance.
+        colorPickerLabel.classList.remove('active');
+        colorPickerLabel.removeAttribute('data-color');
+        colorPickerLabel.removeAttribute('aria-pressed');
+        colorPickerLabel.title = 'Custom Color Picker';
       });
     }
 
@@ -851,7 +846,7 @@ export const Storefront = {
       if (colorPickerLabel) {
         colorPickerLabel.classList.remove('active');
         colorPickerLabel.removeAttribute('data-color');
-        colorPickerLabel.style.background = '';
+        pickerMatchedSwatch = null;
         colorPickerLabel.title = 'Custom Color Picker';
       }
       sizeButtons.forEach(button => { button.classList.remove('active'); button.setAttribute('aria-pressed', 'false'); });

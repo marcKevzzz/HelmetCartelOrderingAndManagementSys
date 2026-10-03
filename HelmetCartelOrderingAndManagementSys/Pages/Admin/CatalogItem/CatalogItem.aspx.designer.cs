@@ -29,7 +29,6 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         protected global::System.Web.UI.WebControls.TextBox txtProductName;
         protected global::System.Web.UI.WebControls.TextBox txtSlug;
         protected global::System.Web.UI.WebControls.TextBox txtDescription;
-        protected global::System.Web.UI.WebControls.CheckBox chkIsFeatured;
         protected global::System.Web.UI.WebControls.TextBox txtBasePrice;
         protected global::System.Web.UI.WebControls.TextBox txtDiscountValue;
         protected global::System.Web.UI.WebControls.DropDownList ddlDiscountUnit;

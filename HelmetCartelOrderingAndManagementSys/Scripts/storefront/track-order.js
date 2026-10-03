@@ -310,7 +310,7 @@ export const TrackOrderController = {
   createStepperHtml(order, isDelivery, currentStatus) {
     if (currentStatus === 'Cancelled') {
       return `
-        <div class="order-stepper-cancelled">
+        <div class="order-stepper-cancelled" style="display: flex; gap: var(--space-2);">
           <svg viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" width="20" height="20">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="15" y1="9" x2="9" y2="15"></line>
@@ -626,7 +626,7 @@ export const TrackOrderController = {
 
       <div class="receipt-footer-seal">
         <span>Order Number: <strong>${this.escapeHtml(order.orderNumber)}</strong></span>
-        <span>Verified Electronic Transaction &bull; Helmet Cartel MSSQL Ledger</span>
+        <span>Verified Electronic Transaction</span>
       </div>
     `;
   },

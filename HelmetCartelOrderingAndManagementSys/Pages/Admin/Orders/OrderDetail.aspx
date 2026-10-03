@@ -1,6 +1,7 @@
 <%@ Page Title="Order Details" Language="C#" MasterPageFile="~/Pages/Admin/Portal.master" AutoEventWireup="true" CodeBehind="OrderDetail.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders.OrderDetail" ResponseEncoding="utf-8" Async="true" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
+    <link rel="stylesheet" href="/Content/css/receipts.css?v=20261003-2" />
     <style>
         .od-page-container {
             display: flex;
@@ -267,29 +268,6 @@
             text-align: right;
         }
 
-        /* Action footer inside Order Item card */
-        .od-item-card-foot {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: var(--space-3);
-            margin-top: var(--space-5);
-            padding-top: var(--space-4);
-            border-top: 1px solid var(--color-border-subtle);
-            flex-wrap: wrap;
-        }
-
-        .od-item-foot-hint {
-            font-size: var(--text-body-sm);
-            color: var(--color-text-muted);
-        }
-
-        .od-item-foot-actions {
-            display: flex;
-            align-items: center;
-            gap: var(--space-2);
-        }
-
         /* Financial Breakdown */
         .od-summary-table {
             display: flex;
@@ -437,6 +415,9 @@
             </div>
 
             <div class="od-header-actions">
+                <% if (pnlOrderContent.Visible && OrderId > 0) { %>
+                <button type="button" id="btn-view-order-receipt" class="btn-pill btn-pill--outline" data-order-id="<%= OrderId %>" aria-haspopup="dialog" aria-controls="order-receipt-dialog">View Receipt</button>
+                <% } %>
                 <asp:Literal ID="litActionButtons" runat="server" />
             </div>
         </header>
@@ -461,7 +442,7 @@
                         <div class="od-card-header" onclick="toggleCard('secOrderItems')">
                             <div class="od-card-title-wrap">
                                 <h2 class="od-card-title">Order Item (<asp:Literal ID="litItemCount" runat="server" />)</h2>
-                                <span class="admin-badge admin-badge--neutral"><asp:Literal ID="litKpiOrderStatus" runat="server" /></span>
+                                <span class="admin-badge "><asp:Literal ID="litKpiOrderStatus" runat="server" /></span>
                             </div>
                             <svg class="od-chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polyline points="6 9 12 15 18 9"></polyline>
@@ -504,12 +485,6 @@
                                 </asp:Repeater>
                             </div>
 
-                            <div class="od-item-card-foot">
-                                <span class="od-item-foot-hint">Manage fulfillment state and logistics dispatch for this order.</span>
-                                <div class="od-item-foot-actions">
-                                    <asp:Literal ID="litCardFulfillmentActions" runat="server" />
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -657,6 +632,19 @@
     </div>
 
     <!-- Dispatch Courier Modal -->
+    <div id="order-receipt-overlay" class="admin-modal-backdrop is-hidden" hidden>
+        <section id="order-receipt-dialog" class="admin-modal hc-receipt-dialog" role="dialog" aria-modal="true" aria-labelledby="order-receipt-title">
+            <header class="hc-receipt-dialog-header">
+                <h2 id="order-receipt-title" class="admin-modal-title">Digital Sales Receipt</h2>
+                <button type="button" id="btn-close-order-receipt" class="btn-pill btn-pill--outline" aria-label="Close receipt">&times;</button>
+            </header>
+            <div id="order-receipt-document" class="hc-receipt-dialog-body" aria-live="polite"></div>
+            <footer class="hc-receipt-dialog-footer">
+                <button type="button" id="btn-print-order-receipt" class="btn-pill btn-pill--outline" disabled>Print / Save Receipt</button>
+            </footer>
+        </section>
+    </div>
+
     <div id="dispatchModal" class="admin-modal-backdrop is-hidden" hidden>
         <div class="admin-modal admin-modal--confirm" role="dialog" aria-modal="true" aria-labelledby="dispatchModalTitle">
             <h3 class="admin-modal-title" id="dispatchModalTitle">Dispatch Order</h3>
@@ -680,6 +668,7 @@
 </asp:Content>
 
 <asp:Content ID="Content3" ContentPlaceHolderID="ScriptsContent" runat="server">
+    <script type="module" src="/Scripts/admin/order-receipt.js?v=20261003-2"></script>
     <script>
         function toggleCard(cardId) {
             var card = document.getElementById(cardId);

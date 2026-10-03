@@ -1,3 +1,4 @@
+import { renderReceipt, printReceipt, focusReceiptDialog } from '../receipt.js?v=20261003-3';
 /**
  * HELMET CARTEL - USER PROFILE, ORDER TRACKING & WISHLIST CONTROLLER (profile.js)
  * Features:
@@ -1549,7 +1550,7 @@ export const ProfileController = {
           <td class="payment-amount-cell">&#8369;${amountStr}</td>
           <td>${dateStr}</td>
           <td>
-            <button type="button" class="btn btn--outline btn--sm btn-table-receipt" data-order-id="${p.orderId}">
+            <button type="button" class="btn btn--primary btn-table-receipt" data-order-id="${p.orderId}">
               View Receipt
             </button>
           </td>
@@ -1575,6 +1576,8 @@ export const ProfileController = {
 
     overlay.classList.add("is-open");
     document.body.classList.add("modal-open");
+    this.receiptFocusCleanup?.();
+    this.receiptFocusCleanup = focusReceiptDialog(overlay, () => document.getElementById('btn-receipt-modal-close')?.click());
 
     try {
       let order = this.orderDetailsCache.get(orderId);
@@ -1594,130 +1597,8 @@ export const ProfileController = {
   },
 
   renderReceiptDocument(order) {
-    const doc = document.getElementById("digital-receipt-doc");
-    if (!doc) return;
-
-    const dateFormatted = new Date(order.createdAt).toLocaleDateString(
-      "en-US",
-      {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      },
-    );
-
-    const isDelivery =
-      String(order.shippingMethod).toLowerCase() === "delivery";
-    const subtotal = Number(order.subtotal || 0);
-    const discount = Number(order.discountAmount || 0);
-    const shipping = Number(order.shippingFee || 0);
-    const total = Number(order.totalAmount || 0);
-
-    const itemsHtml = (order.items || [])
-      .map(
-        (item) => `
-      <tr>
-        <td>
-          <strong>${this.escapeHtml(item.productName)}</strong><br />
-          <span style="font-size: 0.75rem; color: #737373;">SKU: ${this.escapeHtml(item.sku || "N/A")} | ${this.escapeHtml(item.color || "")} / ${this.escapeHtml(item.size || "")}</span>
-        </td>
-        <td style="text-align: center;">${item.quantity}</td>
-        <td style="text-align: right;">&#8369;${Number(item.unitPrice).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
-        <td style="text-align: right;">&#8369;${Number(item.totalPrice).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
-      </tr>
-    `,
-      )
-      .join("");
-
-    doc.innerHTML = `
-      <div class="digital-receipt-top">
-        <div>
-          <div class="receipt-brand-logo">HELMET CARTEL</div>
-          <div class="receipt-brand-hub">
-            Flagship Store &amp; Fulfillment Hub<br />
-            Katipunan Ave, Quezon City, Metro Manila, 1108<br />
-            TIN: 420-691-888-000 &bull; support@helmetcartel.com
-          </div>
-        </div>
-        <div class="receipt-doc-meta">
-          <span class="receipt-doc-tag">Digital Transaction Receipt</span>
-          <span class="receipt-doc-no">#REC-${order.id ? order.id.toString().padStart(6, "0") : "000000"}</span>
-          <span class="receipt-doc-date">${dateFormatted}</span>
-        </div>
-      </div>
-
-      <div class="receipt-parties-grid">
-        <div>
-          <div class="receipt-party-title">Billed To</div>
-          <div class="receipt-party-val">
-            <strong>${this.escapeHtml(order.customerName || this.currentUser?.fullName)}</strong><br />
-            ${this.escapeHtml(order.customerEmail || this.currentUser?.email)}<br />
-            ${this.escapeHtml(order.customerPhone || this.currentUser?.phoneNumber || "")}
-          </div>
-        </div>
-        <div>
-          <div class="receipt-party-title">Fulfillment &amp; Payment</div>
-          <div class="receipt-party-val">
-            <strong>Method:</strong> ${isDelivery ? "Door-to-Door Delivery" : "Store Pickup (QC Hub)"}<br />
-            <strong>Gateway:</strong> ${this.escapeHtml(order.paymentGateway || order.paymentMethod || "HitPay")}<br />
-            <strong>Reference:</strong> ${this.escapeHtml(order.gatewayReference || "N/A")}<br />
-            <strong>Payment Status:</strong> ${this.escapeHtml(order.paymentStatus || "Completed")}
-          </div>
-        </div>
-      </div>
-
-      <table class="receipt-items-table">
-        <thead>
-          <tr>
-            <th>Item &amp; Specification</th>
-            <th style="text-align: center; width: 60px;">Qty</th>
-            <th style="text-align: right; width: 110px;">Unit Price</th>
-            <th style="text-align: right; width: 110px;">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${itemsHtml}
-        </tbody>
-      </table>
-
-      <div class="receipt-totals-list">
-        <div class="receipt-total-row">
-          <span>Subtotal</span>
-          <span>&#8369;${subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-        </div>
-        ${
-          discount > 0
-            ? `
-          <div class="receipt-total-row" style="color: #047857;">
-            <span>Voucher Discount</span>
-            <span>-&#8369;${discount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-          </div>
-        `
-            : ""
-        }
-        ${
-          isDelivery
-            ? `
-          <div class="receipt-total-row">
-            <span>Shipping Fee</span>
-            <span>&#8369;${shipping.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-          </div>
-        `
-            : ""
-        }
-        <div class="receipt-total-row receipt-total-row--grand">
-          <span>Total Paid</span>
-          <span>&#8369;${total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-        </div>
-      </div>
-
-      <div class="receipt-footer-seal">
-        <span>Order Number: <strong>${this.escapeHtml(order.orderNumber)}</strong></span>
-        <span>Verified Electronic Transaction &bull; Helmet Cartel MSSQL Ledger</span>
-      </div>
-    `;
+    const doc = document.getElementById('digital-receipt-doc');
+    if (doc) doc.innerHTML = renderReceipt(order);
   },
 
   bindReceiptModalEvents() {
@@ -1726,6 +1607,8 @@ export const ProfileController = {
     const printBtn = document.getElementById("btn-print-receipt");
 
     const closeModal = () => {
+      this.receiptFocusCleanup?.();
+      this.receiptFocusCleanup = null;
       overlay?.classList.remove("is-open");
       document.body.classList.remove("modal-open");
     };
@@ -1741,7 +1624,7 @@ export const ProfileController = {
     });
 
     printBtn?.addEventListener("click", () => {
-      window.print();
+      printReceipt(document.getElementById('digital-receipt-doc'));
     });
   },
 

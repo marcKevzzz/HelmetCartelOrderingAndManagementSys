@@ -43,6 +43,18 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Controllers\Api\VouchersController.cs" />
+    <Compile Include="Models\DTOs\VoucherDTOs.cs" />
+    <Compile Include="Repositories\VoucherRepository.cs" />
+    <Compile Include="Services\VoucherService.cs" />
+    <Content Include="Pages\Admin\Vouchers\Vouchers.aspx" />
+    <Content Include="Scripts\admin\vouchers.js" />
+    <Content Include="Scripts\receipt.js" />
+    <Content Include="Scripts\admin\order-receipt.js" />
+    <Content Include="Content\css\receipts.css" />
+    <Content Include="Content\css\admin\vouchers.css" />
+  </ItemGroup>
+  <ItemGroup>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="Microsoft.AspNet.SignalR.Core">
       <HintPath>..\packages\Microsoft.AspNet.SignalR.Core.2.4.3\lib\net45\Microsoft.AspNet.SignalR.Core.dll</HintPath>

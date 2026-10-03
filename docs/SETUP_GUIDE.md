@@ -114,7 +114,7 @@ Set `HELMET_CARTEL_JWT_SECRET` to a private value of at least 32 characters in p
 
 ### Small fresh database (same current schema)
 
-Open `database/setup/new_database_minimal.sql` in a normal SSMS query window and execute the complete file. SQLCMD Mode is not required. It creates `HelmetCartelMinimalDB` with the current tables, constraints, indexes, functions and stored procedures, including migrations through 14. It refuses to run if that database already exists; the existing `HelmetCartelDB` is untouched. If installation fails midway, use a different new database name after correcting the error.
+First run the builder below with an unused database name, then open `database/setup/new_database_minimal.sql` in a normal SSMS query window and execute the complete file. SQLCMD Mode is not required. The installer creates the database named in the builder argument with tables, constraints, indexes, functions and stored procedures, including migrations through 35. It refuses to run if that database already exists. If installation fails midway, use a different new database name after correcting the error. See `database/README.md` for script responsibilities and existing-database upgrade guidance.
 
 The compact sample contains three roles, three brands, four categories, five image-backed products, ten SKUs, 51 current warehouse units, twelve gallery images, and six orders spread across the previous week. Two of the original variants remain low-stock so the dashboard alert state is visible. The product details and image paths come from the existing project catalog. Users and reviews remain empty; register an account through the application because no shared demo password is installed.
 
@@ -131,3 +131,26 @@ For an existing database already at migration 13, run `database/schema/14_pos_an
 ### Local JWT secret file
 
 The app now reads your `HelmetCartelOrderingAndManagementSys/App_Data/Jwt_Secret` file when neither `HELMET_CARTEL_JWT_SECRET` nor `Jwt:Secret` is configured. Keep only the secret text in this file (at least 32 characters); surrounding whitespace is trimmed. It is excluded from Git. The original generated `App_Data/jwt-secret.key` remains the fallback only when `Jwt_Secret` is absent. Restart the app after changing the secret; tokens signed using the previous key will require a new login. Supply this private file separately when deploying, or use the environment variable.
+
+
+### Voucher and receipt upgrade (migration 40)
+
+For an existing database already upgraded through 39, run:
+
+```powershell
+powershell -File .\database\setup\Update-LatestSchema.ps1 -StartMigration 40 -EndMigration 40 -DryRun
+powershell -File .\database\setup\Update-LatestSchema.ps1 -StartMigration 40 -EndMigration 40
+```
+
+The installation creates and verifies a backup before applying changes. Build the application afterward. Open `/Pages/Admin/Vouchers/Vouchers.aspx` as an Admin to create your own codes; no default voucher is installed. Customers apply codes in the checkout order summary. Existing orders continue to display their saved totals.
+
+The compact fresh installer includes both migration 39 files and migration 40. The upgrade runner executes same-number scripts in filename order. SQL dates use UTC; the voucher editor accepts local time and converts it to UTC.
+
+Verification commands:
+
+```powershell
+node tests/receipt.test.mjs
+powershell -File .\database\setup\Test-Vouchers.ps1
+```
+
+Build first for the C# repository tests. The SQL runner creates a uniquely named isolated database on `.\SQLEXPRESS`, verifies fresh setup and voucher transactions, then drops only that test database. It never writes test orders into the configured project database. The development-only `/tests/receipt-preview.html` page provides paid, unpaid and long sample receipts for responsive and A4 print verification; it is excluded from the web project deployment manifest. Use print preview in a normal browser to verify actual page breaks.

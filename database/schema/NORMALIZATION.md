@@ -1,6 +1,6 @@
 # Normalization decisions
 
-The latest schema is produced by the ordered setup generator through migration 24.
+The latest schema is produced by the ordered setup generator through migration 35.
 Use `setup/Update-LatestSchema.ps1` for backed-up transactional upgrades; use its
 `-DryRun` switch for rollback-only validation. Earlier migrations are historical
 upgrade steps and must not be applied independently after newer ones.

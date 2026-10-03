@@ -213,6 +213,16 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             });
                         }
 
+                        decimal voucherDiscount = 0m;
+                        string voucherCode = null;
+                        if (!string.IsNullOrWhiteSpace(request.VoucherCode))
+                        {
+                            var quote = await VoucherRepository.ApplyAsync(conn, transaction, orderId, request.VoucherCode).ConfigureAwait(false);
+                            voucherDiscount = quote.DiscountAmount;
+                            voucherCode = quote.Code;
+                            total = subtotal - voucherDiscount + shippingFee;
+                        }
+
                         using (var totalsCmd = new SqlCommand("dbo.sp_ValidateOrderTotals", conn, transaction))
                         {
                             totalsCmd.CommandType = CommandType.StoredProcedure;
@@ -252,7 +262,8 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             OrderSource = orderSource,
                             Status = initialStatus,
                             Subtotal = subtotal,
-                            DiscountAmount = 0.00m,
+                            DiscountAmount = voucherDiscount,
+                            VoucherCode = voucherCode,
                             TotalAmount = total,
                             ShippingMethod = shippingMethod,
                             ShippingFee = shippingFee,
@@ -320,6 +331,8 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 DiscountAmount = reader.GetDecimal(reader.GetOrdinal("DiscountAmount")),
                                 TotalAmount = reader.GetDecimal(reader.GetOrdinal("TotalAmount")),
                                 ShippingMethod = reader.IsDBNull(reader.GetOrdinal("ShippingMethod")) ? "Pickup" : reader.GetString(reader.GetOrdinal("ShippingMethod")),
+                                VoucherCode = reader.IsDBNull(reader.GetOrdinal("VoucherCode")) ? null : reader.GetString(reader.GetOrdinal("VoucherCode")),
+                                CashTendered = reader.IsDBNull(reader.GetOrdinal("CashTendered")) ? (decimal?)null : reader.GetDecimal(reader.GetOrdinal("CashTendered")),
                                 ShippingFee = reader.IsDBNull(reader.GetOrdinal("ShippingFee")) ? 0.00m : reader.GetDecimal(reader.GetOrdinal("ShippingFee")),
                                 ShippingRegion = reader.IsDBNull(reader.GetOrdinal("ShippingRegion")) ? null : reader.GetString(reader.GetOrdinal("ShippingRegion")),
                                 ShippingAddress = reader.IsDBNull(reader.GetOrdinal("ShippingAddress")) ? null : reader.GetString(reader.GetOrdinal("ShippingAddress")),
@@ -364,6 +377,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             if (await reader.ReadAsync().ConfigureAwait(false))
                             {
                                 summary.PaymentMethod = reader.IsDBNull(reader.GetOrdinal("PaymentGateway")) ? null : reader.GetString(reader.GetOrdinal("PaymentGateway"));
+                                summary.GatewayReference = reader.IsDBNull(reader.GetOrdinal("GatewayReference")) ? null : reader.GetString(reader.GetOrdinal("GatewayReference"));
                                 summary.PaymentStatus = reader.IsDBNull(reader.GetOrdinal("Status")) ? null : reader.GetString(reader.GetOrdinal("Status"));
                             }
                         }

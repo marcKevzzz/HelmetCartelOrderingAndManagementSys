@@ -16,8 +16,7 @@ namespace HelmetCartelOrderingAndManagementSys.Pages
         private const int CatalogPageSize = 9;
         private static readonly string[] AllowedColors = { "Green", "Red", "Orange", "Cyan", "Blue", "Purple", "Pink", "White", "Black", "Grey", "Yellow" };
         private static readonly string[] AllowedSizes = { "S", "M", "L", "XL", "XXL" };
-        private static readonly string[] AllowedSorts = { "popular", "price_asc", "price_desc", "newest", "rating" };
-        private static readonly string[] AllowedRidingStyles = { "Casual/Urban", "Sport/Track", "Touring/Adventure", "Motocross/Off-Road" };
+        private static readonly string[] AllowedSorts = { "popular", "top_selling", "price_asc", "price_desc", "newest", "rating" };
         private readonly IProductRepository _productRepository;
         public string CatalogHeading { get; private set; } = "HELMETS";
 
@@ -40,14 +39,12 @@ namespace HelmetCartelOrderingAndManagementSys.Pages
         {
             string category = Request.QueryString["category"];
             string brand = NormalizeCsv(Request.QueryString.GetValues("brand"), null);
-            string ridingStyle = Request.QueryString["ridingStyle"] ?? Request.QueryString["style"];
-            ridingStyle = AllowedRidingStyles.FirstOrDefault(option => string.Equals(option, ridingStyle, StringComparison.OrdinalIgnoreCase));
             string search = Request.QueryString["q"] ?? Request.QueryString["search"];
             if (search != null && search.Length > 200) search = search.Substring(0, 200);
             string sortBy = Request.QueryString["sortBy"] ?? Request.QueryString["sort"] ?? "popular";
             sortBy = AllowedSorts.FirstOrDefault(option => string.Equals(option, sortBy, StringComparison.OrdinalIgnoreCase)) ?? "popular";
             bool onSale = string.Equals(Request.QueryString["onSale"], "1", StringComparison.Ordinal);
-            CatalogHeading = onSale ? "HELMETS ON SALE" : ridingStyle != null ? ridingStyle.ToUpperInvariant() + " HELMETS" : sortBy == "newest" ? "NEW ARRIVALS" : "HELMETS";
+            CatalogHeading = onSale ? "HELMETS ON SALE" : !string.IsNullOrEmpty(brand) ? brand.ToUpperInvariant() + " HELMETS" : !string.IsNullOrEmpty(category) ? category.ToUpperInvariant() + " HELMETS" : sortBy == "newest" ? "NEW ARRIVALS" : "HELMETS";
 
             int pageNumber = 1;
             if (int.TryParse(Request.QueryString["page"], out int p) && p > 0)
@@ -72,7 +69,6 @@ namespace HelmetCartelOrderingAndManagementSys.Pages
                     PageSize = CatalogPageSize,
                     Category = category,
                     Brand = brand,
-                    RidingStyle = ridingStyle,
                     Search = search,
                     OnSale = onSale,
                     SortBy = sortBy,

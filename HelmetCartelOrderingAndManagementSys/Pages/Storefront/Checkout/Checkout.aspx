@@ -1,7 +1,8 @@
 <%@ Page Title="Secure Checkout" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Checkout.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Pages.CheckoutPage" ResponseEncoding="utf-8" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
-    <link rel="stylesheet" href='<%= ResolveUrl("~/Content/css/storefront/checkout.css?v=5") %>' />
+    <link rel="stylesheet" href='<%= ResolveUrl("~/Content/css/storefront/checkout.css?v=6") %>' />
+    <link rel="stylesheet" href="/Content/css/receipts.css?v=1" />
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
@@ -149,7 +150,7 @@
                 <!-- STEP 2: Payment Method -->
                 <div class="checkout-panel" id="panel-step-2">
                     <h2 class="checkout-panel__title">Choose Payment Method</h2>
-                    <p class="checkout-panel__subtitle">All online payments are encrypted and protected by HitPay escrow security.</p>
+                    <p class="checkout-panel__subtitle">Choose QRPh or an available pay-on-collection option.</p>
 
                     <div class="payment-methods-grid">
                         <!-- Option 1: HitPay Online Checkout (QR Ph) -->
@@ -158,14 +159,13 @@
                                 <div class="payment-method-title-wrap">
                                     <div class="shipping-card__radio"></div>
                                     <div>
-                                        <div class="shipping-card__title">HitPay Online Checkout (QR Ph)</div>
-                                        <div class="shipping-card__desc">Instant payment confirmation via QR Ph National QR Standard</div>
+                                        <div class="shipping-card__title">QRPh</div>
+                                        <div class="shipping-card__desc">QRPh payment with an academic demo confirmation</div>
                                     </div>
                                 </div>
-                                <span class="payment-badge">Recommended</span>
                             </div>
                             <div class="payment-method-details">
-                                <p class="shipping-card__desc">Pay seamlessly by scanning the dynamic QR Ph code using any Philippine banking or e-wallet app.</p>
+                                <p class="shipping-card__desc">The QRPh demo screen lets you complete a sample payment without a real charge.</p>
                                 <div class="payment-icons payment-icons--checkout">
                                     <span class="payment-icon-pill payment-icon-pill--qrph">QR Ph</span>
                                     <span class="payment-icon-pill">InstaPay P2M</span>
@@ -184,7 +184,6 @@
                                         <div class="shipping-card__desc">Pay exact cash to the courier rider upon parcel handover</div>
                                     </div>
                                 </div>
-                                <span class="delivery-badge-pill">COD Available</span>
                             </div>
                             <div class="payment-method-details">
                                 <p class="shipping-card__desc">Prepare the exact amount in Philippine Peso (&#8369;) including delivery fee. The courier rider will provide a physical delivery waybill receipt upon payment.</p>
@@ -302,8 +301,12 @@
 
                 <div class="summary-rows-list">
                     <div class="summary-calc-row">
-                        <span>Items Subtotal</span>
+                        <span>Subtotal</span>
                         <span id="sidebar-subtotal">&#8369;0</span>
+                    </div>
+                    <div class="summary-calc-row" id="sidebar-voucher-row" hidden>
+                        <span id="sidebar-voucher-label">Discount</span>
+                        <span id="sidebar-voucher-discount" class="summary-calc-discount">&#8369;0</span>
                     </div>
                     <div class="summary-calc-row">
                         <span>Delivery Fee</span>
@@ -314,8 +317,25 @@
                 <hr class="summary-divider" />
 
                 <div class="summary-total-row">
-                    <span>Total Amount</span>
+                    <span>Total</span>
                     <span class="summary-total-price" id="sidebar-total">&#8369;0</span>
+                </div>
+
+                <!-- Promo / Voucher Code Input matching Image 3 -->
+                <div class="checkout-voucher-control">
+                    <div class="checkout-promo-row">
+                        <div class="checkout-promo-input-wrap">
+                            <svg class="checkout-promo-tag-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                                <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                            </svg>
+                            <input type="text" id="checkout-voucher" class="checkout-promo-input" placeholder="Add promo code" maxlength="30" autocomplete="off" aria-describedby="checkout-voucher-error checkout-voucher-status" />
+                            <button type="button" id="checkout-voucher-remove" class="checkout-promo-remove" title="Remove promo code" hidden aria-label="Remove promo code">&times;</button>
+                        </div>
+                        <button type="button" id="checkout-voucher-apply" class="btn-checkout-promo-apply">Apply</button>
+                    </div>
+                    <span id="checkout-voucher-error" class="inline-error-msg" role="alert"></span>
+                    <span id="checkout-voucher-status" class="checkout-promo-status" role="status" aria-live="polite"></span>
                 </div>
             </aside>
         </div>
@@ -327,36 +347,11 @@
                     <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
             </div>
-            <h1 class="success-title">ORDER CONFIRMED!</h1>
+            <h1 class="success-title" tabindex="-1">ORDER CONFIRMED!</h1>
             <p class="success-subtitle">Thank you for riding with Helmet Cartel. Your order has been placed and inventory is reserved.</p>
 
             <!-- Order Receipt Card -->
-            <div class="order-receipt-card">
-                <div class="receipt-row">
-                    <span>Order Reference Number</span>
-                    <span class="receipt-number" id="receipt-order-no">#HC-2026-88192</span>
-                </div>
-                <div class="receipt-row">
-                    <span>Transaction Date &amp; Time</span>
-                    <span id="receipt-date">September 26, 2026 - 12:30 PM</span>
-                </div>
-                <div class="receipt-row">
-                    <span>Payment Channel</span>
-                    <span id="receipt-payment">HitPay (QR Ph Verified)</span>
-                </div>
-                <div class="receipt-row">
-                    <span id="receipt-address-label">Delivery Address</span>
-                    <span id="receipt-address">Helmet Cartel Hub &bull; 128 Commonwealth Ave, QC</span>
-                </div>
-                <div class="receipt-row">
-                    <span>Delivery Status &amp; ETA</span>
-                    <span id="receipt-eta" class="receipt-eta">Ready for Store Pickup in 1-2 Hours</span>
-                </div>
-                <div class="receipt-row receipt-row--bold">
-                    <span>Total Amount</span>
-                    <span id="receipt-total">&#8369;34,750</span>
-                </div>
-            </div>
+            <div class="checkout-receipt-document" id="checkout-receipt-doc"></div>
 
             <!-- Order Timeline Tracker -->
             <div class="order-tracker" id="order-tracker-container">
@@ -381,14 +376,14 @@
                 </div>
                 <div class="tracker-node" id="tracker-step-4">
                     <div class="tracker-icon">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="2"></circle></svg>
                     </div>
                     <span class="tracker-text" id="tracker-step-4-text">Collected</span>
                 </div>
             </div>
 
             <div class="success-actions">
-                <button type="button" class="btn btn--outline" onclick="window.print();">
+                <button type="button" class="btn btn--outline" id="checkout-print-receipt">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="6 9 6 2 18 2 18 9"></polyline>
                         <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
@@ -487,9 +482,9 @@
 
                 <!-- Simulated Process Controls -->
                 <div class="sim-process-container">
-                    <div class="sim-status-banner is-waiting" id="sim-status-banner">
-                        <span class="sim-status-dot"></span>
-                        <span id="sim-status-banner-text">Waiting for simulated scan...</span>
+                    <p class="sim-demo-note">Academic payment demo. Use the button below to complete payment; no real charge is made.</p>
+                    <div class="sim-status-banner is-waiting" id="sim-status-banner" hidden role="status" aria-live="polite">
+                        <span id="sim-status-banner-text"></span>
                     </div>
 
                     <div id="sim-status-alert" class="modal-alert modal-alert--danger is-hidden" role="alert">
@@ -497,12 +492,9 @@
                     </div>
 
                     <div class="sim-actions-grid">
-                        <button type="button" class="btn btn--outline btn-fail-sim" id="btn-fail-sim">
-                            <span>Simulate Decline</span>
-                        </button>
                         <button type="button" class="btn btn--primary btn-success-sim" id="btn-success-sim">
                             <span class="btn-spinner"></span>
-                            <span>Simulate Scan &amp; Pay</span>
+                            <span>Complete Demo Payment</span>
                         </button>
                     </div>
                 </div>
@@ -511,5 +503,5 @@
     </div>
 
     <!-- External Storefront Checkout Script -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/checkout.js?v=3") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/checkout.js?v=qrph-6") %>'></script>
 </asp:Content>

@@ -185,11 +185,12 @@ GO
 
 CREATE OR ALTER PROCEDURE dbo.sp_AdminSaveVariant
     @Id INT, @ProductColorId INT, @SKU NVARCHAR(100), @Size NVARCHAR(20),
-    @PriceAdjustment DECIMAL(18,2), @ReorderPoint INT, @IsActive BIT
+    @PriceAdjustment DECIMAL(18,2), @ReorderPoint INT, @IsActive BIT = 1
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
+    IF @IsActive IS NULL SET @IsActive = 1;
     IF NULLIF(LTRIM(RTRIM(@SKU)), N'') IS NULL OR NULLIF(LTRIM(RTRIM(@Size)), N'') IS NULL
        OR @ReorderPoint < 0 THROW 52113, N'Invalid variant details.', 1;
     BEGIN TRANSACTION;

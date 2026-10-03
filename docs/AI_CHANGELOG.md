@@ -1,6 +1,281 @@
 # AI Change Log & Architectural Evolution: Helmet Cartel
 
-## [2026-10-02] — OrderDetail Layout Overhaul, Orders Table Simplification, Return/Exchange Modal Fix, Dashboard Velocity Timeframe & Sales Performance Analytics
+## [2026-10-03] — Receipt Seal Clean-up, Activity Feed Dynamic Pagination & Actor Badges, Modal Design System Standardization, Admin User Profile & Security Modal, and Storefront Login Redirect with Toast Feedback
+
+- **Receipt Seal Clean-up (`receipt.js`, `track-order.js`):**
+  - Removed "Helmet Cartel MSSQL Ledger" from receipt seals across all customer, order tracking, and checkout receipt templates.
+  - Standardized the verified transaction seal text to `Verified Electronic Transaction` accompanied by the official SVG check shield icon.
+
+- **Recent Activity Feed Dynamic Pagination & Actor Role Badges (Migration 43, `sp_AdminRecentActivity`, `AdminController.cs`, `Dashboard.aspx`, `dashboard.js`, `admin.css`):**
+  - Created and executed Migration 43 (`database/schema/43_activity_feed_load_more_and_actor_role.sql`):
+    - Added `@Offset INT = 0` and `@Limit INT = 8` parameters using `OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY`.
+    - Added dynamic `ActorRole` calculation returning `Customer`, `Admin`, or `Staff` based on user role and transaction channel.
+    - Updated `database/setup/Build-MinimalDatabase.ps1` to include Migration 43.
+  - Updated backend data access in `Repositories/AdminDataRepository.cs` and `Controllers/Api/AdminController.cs` (`[HttpGet, Route("dashboard/activity")]`).
+  - Added role badges to both server-rendered repeater items in `Dashboard.aspx` and dynamically loaded items via `#btnLoadMoreActivities` in `dashboard.js`.
+  - Added CSS styling in `admin.css` for `.admin-activity-role-badge` (`--customer`, `--admin`, `--staff`), `.admin-activity-footer`, and `.admin-activity-load-more` with loading spinner.
+
+- **Modal Consistency Throughout System (`admin.css`, `components.css`, `storefront.css`):**
+  - Standardized modal card container with rounded borders (`var(--radius-xl)`), hidden overflow, and smooth entrance animation.
+  - Standardized modal headers with bottom border (`1px solid var(--color-border-subtle)`), title typography, and alignment.
+  - Standardized modal action panels/footers with subtle tinted background (`var(--color-surface-subtle)`), top border, and rounded bottom corners matching the modal frame.
+  - Standardized circular close buttons (`.admin-modal-close-btn`, `.modal-close-btn`, `.review-modal-dialog .modal-close-btn`): 34px diameter, circular pill geometry, subtle background, and smooth 90-degree hover rotation.
+
+- **Admin User Capsule Profile & Security Management (`Portal.master`, `admin.js`, `admin.css`):**
+  - Re-wired `.admin-user-capsule` in the admin topbar to open a dedicated Admin Account Settings modal (`#adminProfileModal`).
+  - Implemented the exact two-card structure requested:
+    - **Personal Information Card:** First Name, Last Name, read-only Email Address with helper explanation, Mobile Phone Number, and "Save Profile Changes" button.
+    - **Password & Security Card:** Current Password, New Password (minimum 6 characters), Confirm New Password, and "Update Password" button.
+  - Connected forms to live backend endpoints `PUT /api/v1/auth/profile` and `PUT /api/v1/auth/change-password` with inline validation and toast feedback.
+  - Added automatic display update for topbar avatar initials and admin full name on page load and profile save.
+
+- **Storefront Login Toast Feedback & Redirect to Default (`auth.js`, `site.js`):**
+  - Updated customer sign-in and sign-up in `Scripts/storefront/auth.js` to redirect to `APP_CONSTANTS.ROUTES.HOME` (`/Default.aspx`) instead of the profile page when no return URL is provided.
+  - Stored friendly welcome message in `sessionStorage.getItem('hc_login_toast')`.
+  - Added pending login toast detection to `SiteController.init()` in `Scripts/site.js` to automatically display `RealtimeManager.showToast(...)` upon arriving at `Default.aspx`.
+
+
+## [2026-10-03] — Unified Admin Global Search Expansion, Navbar Reordering & Full System Simulation
+
+- **Unified Admin Global Search Expansion (Migration 42 & `sp_AdminGlobalSearch`):**
+  - Removed page-level local search inputs from Vouchers (`Pages/Admin/Vouchers/Vouchers.aspx`), Reviews (`Pages/Admin/Reviews/Reviews.aspx`), and Returns (`Pages/Admin/Returns/Returns.aspx`).
+  - Expanded `dbo.sp_AdminGlobalSearch` via Migration 42 (`database/schema/42_admin_global_search_expansion.sql`) to include:
+    - **Vouchers:** Searches voucher codes and discount values from `dbo.Vouchers` and aggregates usage count via subquery on `dbo.VoucherRedemptions`, linking directly to `/Pages/Admin/Vouchers/Vouchers.aspx?q=...`.
+    - **Reviews:** Searches reviewer names, comment text, review titles, and associated product names from `dbo.ProductReviews` joined with `dbo.Products`, linking to `/Pages/Admin/Reviews/Reviews.aspx?q=...`.
+    - **Returns:** Searches RMA numbers, reasons, customer notes, order numbers, and tracking references from `dbo.ReturnRequests` joined with `dbo.Orders`, linking to `/Pages/Admin/Returns/Returns.aspx?q=...`.
+  - Applied Migration 42 to `HelmetCartelDB` (`.\SQLEXPRESS`) and integrated it into `database/setup/Build-MinimalDatabase.ps1`.
+  - Wired client scripts (`vouchers.js`, `reviews.js`, `returns.js`, `admin.js`) to support real-time debounced filtering and URL query parameter routing (`?q=`) driven by the Admin Global Search header input.
+
+- **Admin Sidebar Navigation Reordering (`Portal.master`):**
+  - Reordered the admin sidebar navigation menu according to the exact requested 10-item standard:
+    1. **Dashboard** — overview and alerts (`/Pages/Admin/Dashboard/Dashboard.aspx`)
+    2. **Orders** — incoming purchases and fulfillment (`/Pages/Admin/Orders/Orders.aspx`)
+    3. **POS Counter** — in-store sales (`/Pages/Admin/POS/POS.aspx`)
+    4. **Inventory** — stock checks and adjustments (`/Pages/Admin/Inventory/Inventory.aspx`)
+    5. **Returns** — after-sales handling (`/Pages/Admin/Returns/Returns.aspx`)
+    6. **Catalog** — products, variants, and pricing (`/Pages/Admin/Catalog/Catalog.aspx`)
+    7. **Vouchers** — promotional codes (`/Pages/Admin/Vouchers/Vouchers.aspx`, role-restricted)
+    8. **Reviews** — customer feedback moderation (`/Pages/Admin/Reviews/Reviews.aspx`)
+    9. **Reports** — sales and inventory analysis (`/Pages/Admin/Reports/Reports.aspx`)
+    10. **Users** — accounts and access control (`/Pages/Admin/Users/Users.aspx`)
+
+- **Comprehensive End-to-End System Simulation & Verification (`test_system_simulation.ps1`):**
+  - Successfully simulated and verified the entire business lifecycle against the active IIS Express backend and SQL Server (`.\SQLEXPRESS`):
+    - **Phase 1 (Customer Auth):** Customer `juan@rider.com` login, JWT issuance, profile retrieval (`/auth/me`), and addresses check.
+    - **Phase 2 (Browse & Filter):** Querying categories, brands, text search for "Shoei", and product variant inspection.
+    - **Phase 3 (Voucher Validation):** Tested `POST /api/v1/vouchers/validate` for code `CARTEL10` with Shoei RF-1400 Size M variant; validated 10% discount calculation.
+    - **Phase 4 (Online Checkout):** Online order placed with delivery details and voucher; verified atomic reservation of stock (`ReservedStock` incremented, `AvailableStock` decremented).
+    - **Phase 5 (Payment Simulation):** Processed GCASH simulated payment (`POST /api/v1/payments/simulate`); verified order status set to `Processing`, payment status to `Completed`, `CurrentStock` decremented by 1, and `StockAuditLogs` record created (`ChangeType = 'ONLINE_SALE'`).
+    - **Phase 6 (Admin Fulfillment):** Admin login, dispatched order (`POST /api/v1/admin/orders/{id}/dispatch`) setting courier Lalamove Express and tracking number (`Status = Shipped`), and completed order (`Status = Completed`).
+    - **Phase 7 (Verified Customer Review):** Submitted customer 5-star review linked to completed order (`POST /api/v1/reviews`); verified verified-purchase badge integrity in `dbo.ProductReviews`.
+    - **Phase 8 (Order History & Digital Sales Receipt):** Verified order in customer order history (`/auth/my-orders`) and full digital sales receipt data (`/orders/track/{orderNumber}`).
+    - **Phase 9 (Admin Inventory Restock):** Restocked +10 units via `POST /api/v1/admin/inventory/adjust`; verified stock updated in `dbo.Inventories` and audit log created (`ChangeType = 'RESTOCK'`).
+    - **Phase 10 (In-Store POS Sale):** Executed cash POS sale of 2 units via `POST /api/v1/orders/in-store`; verified atomic stock decrement (-2 units) and audit log (`ChangeType = 'INSTORE_SALE'`).
+    - **Phase 11 (Analytics & Reconciliation):** Verified unified global search for vouchers, catalog items, and reviews; verified admin dashboard KPIs and sales/inventory performance analytics reports. All 11 phases passed 100%.
+
+## [2026-10-03] — Promotional Vouchers KPI Cards Dashboard Alignment
+
+- **KPI Cards Layout & Design Alignment (`Vouchers.aspx`, `vouchers.css`, `vouchers.js`):**
+  - Redesigned the 4 Voucher KPI summary cards (`Total Vouchers`, `Active & Ready`, `Total Redemptions`, `Expired / Inactive`) to match the exact vertical design and aesthetic of the Admin Dashboard KPI cards.
+  - Replaced the horizontal icon box layout with the Dashboard standard: uppercase muted label on top (`.admin-kpi-label`), bold metric value in the middle (`.admin-kpi-value`), and dynamic trend/status pill badges on the bottom (`.admin-trend-badge`, `.admin-trend--up`, `.admin-trend--down`, `.admin-trend--neutral`).
+  - Standardized card container styling with subtle surface background (`var(--color-surface-subtle)`), rounded border (`var(--radius-lg)`), and clean `--space-5` padding.
+  - Updated `updateKPIs()` in `vouchers.js` to calculate dynamic active/expired percentages and redemption trends, rendering SVG directional arrows and badges in real-time.
+  - Bumped asset cache versions (`vouchers.css?v=3`, `vouchers.js?v=3`) to ensure immediate browser display without cached styles.
+
+## [2026-10-03] — Checkout confirmation transition and QRPh demo controls
+
+- Fixed completed checkout leaving the review form visible above confirmation: stepper and interactive grid now use explicit hidden attributes with scoped CSS overrides. Confirmation receives keyboard focus and scrolls into view.
+- Changed customer checkout and receipt gateway labels to QRPh while preserving existing backend gateway identifiers. Removed the waiting-for-scan prompt and decline button; a single Complete Demo Payment action waits for the C# payment confirmation before showing success. Closing without paying still displays the saved pending order.
+- Removed accumulated modal click listeners, guarded repeated submissions and disabled closing during confirmation. Payment demonstration remains clearly identified. Build, JavaScript syntax and receipt assertions passed.
+
+## [2026-10-03] — Checkout Experience Overhaul: Promo Code Redesign, Toast Suppression, Payment Simulation Fix, Step 4 Tracker Icon, and Digital Sales Receipt Alignment
+
+- **Digital Sales Receipt Alignment (`receipt.js`, `receipts.css`):**
+  - Restored and standardized the official Helmet Cartel Digital Sales Receipt format matching reference design (#REC-XXXXXX, Flagship Store & Fulfillment Hub details, 2-column Billed To & Fulfillment & Payment card, item & specification table, subtotal/discount/shipping fee/total paid breakdown, and verified electronic transaction ledger seal).
+  - Replaced inline styling on receipt table cells with semantic CSS classes (`.receipt-col-qty`, `.receipt-col-price`, `.receipt-col-total`) adhering strictly to the zero inline styles rule.
+  - Bumped module query parameters across consumers (`checkout.js`, `profile.js`, `order-receipt.js`, `pos.js`) to `?v=20261003-3` ensuring immediate cache invalidation.
+- **Interactive HitPay Payment Simulation Method Fix (`api.js`):**
+  - Added missing `simulatePayment(data)` method to `ApiClient` in `api.js` targeting `POST /api/v1/payments/simulate`. Resolved TypeError `ApiClient.simulatePayment is not a function` during interactive QR Ph checkout simulation.
+- **Checkout Step Navigation Toast Suppression (`checkout.js`):**
+  - Removed disruptive step transition toast notifications when navigating between Step 1 (Customer & Delivery), Step 2 (Payment), and Step 3 (Review & Confirm).
+- **Confirmation Tracker Step 4 Icon Fix (`Checkout.aspx`):**
+  - Fixed `#tracker-step-4 .tracker-icon` SVG on the order confirmation screen to render a pending circle (`<circle cx="12" cy="12" r="2"></circle>`) instead of a completed checkmark. Checkmark is only dynamically applied upon order collection.
+- **Order Summary Promo Code Redesign (`Checkout.aspx`, `checkout.css`, `checkout.js`):**
+  - Relocated the promo code block directly below the Total Amount line in the Order Summary sidebar.
+  - Redesigned into a pill-shaped input container with a coupon tag SVG icon, input field with placeholder `Add promo code`, and a solid black pill `Apply` button (`.btn-checkout-promo-apply`).
+  - Styled discount amounts in vibrant red (`.summary-calc-discount`, `#DC2626`) showing discount percentage or code label in parentheses matching the design reference.
+
+## [2026-10-03] — View receipt from admin order details
+
+- Added View Receipt in `od-header-actions` before the main fulfillment action. It opens the shared receipt renderer using the existing Staff/Admin-authorized order-detail API and includes Print / Save Receipt, Escape/backdrop closing, focus trapping and focus restoration.
+- Verified the running page's button placement and receipt against a saved order: merchandise 2,834.00 plus delivery 150.00 equals total paid 2,984.00. Build and JavaScript checks passed.
+
+## [2026-10-03] — Repair catalog saving before specification persistence (Migration 41)
+
+- Reproduced the running catalog editor failure: `sp_AdminSaveProduct` referenced nonexistent `fn_GetEffectivePrice`, stopping the request before specifications were saved. The live procedure differed from the repository definition.
+- Added a rerunnable procedure repair using the existing `fn_CalculateEffectivePrice` and current product columns, included it in fresh setup and the upgrade runner, and installed it after a verified database backup.
+- Verified standard and custom specifications survive draft saving and reopening, and custom removal persists. Restored the tested draft's original specification values. Added a rollback-only SQL regression covering product creation, publication, specification updates, removal and clearing.
+
+## [2026-10-03] — Digital Receipt Loader Hardening & Constants Module Cache Busting
+
+- **Digital Receipt Undefined Constants Fix (`receipt.js`, `constants.js`, `AppConstants.cs`):**
+  - Diagnosed runtime error `Unable to load receipt: Cannot read properties of undefined (reading 'SIMULATION_PREFIX')` occurring when opening official transaction receipts.
+  - Root Cause: Browser caching of the ES module specifier `constants.js` had held an earlier evaluation from before `RECEIPTS: { BRAND: 'HELMET CARTEL', SIMULATION_PREFIX: 'SIM-' }` was declared, causing `APP_CONSTANTS.RECEIPTS` to evaluate to `undefined` during `String(reference || '').startsWith(APP_CONSTANTS.RECEIPTS.SIMULATION_PREFIX)`.
+  - Added robust fallback object extraction in `receipt.js` for `RECEIPTS`, `UI`, `PAYMENT_METHODS`, `PAYMENT_STATUS`, and `SHIPPING_METHODS` (`safeConstants.RECEIPTS || { BRAND: 'HELMET CARTEL', SIMULATION_PREFIX: 'SIM-' }`), preventing any missing constant or module skew from throwing a runtime exception.
+  - Added cache-busting query strings (`?v=20261003`) to the module specifiers in `receipt.js`, `profile.js`, `checkout.js`, and `pos.js`.
+  - Attached `window.APP_CONSTANTS = APP_CONSTANTS` in `constants.js` to ensure reliable global availability across browser contexts.
+  - Added `AppConstants.Receipts` (`Brand`, `SimulationPrefix`) to backend `AppConstants.cs` preserving backend/frontend constant parity.
+
+
+- **Vouchers Portal Page & Navigation Overhaul (`Vouchers.aspx`, `vouchers.css`, `vouchers.js`, `Portal.master`):**
+  - Redesigned the raw two-column voucher workspace into a full-width layout matching the portal's design system.
+  - Added SVG tag icon to the Vouchers navigation link in `Portal.master`.
+  - Added 4 KPI Summary Cards (Total Vouchers, Active Codes, Total Redemptions, Expired / Depleted) with metric calculation.
+  - Added Search Bar and Segmented Status Filter Tabs (`All Vouchers`, `Active`, `Inactive`, `Expired / Depleted`) with live search and counter metadata.
+  - Redesigned the Vouchers table with monospace coupon ticket chips, single-click copy-to-clipboard button, discount badges, usage progress bars, expiry indicators, and single-click active toggle switches.
+  - Converted the create/edit form into a focused, accessible modal dialog with backdrop, structured two-column grid (`admin-form-grid-2`), inline error messages, and an interactive live coupon ticket preview card updating in real time.
+  - Integrated system toast notifications (`showAdminToast`) on creation, updates, status toggling, and copy actions.
+
+## [2026-10-03] — Online vouchers and shared transaction receipts (Migration 40)
+
+- Added Admin-only voucher management and C# validation/list/create/update APIs. Codes support percentage/fixed-peso discounts, minimum merchandise spend, optional expiry and total usage limit. Checkout supports one code, Apply/Remove, inline errors, server-priced totals and protection against stale responses.
+- Added `Vouchers`, `VoucherRedemptions`, immutable order `VoucherCode` snapshots and persisted POS `CashTendered`. Redemption revalidates the saved merchandise lines inside the order/stock transaction and holds a voucher row update lock through commit. Pending orders consume usage; cancellation releases it once through a transaction-bound trigger. Existing orders retain their totals.
+- Updated online variant pricing to use the same effective-price function as voucher preview and POS, including fixed-amount and time-limited product promotions.
+- Replaced customer, checkout-confirmation and POS receipt rendering with shared `receipt.js` and `receipts.css`. Receipts show actual payment status/references, voucher savings, cash/change and Philippine timestamps. Removed fabricated store/TIN details and receipt inline styles. Added isolated receipt-only A4 printing and keyboard focus handling.
+- Included both migration 39 scripts plus migration 40 in the compact fresh installer; upgrade runner now supports multiple files per migration number.
+- Validation: Debug build, isolated fresh database installation, voucher eligibility/rounding/caps, cancellation/idempotency, two-connection last-use contention, actual C# checkout/history/receipt/POS mappings, order/reservation rollback, renderer assertions and browser layout checks at 375/768/1200 px. Test databases are removed afterward. Native print-preview pagination remains a manual verification step because the in-app browser does not expose its print dialog.
+
+
+## [2026-10-03] — Technical Specifications Persistence & Postback Fix (Migration 39)
+
+- **Technical Specifications Persistence Hardening (`CatalogItem.aspx`, `CatalogItem.aspx.cs`, `catalog-item.js`, `AdminDataRepository.cs`):**
+  - Resolved specification persistence issue where technical specifications were not saved when editing or creating helmet models.
+  - Hardened `SaveProductAsync` in `CatalogItem.aspx.cs` to prioritize `Request.Form` raw postback values (`ctl00$MainContent$hdnSpecificationsJson`, `hdnSpecificationsJson`, `hdnSpecificationsJson.UniqueID`) over control state, preventing dropped client-side updates.
+  - Made specification saving call `_adminRepo.SaveProductSpecificationsAsync(productId, specsJson ?? "[]")` unconditionally so clearing specifications correctly removes them in the database rather than skipping execution.
+  - Applied the same authoritative `Request.Form` extraction to `colorsJson`, `variantsJson`, and `galleryJson`.
+  - Updated `addCustomSpecRow` and `serializeSpecifications` in `catalog-item.js` to preserve existing database keys (e.g. `helmet_type`, `visible_finish`, `visor_style`) via `data-spec-key` on custom rows without mangling or regenerating slugs.
+  - Rebuilt solution with MSBuild to ensure the updated DLL is active in IIS Express.
+- **SQL Stored Procedure Hardening (`39_robust_product_specifications.sql`):**
+  - Updated `dbo.sp_AdminSaveProductSpecifications` to support multiple JSON property casings (`key`, `SpecificationKey`, `specificationKey`, `name`, `DisplayName`, `displayName`, `value`, `SpecificationValue`, `specificationValue`).
+  - Added `GROUP BY p.SpecKey` and `GROUP BY d.Id` in `dbo.sp_AdminSaveProductSpecifications` to protect against duplicate key constraint violations and multi-match MERGE errors.
+  - Updated `dbo.sp_GetProductSpecifications` to use `LEFT JOIN dbo.CategorySpecifications` so custom and unassigned category specifications are never omitted from storefront product detail rendering.
+
+## [2026-10-03] — Single-Click Variant Active / Inactive Toggling in Catalog Item & Inventory Operations (Migration 39)
+
+- **Single-Click Variant Status in Catalog Item Wizard (`CatalogItem.aspx`, `catalog-item.js`, `CatalogItem.aspx.cs`):**
+  - Added dedicated **Status** column to the Variant Pricing & Inventory Matrix table (`#tablePricingMatrix`).
+  - Added single-click status toggle button (`.admin-variant-status-btn`) to each row and `.admin-variant-pill-status` to variant pills in Step 3.
+  - Clicking the toggle flips between **Active** (emerald green badge with indicator dot) and **Inactive** (muted gray badge) with a single click.
+  - Automatically dims inactive variant rows (`.is-row-inactive`) and pills (`.is-inactive`) for instant visual feedback.
+  - Updated `ProcessColorsAndVariantsAsync` in `CatalogItem.aspx.cs` to deserialize and pass the actual `isActive` boolean value to `dbo.sp_AdminSaveVariant` `@IsActive` rather than hardcoding to `true`.
+  - Updated review summary to report both active and total SKU count (e.g. `12/15 Active SKUs`).
+- **Single-Click Variant Active Toggling in Inventory Operations Table (`Inventory.aspx`, `Inventory.aspx.cs`, `inventory.js`):**
+  - Updated the Admin Inventory Operations table (`rptInventory`) to include a dedicated **Status** column alongside **Stock Status** (In Stock / Low Stock / Out of Stock).
+  - Wired single-click `.js-toggle-inventory-active` buttons with optimistic UI updates and immediate server confirmation.
+  - Added segmented filter tabs for **Active** and **Inactive** variants alongside **All**, **In Stock**, **Low Stock**, and **Out of Stock**.
+  - Built Web API endpoint `POST /api/v1/admin/inventory/variants/{id}/toggle-active` with SignalR `variantStatusChanged` real-time broadcast and page WebMethod `ToggleVariantStatus` fallback.
+  - Updated `StaffAuthorizeAttribute` to support session token authentication via `hc_auth_token` cookie for seamless browser fetch calls.
+- **Database Schema Migration 39 (`39_inventory_variant_active_toggle.sql`):**
+  - Updated `dbo.sp_AdminInventoryVariants` to project `v.IsActive` and query across all variants of non-deleted products rather than hiding inactive variants.
+  - Added support for `@StockStatus = 'active'` and `@StockStatus = 'inactive'` in `dbo.sp_AdminInventoryVariants`.
+  - Created `dbo.sp_AdminToggleVariantActive` for atomic, race-condition-free toggling of variant `IsActive` using `UPDLOCK, ROWLOCK`.
+
+## [2026-10-03] — Published Active/Inactive Segments, Unpublished Draft Lifecycle, Minimalist Placeholder Image, & Product Edit Deserialization Fix (Migration 38)
+
+- **Published Active / Inactive Action (`CatalogItem.aspx`, `catalog-item.js`, `admin.css`):**
+  - Added an `.admin-status-toggle-pill` segmented control directly to the left of the "Discard Changes" button in the sticky top action header when an item is **Published**.
+  - Provides instant switching between **Active** (with green indicator dot) and **Inactive** (with red/amber indicator dot) without altering publication status.
+  - Linked with client-side state (`hdnIsActive`) and form dirty tracking, preserving the operational active status upon saving changes.
+  - Added dedicated Unpublish action (`btnUnpublish`) for published items to transition them back to Unpublished state.
+- **Dedicated Publication Filter Tabs & Status Badges (`Catalog.aspx`, `Catalog.aspx.cs`):**
+  - Expanded catalog filter tabs into 4 explicit, distinct categories:
+    1. **All Products** (`all`)
+    2. **Published Active** (`published_active`): Products where `PublicationStatus = 'Published' AND IsActive = 1`.
+    3. **Published Inactive** (`published_inactive`): Products where `PublicationStatus = 'Published' AND IsActive = 0`.
+    4. **Draft Unpublished** (`unpublished`): Products where `PublicationStatus = 'Unpublished' OR PublicationStatus = 'Draft'`.
+  - Added dedicated CSS badge classes (`.admin-badge--published-active`, `.admin-badge--published-inactive`, `.admin-badge--draft`) with distinctive background, text, and border styling.
+- **Product Edit Deserialization & Query Column Alignment Fix:**
+  - Resolved `IndexOutOfRangeException` errors on `ColorType`, `VariantId`, `Color`, and `ColorHex` that previously occurred when loading product details via `dbo.sp_AdminGetProductComplete`.
+  - Updated `dbo.sp_AdminGetProductComplete` (Result 3 and Result 4) to project `ColorType`, `GradientAngle`, `VariantId`, `Color`, and `ColorHex`.
+  - Hardened `AdminDataRepository.cs` (`GetProductCompleteAsync`) using `HasColumn()` checks across all mapped collection properties, ensuring existing published and unpublished helmet models load smoothly in Edit mode without falling back to "New Helmet Model".
+- **Minimalist Vector Silhouette Placeholder Asset:**
+  - Generated and deployed a clean, modern vector graphic illustration of a motorcycle helmet profile on neutral background (`/Content/images/placeholder-helmet.png`), replacing the previous real AGV Pista helmet photograph for items without custom photography.
+- **Drafts to Unpublished Migration (Migration 38):**
+  - Updated `CK_Products_PublicationStatus` to accept `'Unpublished'` alongside `'Draft'`, `'Published'`, and `'Archived'`.
+  - Updated `DF_Products_PublicationStatus` default constraint to `'Unpublished'`.
+  - Backfilled existing `'Draft'` products in `dbo.Products` to `'Unpublished'`.
+  - Updated `dbo.sp_AdminSaveProduct` to resolve `'Unpublished'` as default when unpublishing.
+
+- **Order Snapshot Immutability & Financial Audit Integrity (Migration 36):**
+  - Added order-time snapshot columns (`ProductName`, `SKU`, `ColorName`, `Size`) to `dbo.OrderItems`.
+  - Backfilled historical order items with variant, color, and product metadata.
+  - Updated `dbo.sp_AddOrderItem` and POS order creation (`dbo.sp_CreatePhysicalSale`) to automatically capture these snapshot values within the transaction at insertion time, preventing subsequent catalog edits from altering past order receipts.
+  - Updated `dbo.sp_GetOrderDetails` and `dbo.sp_GetUserOrderDetails` to project snapshot columns with fallback to live variant tables.
+- **Dedicated Publication Lifecycle (`PublicationStatus`):**
+  - Added `PublicationStatus NVARCHAR(20)` with `CK_Products_PublicationStatus` constraint (`'Draft'`, `'Published'`, `'Archived'`) defaulting to `'Draft'`.
+  - Decoupled publication status from `IsActive` (which is now strictly an administrative operational switch).
+  - Backfilled active catalog items as `'Published'` and inactive items as `'Draft'`.
+  - Updated `dbo.v_VisibleProducts`, storefront queries, `dbo.sp_AdminCatalogProducts`, `dbo.sp_AdminSaveProduct`, and `dbo.sp_AdminGetProductComplete` to respect the publication lifecycle.
+  - Enhanced Admin Catalog UI (`Catalog.aspx`) with segmented status badges (Published, Disabled, Draft, Archived).
+- **Concurrency & Integrity Hardening:**
+  - Resolved `dbo.sp_ConfirmHitPayOrder` reservation calculation so confirmed orders cleanly transition reserved stock without double-subtracting against available quantities.
+  - Added filtered unique index `UX_UserAddresses_UserDefault` on `dbo.UserAddresses(UserId)` where `IsDefault = 1`.
+  - Added filtered unique index `UX_ReturnRequests_ActiveItem` on `dbo.ReturnRequests(OrderItemId)` where `Status <> 'Rejected' AND Status <> 'Cancelled'`.
+  - Added foreign key index `IX_Orders_UserId` on `dbo.Orders(UserId)`.
+  - Created sequence `dbo.Seq_RmaNumber` for atomic, race-condition-free RMA number generation in `dbo.sp_CreateReturnRequest`.
+- **Top Selling Sort Realignment:**
+  - Corrected `dbo.sp_GetProductsPaged` and `ProductRepository.cs` (`GetTopSellingAsync`) to sort by actual paid/completed sales volume (`SUM(Quantity)` from `dbo.OrderItems`) rather than review ratings.
+- **Contract Phase Drop of Deprecated Fields (Migration 37):**
+  - Dropped unused `dbo.ProductDiscounts` table (all scheduled discounts are actively handled on `dbo.Products`).
+  - Dropped index `IX_Products_RidingStyle` and default constraints on `IsFeatured` and `RidingStyle`.
+  - Updated all views and stored procedures (`dbo.v_VisibleProducts`, `dbo.sp_GetProductsPaged`, `dbo.sp_GetProductById`, `dbo.sp_GetProductBySlug`, `dbo.sp_GetRelatedProducts`, `dbo.sp_AdminCatalogProducts`, `dbo.sp_AdminGetProductComplete`, `dbo.sp_AdminInventoryProducts`, `dbo.sp_AdminGlobalSearch`, `dbo.sp_AdminDeleteProduct`, `dbo.sp_AdminSaveProduct`, `dbo.sp_AdminCreateProductWithVariants`) to remove references to `IsFeatured` and `RidingStyle`.
+  - Dropped `IsFeatured` and `RidingStyle` columns from `dbo.Products`.
+  - Removed `IsFeatured` and `RidingStyle` properties from C# DTOs (`ProductListDto`, `ProductDetailDto`, `ProductFilterParams`, `AdminCatalogItemDto`, `AdminProductCompleteDto`, `AdminSaveProductDto`, `AdminInventoryItemDto`).
+  - Removed `btnTabFeatured` from `Catalog.aspx` and `CatalogItem.aspx`'s `chkIsFeatured`.
+  - Updated `Build-MinimalDatabase.ps1` to include Migrations 36 and 37 and regenerated `new_database_minimal.sql`.
+
+- Removed three unreferenced SQL scripts: `queries/clear_orders_and_payments.sql` (blanket destructive reset), `seeds/05_remove_legacy_variant_inventory.sql` (one-off 14-SKU cleanup), and `seeds/07_seed_orders.sql` (fixed-ID sample orders superseded by SKU-based compact setup samples).
+- Removed obsolete `Build-ActiveVisibilityMigration.ps1` and `Build-NormalizationMigration.ps1` generators; retained migrations 17 and 24 as ordered upgrade history and updated their comments.
+- Preserved canonical procedure sources, numbered migrations, and documented full-catalog seed dependencies. Repeated historical procedure definitions remain necessary for upgrades and are not deleted merely because newer migrations supersede them.
+- Included missing migrations 25, 26, 28, 29, 30 and 35 in `Build-MinimalDatabase.ps1`, restoring returns, stock-reservation and current reporting definitions to fresh installations; rebuilt the generated installer.
+- Added `database/README.md` and corrected setup/normalization documentation. This cleanup changes repository artifacts only; it does not execute SQL or remove database records or deployed procedures.
+
+## [2026-10-03] — Catalog Draft Image Placeholder Standard, Inventory Single-Page Pagination Hide, & POS Image Rendering Fix
+
+- **Catalog Draft Item Image Placeholder Standard:**
+  - **Root Cause:** In `AdminDataRepository.cs` (`SaveProductAsync`), omitting a primary image defaulted `@MainImageUrl` to `"/Content/images/products/helmets/agv/images.jpg"`. In `Catalog.aspx.cs`, `ResolveImageUrl` also defaulted empty image paths to `agv/images.jpg`.
+  - **Resolution:**
+    - Updated `AdminDataRepository.cs` to insert `DBNull.Value` when `@MainImageUrl` is empty or whitespace.
+    - Updated `Catalog.aspx.cs`, `Catalog.aspx`, `catalog.js`, `Inventory.aspx`, `Inventory.aspx.cs`, `Reports.aspx.cs`, and `admin.js` to use the standard placeholder `/Content/images/placeholder-helmet.png`.
+    - Added defensive inline `onerror="this.onerror=null;this.src='/Content/images/placeholder-helmet.png';"` attributes across catalog and inventory image tags.
+    - Created and executed **Migration 35** ([35_fix_draft_placeholder_images.sql](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/database/schema/35_fix_draft_placeholder_images.sql)) to reset existing draft items with `agv/images.jpg` back to `NULL`.
+
+- **Inventory Single-Page Pagination Auto-Hide (`Inventory.aspx.cs`):**
+  - **Root Cause:** In `Inventory.aspx.cs` (`LoadInventoryDataAsync`), `pnlInventoryPagination.Visible` was set to `totalCount > 0`, causing pagination buttons to render even when there was only 1 page.
+  - **Resolution:** Updated visibility condition to `pnlInventoryPagination.Visible = totalPages > 1;`, cleanly hiding previous/page/next controls whenever inventory fits on a single page or is filtered down to a single page.
+
+- **POS Product Card Image Rendering & Layout Fix (`pos.js`, `pos.css`, `POS.aspx`):**
+  - **Root Cause:** In `pos.js`, `safeImage()` only checked for leading `/` or `https://`, rejecting relative paths or unnormalized URLs and falling back to `agv/images.jpg`. Furthermore, `.pos-product-media-wrap` in `pos.css` lacked an intrinsic aspect-ratio or height, causing lazy-loaded images to collapse before load, and stale module script cache kept older views without images.
+  - **Resolution:**
+    - Normalized `safeImage()` in `pos.js` to support all standard paths (`~/`, relative, `http://`, `https://`, `data:image/`) with fallback to `/Content/images/placeholder-helmet.png`.
+    - Added inline `onerror="this.onerror=null;this.src='/Content/images/placeholder-helmet.png';"` to both POS catalog cards and cart item images.
+    - Styled `.pos-product-media-wrap` with `aspect-ratio: 1 / 1;` and `.pos-product-image` with `height: 100%; object-fit: cover;`, ensuring uniform, crisp helmet displays across the grid.
+    - Bumped asset versioning query parameters in `POS.aspx` to `pos.css?v=5` and `pos.js?v=8` to ensure instant browser cache refresh.
+
+## [2026-10-03] — Admin Catalog Draft Item Editing Fix & Process RMA Modal UI Balance Overhaul
+
+- **Admin Catalog Draft Item Editing Fix (Migration 34 / `sp_AdminGetProductComplete`):**
+  - **Root Cause:** When attempting to edit a draft helmet model (`IsActive = 0`) from `/Admin/Catalog.aspx`, `CatalogItem.aspx.cs` called `_adminRepo.GetProductCompleteAsync(ProductId)`. The underlying stored procedure `dbo.sp_AdminGetProductComplete` queried `dbo.v_VisibleProducts`, which filters strictly on `IsActive = 1`. Consequently, draft products returned `null`, triggering `Response.Redirect("/Admin/Catalog.aspx?err=not_found")`.
+  - **Resolution (Migration 34):** Updated `dbo.sp_AdminGetProductComplete`, `dbo.sp_AdminColors`, and `dbo.sp_AdminVariants` in [34_fix_admin_product_draft_editing.sql](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/database/schema/34_fix_admin_product_draft_editing.sql) to query base tables (`dbo.Products`, `dbo.ProductColors`, `dbo.ProductVariants`, `dbo.Inventories`) directly. Administrators can now seamlessly open, view, edit, configure, and save draft helmet models and inactive variants without triggering "not found".
+  - Applied migration 34 with checksum backup verification, updated [Update-LatestSchema.ps1](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/database/setup/Update-LatestSchema.ps1), and updated [Build-MinimalDatabase.ps1](file:///c:/Users/Admin/source/repos/HelmetCartelOrderingAndManagementSys/database/setup/Build-MinimalDatabase.ps1).
+
+- **Process RMA Request Modal UI Balance & CSS Variable Overhaul (`Returns.aspx`, `returns.js`, `admin.css`):**
+  - **Eliminated All Inline Styles:** Stripped out all hardcoded inline styles (`style="..."`, `#fff`, `#e11d48`, `rgba(...)`) from `#admin-rma-modal` in adherence to Rule 5 of `AGENTS.md`.
+  - **Balanced 2-Column Bento Overview Card:** Replaced single stacked text lines with a structured `.admin-rma-overview-card` featuring a 2-column grid layout for RMA reference, customer details, claimed gear specifications, and a cleanly bordered quotation blockquote for customer-provided reasons.
+  - **Balanced Operational Decision Grid:** Grouped decision inputs (Status and Resolution Type) into a proportional 2-column CSS Grid (`.admin-rma-form-grid`) with defined `--space-4` gap discipline (Rule 11), followed by a currency-addon settlement input, restock card, and admin feedback textarea.
+  - **Design System Token Integration:** All typography, surfaces, borders, paddings, and button pills consume root CSS variables (`--color-surface-card`, `--color-surface-muted`, `--color-border-subtle`, `--space-4`, `--radius-md`, `--btn-pill`).
+
+
 
 - **Admin OrderDetail Visual Layout & Architecture Overhaul (`OrderDetail.aspx` & `OrderDetail.aspx.cs`):**
   - **Streamlined 4-Card Status Strip:** Configured the top KPI cards to display:

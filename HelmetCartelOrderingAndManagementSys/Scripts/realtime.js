@@ -81,10 +81,8 @@ export const RealtimeManager = {
   },
 
   updateConnectionStatus(isConnected) {
-    const dot = document.querySelector('.status-dot');
     const label = document.querySelector('.status-label');
-    if (dot && label) {
-      dot.classList.toggle('is-connected', isConnected);
+    if (label) {
       label.textContent = isConnected ? 'SignalR Live Sync Active' : 'Offline';
     }
   },

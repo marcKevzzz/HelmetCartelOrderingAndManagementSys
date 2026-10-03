@@ -12,6 +12,8 @@ namespace HelmetCartelOrderingAndManagementSys.Admin {
         protected global::System.Web.UI.WebControls.LinkButton btnViewAuditHistory;
         protected global::System.Web.UI.WebControls.Panel pnlActiveStock;
         protected global::System.Web.UI.WebControls.LinkButton btnTabAll;
+        protected global::System.Web.UI.WebControls.LinkButton btnTabActive;
+        protected global::System.Web.UI.WebControls.LinkButton btnTabInactive;
         protected global::System.Web.UI.WebControls.LinkButton btnTabInStock;
         protected global::System.Web.UI.WebControls.LinkButton btnTabLowStock;
         protected global::System.Web.UI.WebControls.LinkButton btnTabOutOfStock;

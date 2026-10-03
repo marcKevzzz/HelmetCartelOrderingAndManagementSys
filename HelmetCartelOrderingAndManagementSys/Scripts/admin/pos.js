@@ -1,3 +1,4 @@
+import { renderReceipt, printReceipt, focusReceiptDialog } from '../receipt.js?v=20261003-3';
 import { APP_CONSTANTS } from '../constants.js';
 
 const root = document.getElementById('posCounter');
@@ -24,8 +25,16 @@ if (root) {
   const storageKey = APP_CONSTANTS.STORAGE_KEYS.POS_SALE;
   const money = amount => `${APP_CONSTANTS.UI.CURRENCY_SYMBOL}${Number(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
-  const safeImage = url => typeof url === 'string' && ((url.startsWith('/') && !url.startsWith('//')) || url.startsWith('https://'))
-    ? url : '/Content/images/products/helmets/agv/images.jpg';
+  const safeImage = url => {
+    if (!url || typeof url !== 'string') return '/Content/images/placeholder-helmet.png';
+    const trimmed = url.trim();
+    if (!trimmed || trimmed.startsWith('//')) return '/Content/images/placeholder-helmet.png';
+    if (trimmed.startsWith('~/')) return trimmed.substring(1);
+    if (trimmed.startsWith('/')) return trimmed;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    if (trimmed.startsWith('data:image/')) return trimmed;
+    return '/' + trimmed;
+  };
   const state = { catalog: [], allById: new Map(), cart: new Map(), loading: false, submitting: false, requestSeq: 0 };
   let searchTimer;
   let stockTimer;
@@ -108,10 +117,11 @@ if (root) {
   }
 
   function renderImages(container) {
+    if (!container) return;
     container.querySelectorAll('img[data-pos-image]').forEach(image => {
       image.addEventListener('error', () => {
-        if (!image.src.endsWith('/Content/images/products/helmets/agv/images.jpg'))
-          image.src = '/Content/images/products/helmets/agv/images.jpg';
+        if (!image.src.endsWith('/Content/images/placeholder-helmet.png'))
+          image.src = '/Content/images/placeholder-helmet.png';
       }, { once: true });
     });
   }
@@ -132,7 +142,7 @@ if (root) {
       const stockClass = disabled ? 'pos-stock--out' : item.stockStatus === 'low_stock' ? 'pos-stock--low' : '';
       return `<button type="button" class="pos-product-card" data-add-id="${Number(item.variantId)}" ${disabled ? 'disabled' : ''} aria-label="Add ${escapeHtml(item.brand)} ${escapeHtml(item.productName)}, ${escapeHtml(item.color)}, size ${escapeHtml(item.size)} to current sale">
         <div class="pos-product-media-wrap">
-          <img class="pos-product-image" data-pos-image src="${escapeHtml(safeImage(item.mainImageUrl))}" alt="${escapeHtml(item.productName)}" loading="lazy" />
+          <img class="pos-product-image" data-pos-image src="${escapeHtml(safeImage(item.mainImageUrl))}" alt="${escapeHtml(item.productName)}" loading="lazy" onerror="this.onerror=null;this.src='/Content/images/placeholder-helmet.png';" />
           <span class="pos-card-brand-pill" title="${escapeHtml(item.brand)}">${escapeHtml(item.brand)}</span>
         </div>
         <div class="pos-product-info">
@@ -191,7 +201,7 @@ if (root) {
       const available = Math.max(0, Number(item.availableStock || 0));
       return `<div class="pos-cart-line" data-variant-id="${id}">
         <div class="pos-cart-line-media">
-          <img data-pos-image src="${escapeHtml(safeImage(item.mainImageUrl))}" alt="${escapeHtml(item.productName)}" loading="lazy" />
+          <img data-pos-image src="${escapeHtml(safeImage(item.mainImageUrl))}" alt="${escapeHtml(item.productName)}" loading="lazy" onerror="this.onerror=null;this.src='/Content/images/placeholder-helmet.png';" />
         </div>
         <div class="pos-cart-line-content">
           <div class="pos-cart-line-header">
@@ -314,17 +324,12 @@ if (root) {
     return true;
   }
 
-  function showReceipt(order, method, tendered) {
-    byId('posReceiptNumber').textContent = order.orderNumber || '';
-    byId('posReceiptTotal').textContent = money(order.totalAmount);
-    byId('posReceiptItems').innerHTML = (order.items || []).map(item =>
-      `<div class="pos-receipt-item"><span>${Number(item.quantity)} &times; ${escapeHtml(item.productName)} (${escapeHtml(item.color)}, ${escapeHtml(item.size)})</span><strong>${money(item.totalPrice)}</strong></div>`
-    ).join('');
-    byId('posReceiptPayment').textContent = method === APP_CONSTANTS.PAYMENT_METHODS.CASH
-      ? `Cash received ${money(tendered)} · Change ${money(tendered - Number(order.totalAmount))}`
-      : 'E-Wallet payment (GCash / Maya / QR PH)';
+  let receiptFocusCleanup;
+  function showReceipt(order) {
+    byId('posReceiptDoc').innerHTML = renderReceipt(order);
     ui.receipt.hidden = false;
-    byId('posNewSale').focus();
+    receiptFocusCleanup?.();
+    receiptFocusCleanup = focusReceiptDialog(ui.receipt, () => byId('posNewSale').click());
   }
 
   async function completeSale() {
@@ -645,9 +650,11 @@ if (root) {
   byId('adminForm')?.addEventListener('submit', event => {
     if (root.contains(document.activeElement)) event.preventDefault();
   });
-  byId('posPrintReceipt').addEventListener('click', () => window.print());
+  byId('posPrintReceipt').addEventListener('click', () => printReceipt(byId('posReceiptDoc')));
   byId('posNewSale').addEventListener('click', () => {
     ui.receipt.hidden = true;
+    receiptFocusCleanup?.();
+    receiptFocusCleanup = null;
     ui.name.value = ''; ui.phone.value = ''; ui.email.value = ''; ui.cash.value = '';
     ui.cardApproved.checked = false;
     root.querySelector(`input[name="posPayment"][value="${APP_CONSTANTS.PAYMENT_METHODS.CASH}"]`).checked = true;

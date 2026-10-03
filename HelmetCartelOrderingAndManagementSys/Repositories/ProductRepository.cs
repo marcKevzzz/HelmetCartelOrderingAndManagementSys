@@ -37,7 +37,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                     cmd.Parameters.Add(new SqlParameter("@BrandId", SqlDbType.Int) { Value = (object)filter.BrandId ?? DBNull.Value });
                     cmd.Parameters.Add(new SqlParameter("@Brand", SqlDbType.NVarChar, 100) { Value = string.IsNullOrWhiteSpace(filter.Brand) ? (object)DBNull.Value : filter.Brand });
                     cmd.Parameters.Add(new SqlParameter("@Category", SqlDbType.NVarChar, 100) { Value = string.IsNullOrWhiteSpace(filter.Category) ? (object)DBNull.Value : filter.Category });
-                    cmd.Parameters.Add(new SqlParameter("@RidingStyle", SqlDbType.NVarChar, 50) { Value = string.IsNullOrWhiteSpace(filter.RidingStyle) ? (object)DBNull.Value : filter.RidingStyle });
+                    cmd.Parameters.Add(new SqlParameter("@RidingStyle", SqlDbType.NVarChar, 50) { Value = DBNull.Value });
                     cmd.Parameters.Add(new SqlParameter("@Search", SqlDbType.NVarChar, 200) { Value = string.IsNullOrWhiteSpace(filter.Search) ? (object)DBNull.Value : filter.Search });
                     if (filter.OnSale)
                         cmd.Parameters.Add(new SqlParameter("@OnSale", SqlDbType.Bit) { Value = true });
@@ -66,7 +66,6 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 Slug = reader.GetString(reader.GetOrdinal("Slug")),
                                 Brand = reader.GetString(reader.GetOrdinal("Brand")),
                                 Category = reader.GetString(reader.GetOrdinal("Category")),
-                                RidingStyle = reader.GetString(reader.GetOrdinal("RidingStyle")),
                                 BasePrice = reader.GetDecimal(reader.GetOrdinal("BasePrice")),
                                 DiscountPercentage = reader.GetInt32(reader.GetOrdinal("DiscountPercentage")),
                                 CalculatedEffectivePrice = HasColumn(reader, "EffectivePrice") && !reader.IsDBNull(reader.GetOrdinal("EffectivePrice")) ? reader.GetDecimal(reader.GetOrdinal("EffectivePrice")) : 0m,
@@ -80,7 +79,8 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 ReviewCount = reader.GetInt32(reader.GetOrdinal("ReviewCount")),
                                 MainImageUrl = reader.IsDBNull(reader.GetOrdinal("MainImageUrl")) ? string.Empty : NormalizeImageUrl(reader.GetString(reader.GetOrdinal("MainImageUrl"))),
                                 Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? string.Empty : reader.GetString(reader.GetOrdinal("Description")),
-                                IsFeatured = reader.GetBoolean(reader.GetOrdinal("IsFeatured"))
+                                PublicationStatus = HasColumn(reader, "PublicationStatus") && !reader.IsDBNull(reader.GetOrdinal("PublicationStatus")) ? reader.GetString(reader.GetOrdinal("PublicationStatus")) : "Published",
+                                UnitsSold = HasColumn(reader, "UnitsSold") && !reader.IsDBNull(reader.GetOrdinal("UnitsSold")) ? Convert.ToInt32(reader["UnitsSold"]) : 0
                             });
                         }
                     }
@@ -120,7 +120,6 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 Slug = reader.GetString(reader.GetOrdinal("Slug")),
                                 Brand = reader.GetString(reader.GetOrdinal("Brand")),
                                 Category = reader.GetString(reader.GetOrdinal("Category")),
-                                RidingStyle = reader.GetString(reader.GetOrdinal("RidingStyle")),
                                 BasePrice = reader.GetDecimal(reader.GetOrdinal("BasePrice")),
                                 DiscountPercentage = reader.GetInt32(reader.GetOrdinal("DiscountPercentage")),
                                 CalculatedEffectivePrice = HasColumn(reader, "EffectivePrice") && !reader.IsDBNull(reader.GetOrdinal("EffectivePrice")) ? reader.GetDecimal(reader.GetOrdinal("EffectivePrice")) : 0m,
@@ -135,7 +134,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 OrderCount = reader.GetInt32(reader.GetOrdinal("OrderCount")),
                                 MainImageUrl = reader.IsDBNull(reader.GetOrdinal("MainImageUrl")) ? string.Empty : NormalizeImageUrl(reader.GetString(reader.GetOrdinal("MainImageUrl"))),
                                 Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? string.Empty : reader.GetString(reader.GetOrdinal("Description")),
-                                IsFeatured = reader.GetBoolean(reader.GetOrdinal("IsFeatured"))
+                                PublicationStatus = HasColumn(reader, "PublicationStatus") && !reader.IsDBNull(reader.GetOrdinal("PublicationStatus")) ? reader.GetString(reader.GetOrdinal("PublicationStatus")) : "Published"
                             };
                         }
 
@@ -222,7 +221,6 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 Slug = reader.GetString(reader.GetOrdinal("Slug")),
                                 Brand = reader.GetString(reader.GetOrdinal("Brand")),
                                 Category = reader.GetString(reader.GetOrdinal("Category")),
-                                RidingStyle = reader.GetString(reader.GetOrdinal("RidingStyle")),
                                 BasePrice = reader.GetDecimal(reader.GetOrdinal("BasePrice")),
                                 DiscountPercentage = reader.GetInt32(reader.GetOrdinal("DiscountPercentage")),
                                 CalculatedEffectivePrice = HasColumn(reader, "EffectivePrice") && !reader.IsDBNull(reader.GetOrdinal("EffectivePrice")) ? reader.GetDecimal(reader.GetOrdinal("EffectivePrice")) : 0m,
@@ -237,7 +235,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 OrderCount = reader.GetInt32(reader.GetOrdinal("OrderCount")),
                                 MainImageUrl = reader.IsDBNull(reader.GetOrdinal("MainImageUrl")) ? string.Empty : NormalizeImageUrl(reader.GetString(reader.GetOrdinal("MainImageUrl"))),
                                 Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? string.Empty : reader.GetString(reader.GetOrdinal("Description")),
-                                IsFeatured = reader.GetBoolean(reader.GetOrdinal("IsFeatured"))
+                                PublicationStatus = HasColumn(reader, "PublicationStatus") && !reader.IsDBNull(reader.GetOrdinal("PublicationStatus")) ? reader.GetString(reader.GetOrdinal("PublicationStatus")) : "Published"
                             };
                         }
 
@@ -346,14 +344,13 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 Slug = reader.GetString(reader.GetOrdinal("Slug")),
                                 Brand = reader.GetString(reader.GetOrdinal("Brand")),
                                 Category = reader.GetString(reader.GetOrdinal("Category")),
-                                RidingStyle = reader.GetString(reader.GetOrdinal("RidingStyle")),
                                 BasePrice = reader.GetDecimal(reader.GetOrdinal("BasePrice")),
                                 DiscountPercentage = reader.GetInt32(reader.GetOrdinal("DiscountPercentage")),
                                 Rating = reader.GetDecimal(reader.GetOrdinal("Rating")),
                                 ReviewCount = reader.GetInt32(reader.GetOrdinal("ReviewCount")),
                                 MainImageUrl = reader.IsDBNull(reader.GetOrdinal("MainImageUrl")) ? string.Empty : NormalizeImageUrl(reader.GetString(reader.GetOrdinal("MainImageUrl"))),
                                 Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? string.Empty : reader.GetString(reader.GetOrdinal("Description")),
-                                IsFeatured = reader.GetBoolean(reader.GetOrdinal("IsFeatured"))
+                                PublicationStatus = HasColumn(reader, "PublicationStatus") && !reader.IsDBNull(reader.GetOrdinal("PublicationStatus")) ? reader.GetString(reader.GetOrdinal("PublicationStatus")) : "Published"
                             });
                         }
                     }
@@ -378,7 +375,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
 
         public async Task<List<ProductListDto>> GetTopSellingAsync(int count = 4)
         {
-            var filter = new ProductFilterParams { Page = 1, PageSize = count, SortBy = "rating" };
+            var filter = new ProductFilterParams { Page = 1, PageSize = count, SortBy = "top_selling" };
             var result = await GetProductsAsync(filter).ConfigureAwait(false);
             return result.Items;
         }

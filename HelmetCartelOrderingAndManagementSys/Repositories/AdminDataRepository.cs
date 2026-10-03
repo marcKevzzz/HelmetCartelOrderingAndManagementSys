@@ -95,7 +95,6 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             BrandName = reader.GetString(reader.GetOrdinal("BrandName")),
                             CategoryId = reader.GetInt32(reader.GetOrdinal("CategoryId")),
                             CategoryName = reader.GetString(reader.GetOrdinal("CategoryName")),
-                            RidingStyle = reader.IsDBNull(reader.GetOrdinal("RidingStyle")) ? null : reader.GetString(reader.GetOrdinal("RidingStyle")),
                             BasePrice = reader.GetDecimal(reader.GetOrdinal("BasePrice")),
                             DiscountPercentage = reader.GetInt32(reader.GetOrdinal("DiscountPercentage")),
                             EffectivePrice = reader.GetDecimal(reader.GetOrdinal("EffectivePrice")),
@@ -150,12 +149,33 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             EffectivePrice = reader.GetDecimal(reader.GetOrdinal("EffectivePrice")),
                             SKU = reader.GetString(reader.GetOrdinal("SKU")),
                             MainImageUrl = reader.IsDBNull(reader.GetOrdinal("MainImageUrl")) ? null : reader.GetString(reader.GetOrdinal("MainImageUrl")),
-                            StockStatus = reader.GetString(reader.GetOrdinal("StockStatus"))
+                            StockStatus = reader.GetString(reader.GetOrdinal("StockStatus")),
+                            IsActive = HasColumn(reader, "IsActive") && reader["IsActive"] != DBNull.Value ? Convert.ToBoolean(reader["IsActive"]) : true
                         });
                     }
                 }
             }
             return list;
+        }
+
+        public async Task<bool> ToggleVariantActiveAsync(int variantId)
+        {
+            using (var connection = (SqlConnection)_factory.CreateConnection())
+            using (var command = new SqlCommand("dbo.sp_AdminToggleVariantActive", connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add(new SqlParameter("@VariantId", SqlDbType.Int) { Value = variantId });
+
+                await connection.OpenAsync().ConfigureAwait(false);
+                using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    if (await reader.ReadAsync().ConfigureAwait(false))
+                    {
+                        return Convert.ToBoolean(reader["IsActive"]);
+                    }
+                }
+                return false;
+            }
         }
 
         public async Task<List<AdminOrderListItemDto>> GetOrdersAsync(string search = null, string status = null, string source = null, int limit = 100, DateTime? orderDate = null)
@@ -250,7 +270,6 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             Category = reader.GetString(reader.GetOrdinal("Category")),
                             BrandId = reader.GetInt32(reader.GetOrdinal("BrandId")),
                             Brand = reader.GetString(reader.GetOrdinal("Brand")),
-                            RidingStyle = reader.IsDBNull(reader.GetOrdinal("RidingStyle")) ? "" : reader.GetString(reader.GetOrdinal("RidingStyle")),
                             BasePrice = reader.GetDecimal(reader.GetOrdinal("BasePrice")),
                             DiscountPercentage = reader.GetInt32(reader.GetOrdinal("DiscountPercentage")),
                             CalculatedEffectivePrice = HasColumn(reader, "EffectivePrice") && !reader.IsDBNull(reader.GetOrdinal("EffectivePrice")) ? reader.GetDecimal(reader.GetOrdinal("EffectivePrice")) : 0m,
@@ -261,7 +280,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             DiscountIsActive = HasColumn(reader, "DiscountIsActive") && !reader.IsDBNull(reader.GetOrdinal("DiscountIsActive")) && reader.GetBoolean(reader.GetOrdinal("DiscountIsActive")),
                             HasActiveDiscount = HasColumn(reader, "HasActiveDiscount") && !reader.IsDBNull(reader.GetOrdinal("HasActiveDiscount")) && reader.GetBoolean(reader.GetOrdinal("HasActiveDiscount")),
                             MainImageUrl = reader.IsDBNull(reader.GetOrdinal("MainImageUrl")) ? null : reader.GetString(reader.GetOrdinal("MainImageUrl")),
-                            IsFeatured = reader.GetBoolean(reader.GetOrdinal("IsFeatured")),
+                            PublicationStatus = HasColumn(reader, "PublicationStatus") && !reader.IsDBNull(reader.GetOrdinal("PublicationStatus")) ? reader.GetString(reader.GetOrdinal("PublicationStatus")) : "Published",
                             IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
                             CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
                             VariantCount = reader.GetInt32(reader.GetOrdinal("VariantCount"))
@@ -568,9 +587,9 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             return new AdminInventoryTrendDto();
         }
 
-        public async Task<List<Dictionary<string, object>>> GetRecentActivityAsync(int limit = 6)
+        public async Task<List<Dictionary<string, object>>> GetRecentActivityAsync(int limit = 8, int offset = 0)
         {
-            return await QueryAsync("dbo.sp_AdminRecentActivity", Param("@Limit", limit)).ConfigureAwait(false);
+            return await QueryAsync("dbo.sp_AdminRecentActivity", Param("@Limit", limit), Param("@Offset", offset)).ConfigureAwait(false);
         }
 
         public async Task<Dictionary<string, object>> GetDashboardStatsAsync()
@@ -662,7 +681,6 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             string name, 
             string slug, 
             string description, 
-            string ridingStyle, 
             decimal basePrice, 
             int discountPercentage, 
             string mainImageUrl, 
@@ -681,10 +699,9 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                 command.Parameters.Add(new SqlParameter("@Name", SqlDbType.NVarChar, 200) { Value = name });
                 command.Parameters.Add(new SqlParameter("@Slug", SqlDbType.NVarChar, 220) { Value = slug });
                 command.Parameters.Add(new SqlParameter("@Description", SqlDbType.NVarChar, -1) { Value = (object)description ?? DBNull.Value });
-                command.Parameters.Add(new SqlParameter("@RidingStyle", SqlDbType.NVarChar, 50) { Value = (object)ridingStyle ?? "Sport/Street" });
                 command.Parameters.Add(new SqlParameter("@BasePrice", SqlDbType.Decimal) { Value = basePrice });
                 command.Parameters.Add(new SqlParameter("@DiscountPercentage", SqlDbType.Int) { Value = discountPercentage });
-                command.Parameters.Add(new SqlParameter("@MainImageUrl", SqlDbType.NVarChar, 500) { Value = (object)mainImageUrl ?? "/Content/images/products/helmets/agv/images.jpg" });
+                command.Parameters.Add(new SqlParameter("@MainImageUrl", SqlDbType.NVarChar, 500) { Value = string.IsNullOrWhiteSpace(mainImageUrl) ? (object)DBNull.Value : mainImageUrl.Trim() });
                 command.Parameters.Add(new SqlParameter("@VariantsJson", SqlDbType.NVarChar, -1) { Value = variantsJson });
                 command.Parameters.Add(new SqlParameter("@DiscountType", SqlDbType.NVarChar, 20) { Value = (object)discountType ?? "Percentage" });
                 command.Parameters.Add(new SqlParameter("@DiscountAmount", SqlDbType.Decimal) { Value = discountAmount });
@@ -710,7 +727,6 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             string name,
             string slug,
             string description,
-            string ridingStyle,
             decimal basePrice,
             int discountPercentage,
             string discountType,
@@ -718,8 +734,8 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             DateTime? discountStartDate,
             DateTime? discountEndDate,
             string mainImageUrl,
-            bool isFeatured,
-            bool isActive)
+            bool isActive,
+            string publicationStatus = null)
         {
             using (var connection = (SqlConnection)_factory.CreateConnection())
             using (var command = new SqlCommand("dbo.sp_AdminSaveProduct", connection))
@@ -731,16 +747,15 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                 command.Parameters.Add(new SqlParameter("@Name", SqlDbType.NVarChar, 200) { Value = name });
                 command.Parameters.Add(new SqlParameter("@Slug", SqlDbType.NVarChar, 220) { Value = slug });
                 command.Parameters.Add(new SqlParameter("@Description", SqlDbType.NVarChar, -1) { Value = (object)description ?? DBNull.Value });
-                command.Parameters.Add(new SqlParameter("@RidingStyle", SqlDbType.NVarChar, 50) { Value = (object)ridingStyle ?? "Sport/Street" });
                 command.Parameters.Add(new SqlParameter("@BasePrice", SqlDbType.Decimal) { Value = basePrice });
                 command.Parameters.Add(new SqlParameter("@DiscountPercentage", SqlDbType.Int) { Value = discountPercentage });
                 command.Parameters.Add(new SqlParameter("@DiscountType", SqlDbType.NVarChar, 20) { Value = (object)discountType ?? "Percentage" });
                 command.Parameters.Add(new SqlParameter("@DiscountAmount", SqlDbType.Decimal) { Value = discountAmount });
                 command.Parameters.Add(new SqlParameter("@DiscountStartDate", SqlDbType.DateTime2) { Value = (object)discountStartDate ?? DBNull.Value });
                 command.Parameters.Add(new SqlParameter("@DiscountEndDate", SqlDbType.DateTime2) { Value = (object)discountEndDate ?? DBNull.Value });
-                command.Parameters.Add(new SqlParameter("@MainImageUrl", SqlDbType.NVarChar, 500) { Value = (object)mainImageUrl ?? DBNull.Value });
-                command.Parameters.Add(new SqlParameter("@IsFeatured", SqlDbType.Bit) { Value = isFeatured });
+                command.Parameters.Add(new SqlParameter("@MainImageUrl", SqlDbType.NVarChar, 500) { Value = string.IsNullOrWhiteSpace(mainImageUrl) ? (object)DBNull.Value : mainImageUrl.Trim() });
                 command.Parameters.Add(new SqlParameter("@IsActive", SqlDbType.Bit) { Value = isActive });
+                command.Parameters.Add(new SqlParameter("@PublicationStatus", SqlDbType.NVarChar, 20) { Value = (object)publicationStatus ?? (isActive ? "Published" : "Draft") });
 
                 await connection.OpenAsync().ConfigureAwait(false);
                 var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
@@ -801,7 +816,6 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                         Name = reader["Name"]?.ToString(),
                         Slug = reader["Slug"]?.ToString(),
                         Description = reader["Description"] != DBNull.Value ? reader["Description"].ToString() : null,
-                        RidingStyle = reader["RidingStyle"] != DBNull.Value ? reader["RidingStyle"].ToString() : null,
                         BasePrice = Convert.ToDecimal(reader["BasePrice"]),
                         DiscountPercentage = reader["DiscountPercentage"] != DBNull.Value ? Convert.ToInt32(reader["DiscountPercentage"]) : 0,
                         DiscountType = reader["DiscountType"] != DBNull.Value ? reader["DiscountType"].ToString() : "Percentage",
@@ -810,7 +824,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                         DiscountEndDate = reader["DiscountEndDate"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(reader["DiscountEndDate"]) : null,
                         DiscountIsActive = reader["DiscountIsActive"] != DBNull.Value && Convert.ToBoolean(reader["DiscountIsActive"]),
                         MainImageUrl = reader["MainImageUrl"] != DBNull.Value ? reader["MainImageUrl"].ToString() : null,
-                        IsFeatured = reader["IsFeatured"] != DBNull.Value && Convert.ToBoolean(reader["IsFeatured"]),
+                        PublicationStatus = HasColumn(reader, "PublicationStatus") && reader["PublicationStatus"] != DBNull.Value ? reader["PublicationStatus"].ToString() : "Published",
                         IsActive = reader["IsActive"] != DBNull.Value && Convert.ToBoolean(reader["IsActive"]),
                         BrandName = reader["BrandName"]?.ToString(),
                         CategoryName = reader["CategoryName"]?.ToString()
@@ -839,8 +853,8 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 Id = Convert.ToInt32(reader["Id"]),
                                 Color = reader["Color"]?.ToString(),
                                 SolidHex = reader["ColorHex"]?.ToString(),
-                                ColorType = reader["ColorType"]?.ToString(),
-                                GradientAngle = reader["GradientAngle"] != DBNull.Value ? (int?)Convert.ToInt32(reader["GradientAngle"]) : null
+                                ColorType = HasColumn(reader, "ColorType") && reader["ColorType"] != DBNull.Value ? reader["ColorType"].ToString() : "Solid",
+                                GradientAngle = HasColumn(reader, "GradientAngle") && reader["GradientAngle"] != DBNull.Value ? (int?)Convert.ToInt32(reader["GradientAngle"]) : null
                             });
                         }
                     }
@@ -851,10 +865,10 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                         {
                             product.Variants.Add(new AdminVariantDto
                             {
-                                Id = Convert.ToInt32(reader["VariantId"]),
+                                Id = HasColumn(reader, "VariantId") ? Convert.ToInt32(reader["VariantId"]) : Convert.ToInt32(reader["Id"]),
                                 ProductColorId = Convert.ToInt32(reader["ProductColorId"]),
-                                Color = reader["Color"]?.ToString(),
-                                ColorHex = reader["ColorHex"]?.ToString(),
+                                Color = HasColumn(reader, "Color") && reader["Color"] != DBNull.Value ? reader["Color"].ToString() : null,
+                                ColorHex = HasColumn(reader, "ColorHex") && reader["ColorHex"] != DBNull.Value ? reader["ColorHex"].ToString() : null,
                                 Size = reader["Size"]?.ToString(),
                                 SKU = reader["SKU"]?.ToString(),
                                 PriceAdjustment = reader["PriceAdjustment"] != DBNull.Value ? Convert.ToDecimal(reader["PriceAdjustment"]) : 0m,

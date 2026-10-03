@@ -18,7 +18,6 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string Name { get; set; }
         public string Slug { get; set; }
         public string Description { get; set; }
-        public string RidingStyle { get; set; }
         public decimal BasePrice { get; set; }
         public int DiscountPercentage { get; set; }
         public string DiscountType { get; set; } = "Percentage";
@@ -27,8 +26,8 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public System.DateTime? DiscountEndDate { get; set; }
         public bool DiscountIsActive { get; set; } = true;
         public string MainImageUrl { get; set; }
-        public bool IsFeatured { get; set; }
         public bool IsActive { get; set; } = true;
+        public string PublicationStatus { get; set; } = "Draft";
     }
 
     public sealed class AdminCategoryDto
@@ -113,7 +112,6 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string BrandName { get; set; }
         public int CategoryId { get; set; }
         public string CategoryName { get; set; }
-        public string RidingStyle { get; set; }
         public decimal BasePrice { get; set; }
         public int DiscountPercentage { get; set; }
         public decimal EffectivePrice { get; set; }
@@ -145,6 +143,7 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string SKU { get; set; }
         public string MainImageUrl { get; set; }
         public string StockStatus { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 
     public sealed class AdminOrderListItemDto
@@ -184,7 +183,6 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string Category { get; set; }
         public int BrandId { get; set; }
         public string Brand { get; set; }
-        public string RidingStyle { get; set; }
         public decimal BasePrice { get; set; }
         public int DiscountPercentage { get; set; }
         public decimal CalculatedEffectivePrice { get; set; }
@@ -228,8 +226,8 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
             }
         }
         public string MainImageUrl { get; set; }
-        public bool IsFeatured { get; set; }
         public bool IsActive { get; set; }
+        public string PublicationStatus { get; set; } = "Published";
         public System.DateTime CreatedAt { get; set; }
         public int VariantCount { get; set; }
     }
@@ -371,7 +369,6 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string Name { get; set; }
         public string Slug { get; set; }
         public string Description { get; set; }
-        public string RidingStyle { get; set; }
         public decimal BasePrice { get; set; }
         public int DiscountPercentage { get; set; }
         public string DiscountType { get; set; }
@@ -380,8 +377,8 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public System.DateTime? DiscountEndDate { get; set; }
         public bool DiscountIsActive { get; set; }
         public string MainImageUrl { get; set; }
-        public bool IsFeatured { get; set; }
         public bool IsActive { get; set; }
+        public string PublicationStatus { get; set; } = "Published";
         public string BrandName { get; set; }
         public string CategoryName { get; set; }
 

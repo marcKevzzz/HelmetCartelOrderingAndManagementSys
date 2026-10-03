@@ -77,6 +77,7 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string CustomerPhone { get; set; }
         public decimal Subtotal { get; set; }
         public decimal DiscountAmount { get; set; }
+        public string VoucherCode { get; set; }
         public decimal ShippingFee { get; set; }
         public decimal TotalAmount { get; set; }
         public string OrderStatus { get; set; }

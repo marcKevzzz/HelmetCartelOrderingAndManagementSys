@@ -1,7 +1,7 @@
 <%@ Page Title="Returns & Exchanges (RMA)" Language="C#" MasterPageFile="~/Pages/Admin/Portal.master" AutoEventWireup="true" %>
 
 <asp:Content ID="Head" ContentPlaceHolderID="HeadContent" runat="server">
-    <link rel="stylesheet" href="/Content/css/admin/admin.css?v=16" />
+    <link rel="stylesheet" href="/Content/css/admin/admin.css?v=17" />
 </asp:Content>
 
 <asp:Content ID="Main" ContentPlaceHolderID="MainContent" runat="server">
@@ -9,12 +9,7 @@
         <!-- Top Row: Page Heading -->
         <div class="admin-page-header">
             <div class="admin-page-title-row">
-                <h1 class="admin-page-title">Returns &amp; Exchanges (RMA)</h1>
-            </div>
-            <div class="admin-header-actions">
-                <div class="admin-search-wrapper">
-                    <input type="text" id="admin-rma-search" class="admin-date-input" placeholder="Search RMA, order, or customer..." />
-                </div>
+                <h1 class="admin-page-title">Returns &amp; Exchanges</h1>
             </div>
         </div>
 
@@ -74,85 +69,102 @@
     </div>
 
     <!-- Process RMA Modal Dialog -->
-    <div id="admin-rma-modal" class="modal-backdrop review-modal-backdrop is-hidden">
-        <div class="modal-dialog review-modal-dialog">
-            <div class="modal-header">
-                <div>
+    <div id="admin-rma-modal" class="modal-backdrop is-hidden">
+        <div class="modal-dialog admin-rma-dialog">
+            <div class="modal-header admin-rma-header">
+                <div class="modal-header-titles">
                     <h3 class="modal-title" id="rma-modal-title">Process RMA Request</h3>
-                    <p class="modal-subtitle" id="rma-modal-subtitle">Update resolution, approval status, and restock inventory.</p>
+                    <p class="modal-subtitle" id="rma-modal-subtitle">Review customer claim details, execute resolution, and manage stock return.</p>
                 </div>
-                <button type="button" class="modal-close-btn" id="btn-close-rma-modal">&times;</button>
+                <button type="button" class="modal-close-btn" id="btn-close-rma-modal" aria-label="Close dialog">&times;</button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body admin-rma-body">
                 <input type="hidden" id="rma-modal-id" value="" />
 
-                <div class="modal-field-group">
-                    <label class="modal-field-label">RMA / Order Reference:</label>
-                    <div id="rma-modal-refs" style="font-weight: 600; color: #fff;"></div>
+                <!-- 1. Customer & Claim Overview Bento Card -->
+                <div class="admin-rma-overview-card">
+                    <div class="admin-rma-overview-grid">
+                        <div class="admin-rma-meta-block">
+                            <span class="admin-rma-field-label">RMA &amp; Order Reference</span>
+                            <div id="rma-modal-refs" class="admin-rma-ref-value"></div>
+                        </div>
+
+                        <div class="admin-rma-meta-block">
+                            <span class="admin-rma-field-label">Customer Details</span>
+                            <div id="rma-modal-customer" class="admin-rma-customer-value"></div>
+                        </div>
+
+                        <div class="admin-rma-meta-block admin-rma-meta-block--full">
+                            <span class="admin-rma-field-label">Item to Return / Exchange</span>
+                            <div id="rma-modal-item" class="admin-rma-item-value"></div>
+                        </div>
+
+                        <div class="admin-rma-meta-block admin-rma-meta-block--full">
+                            <span class="admin-rma-field-label">Customer's Stated Reason &amp; Notes</span>
+                            <blockquote id="rma-modal-notes" class="admin-rma-reason-quote"></blockquote>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="modal-field-group">
-                    <label class="modal-field-label">Customer:</label>
-                    <div id="rma-modal-customer" style="color: var(--color-text-muted, #94a3b8);"></div>
+                <!-- 2. Section Heading -->
+                <div class="admin-rma-divider">
+                    <span class="admin-rma-divider-text">Disposition Decision &amp; Settlement</span>
                 </div>
 
-                <div class="modal-field-group">
-                    <label class="modal-field-label">Item to Return / Exchange:</label>
-                    <div id="rma-modal-item" style="color: #e2e8f0;"></div>
+                <!-- 3. Decision Form Grid -->
+                <div class="admin-rma-form-grid">
+                    <div class="modal-field-group">
+                        <label for="rma-decision-status" class="modal-field-label">Update Status</label>
+                        <select id="rma-decision-status" class="modal-select admin-rma-select">
+                            <option value="Approved">Approved (Awaiting return shipment)</option>
+                            <option value="Received">Item Received (Inspecting goods)</option>
+                            <option value="Completed">Completed (Resolution processed)</option>
+                            <option value="Rejected">Rejected</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+
+                    <div class="modal-field-group">
+                        <label for="rma-decision-resolution" class="modal-field-label">Resolution Type</label>
+                        <select id="rma-decision-resolution" class="modal-select admin-rma-select">
+                            <option value="REFUND">Refund</option>
+                            <option value="REPLACEMENT">Replacement / Exchange</option>
+                            <option value="STORE_CREDIT">Store Credit</option>
+                        </select>
+                    </div>
+
+                    <div class="modal-field-group admin-rma-field--full">
+                        <label for="rma-decision-refund" class="modal-field-label">Refund / Settlement Amount (&#8369;)</label>
+                        <div class="admin-rma-currency-field">
+                            <span class="admin-rma-currency-addon">&#8369;</span>
+                            <input type="number" id="rma-decision-refund" class="modal-input admin-rma-input admin-rma-currency-input" step="0.01" min="0" placeholder="0.00" />
+                        </div>
+                    </div>
+
+                    <div class="admin-rma-restock-card" id="rma-restock-group">
+                        <label class="admin-rma-checkbox-label" for="rma-decision-restock">
+                            <input type="checkbox" id="rma-decision-restock" class="admin-rma-checkbox" />
+                            <div class="admin-rma-checkbox-text">
+                                <span class="admin-rma-checkbox-title">Return item to sellable inventory</span>
+                                <span class="admin-rma-checkbox-desc">Atomic stock increment (`UPDLOCK`) and verified RESTOCK audit log entry.</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="modal-field-group admin-rma-field--full">
+                        <label for="rma-decision-notes" class="modal-field-label">Admin Notes &amp; Customer Feedback</label>
+                        <textarea id="rma-decision-notes" class="modal-textarea admin-rma-textarea" rows="3" placeholder="Explain disposition decision or provide instructions for customer..."></textarea>
+                    </div>
                 </div>
 
-                <div class="modal-field-group">
-                    <label class="modal-field-label">Customer's Reason &amp; Notes:</label>
-                    <blockquote id="rma-modal-notes" style="margin: 0; padding: 0.75rem 1rem; background: rgba(255,255,255,0.04); border-left: 3px solid var(--color-brand-primary, #e11d48); border-radius: 4px; font-style: italic;"></blockquote>
-                </div>
-
-                <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 1.25rem 0;" />
-
-                <div class="modal-field-group">
-                    <label for="rma-decision-status" class="modal-field-label">Update Status:</label>
-                    <select id="rma-decision-status" class="modal-input">
-                        <option value="Approved">Approved (Awaiting return shipment)</option>
-                        <option value="Received">Item Received (Inspecting goods)</option>
-                        <option value="Completed">Completed (Resolution processed)</option>
-                        <option value="Rejected">Rejected</option>
-                        <option value="Cancelled">Cancelled</option>
-                    </select>
-                </div>
-
-                <div class="modal-field-group">
-                    <label for="rma-decision-resolution" class="modal-field-label">Resolution Type:</label>
-                    <select id="rma-decision-resolution" class="modal-input">
-                        <option value="REFUND">Refund</option>
-                        <option value="REPLACEMENT">Replacement / Exchange</option>
-                        <option value="STORE_CREDIT">Store Credit</option>
-                    </select>
-                </div>
-
-                <div class="modal-field-group">
-                    <label for="rma-decision-refund" class="modal-field-label">Refund / Settlement Amount (&#8369;):</label>
-                    <input type="number" id="rma-decision-refund" class="modal-input" step="0.01" min="0" placeholder="0.00" />
-                </div>
-
-                <div class="modal-field-group" id="rma-restock-group">
-                    <label class="review-filter-checkbox-label" for="rma-decision-restock" style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
-                        <input type="checkbox" id="rma-decision-restock" style="width: 16px; height: 16px; accent-color: var(--color-brand-primary, #e11d48);" />
-                        <span style="font-weight: 500; color: #fff;">Return item to sellable inventory (Atomic Stock Increment &amp; Audit Log)</span>
-                    </label>
-                </div>
-
-                <div class="modal-field-group">
-                    <label for="rma-decision-notes" class="modal-field-label">Admin Notes / Customer Feedback:</label>
-                    <textarea id="rma-decision-notes" class="modal-textarea" rows="3" placeholder="Explain decision or resolution instructions..."></textarea>
-                </div>
-
-                <div id="rma-error-msg" class="report-alert-danger is-hidden"></div>
+                <div id="rma-error-msg" class="modal-alert modal-alert--danger is-hidden"></div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn--outline" id="btn-cancel-rma-modal">Cancel</button>
-                <button type="button" class="btn btn--primary" id="btn-save-rma-decision">Save Decision</button>
+            <div class="modal-footer admin-rma-footer">
+                <button type="button" class="btn-pill btn-pill--outline" id="btn-cancel-rma-modal">Cancel</button>
+                <button type="button" class="btn-pill btn-pill--primary" id="btn-save-rma-decision">Save Decision</button>
             </div>
         </div>
     </div>
 
-    <script type="module" src="/Scripts/admin/returns.js?v=1"></script>
+    <script type="module" src="/Scripts/admin/returns.js?v=2"></script>
 </asp:Content>

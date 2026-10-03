@@ -7,6 +7,7 @@
 import { ApiClient } from '../api.js';
 import { CartManager } from '../cart.js';
 import { RealtimeManager } from '../realtime.js';
+import { renderReceipt, printReceipt } from '../receipt.js?v=20261003-4';
 import { APP_CONSTANTS } from '../constants.js';
 
 const CHECKOUT_STATE_KEY = 'hc_checkout_state';
@@ -54,10 +55,62 @@ let selectedFulfillment = (initialDraft?.fulfillment === 'delivery' || initialDr
     ? initialDraft.fulfillment
     : 'pickup';
 let selectedShippingCost = 0;
-let selectedPaymentMethodName = "HitPay Online Checkout (QR Ph)";
+let selectedPaymentMethodName = "QRPh";
 let selectedPaymentKey = initialDraft?.paymentKey || "hitpay";
 let savedAddressesList = [];
 let selectedAddress = null;
+let appliedVoucher = null;
+let merchandiseQuote = null;
+let voucherSignature = '';
+let voucherSequence = 0;
+let voucherPending = false;
+let placingOrder = false;
+let checkoutComplete = false;
+const voucherItemsSignature = () => JSON.stringify(getCheckoutItems().map(item => [Number(item.variantId), Number(item.quantity), Number(item.price)]));
+function voucherError(message) {
+    const input = document.getElementById('checkout-voucher');
+    input?.classList.toggle('is-invalid', !!message);
+    input?.setAttribute('aria-invalid', String(!!message));
+    const error = document.getElementById('checkout-voucher-error');
+    if (error) error.textContent = message;
+}
+async function validateVoucher() {
+    const input = document.getElementById('checkout-voucher');
+    const code = input?.value.trim().toUpperCase() || '';
+    const sequence = ++voucherSequence;
+    appliedVoucher = null;
+    voucherSignature = voucherItemsSignature();
+    if (!code) { voucherPending = false; voucherError(''); renderSidebar(); return true; }
+    if (!/^[A-Z0-9-]{3,30}$/.test(code)) {
+        voucherPending = false; voucherError('Use 3-30 letters, numbers or hyphens.'); renderSidebar(); return false;
+    }
+    voucherPending = true;
+    document.getElementById('checkout-voucher-status').textContent = 'Checking voucher...';
+    renderSidebar();
+    try {
+        const quote = await ApiClient.post(APP_CONSTANTS.ENDPOINTS.VOUCHER_VALIDATE, {
+            code, items: getCheckoutItems().map(item => ({variantId: Number(item.variantId), quantity: Number(item.quantity)}))
+        });
+        if (sequence !== voucherSequence) return false;
+        if (voucherSignature !== voucherItemsSignature()) return validateVoucher();
+        appliedVoucher = quote;
+        merchandiseQuote = {signature: voucherSignature, subtotal: Number(quote.subtotal)};
+        input.value = quote.code;
+        voucherError('');
+        return true;
+    } catch (e) {
+        if (sequence === voucherSequence) voucherError(e.message);
+        return false;
+    } finally {
+        if (sequence === voucherSequence) { voucherPending = false; renderSidebar(); }
+    }
+}
+function removeVoucher() {
+    if (placingOrder) return;
+    ++voucherSequence; appliedVoucher = null; voucherPending = false; voucherSignature = '';
+    document.getElementById('checkout-voucher').value = '';
+    voucherError(''); renderSidebar();
+}
 
 function saveCheckoutState() {
     try {
@@ -155,13 +208,20 @@ function getCheckoutItems() {
 
 function calculateTotals() {
     const items = getCheckoutItems();
-    const subtotal = items.reduce((sum, i) => sum + (i.price * i.quantity), 0);
-    const total = subtotal + selectedShippingCost;
-
-    return { subtotal, total };
+    const validQuote = appliedVoucher && voucherSignature === voucherItemsSignature();
+    const subtotal = merchandiseQuote?.signature === voucherItemsSignature() ? merchandiseQuote.subtotal : items.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+    const discount = validQuote ? Number(appliedVoucher.discountAmount) : 0;
+    const total = subtotal - discount + selectedShippingCost;
+    return { subtotal, discount, total };
 }
 
 function renderSidebar() {
+    if (checkoutComplete) return;
+    if (appliedVoucher && voucherSignature !== voucherItemsSignature()) {
+        appliedVoucher = null;
+        validateVoucher();
+        return;
+    }
     const items = getCheckoutItems();
     if (items.length === 0 && currentStep < 4) {
         const emptyMsg = isBuyNowMode
@@ -172,7 +232,27 @@ function renderSidebar() {
         return;
     }
 
-    const { subtotal, total } = calculateTotals();
+    const { subtotal, discount, total } = calculateTotals();
+    const discountRow = document.getElementById('sidebar-voucher-row');
+    if (discountRow) discountRow.hidden = !appliedVoucher;
+    const discountLabelEl = document.getElementById('sidebar-voucher-label');
+    if (discountLabelEl && appliedVoucher) {
+        if (appliedVoucher.discountType === APP_CONSTANTS.VOUCHER_TYPES?.PERCENTAGE && appliedVoucher.discountValue) {
+            discountLabelEl.textContent = `Discount (-${appliedVoucher.discountValue}%)`;
+        } else if (appliedVoucher.code) {
+            discountLabelEl.textContent = `Discount (${appliedVoucher.code})`;
+        } else {
+            discountLabelEl.textContent = 'Discount';
+        }
+    }
+    const discountEl = document.getElementById('sidebar-voucher-discount');
+    if (discountEl) discountEl.textContent = `-${APP_CONSTANTS.UI.CURRENCY_SYMBOL}${discount.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    const voucherStatus = document.getElementById('checkout-voucher-status');
+    if (voucherStatus) voucherStatus.textContent = voucherPending ? 'Checking voucher...' : (appliedVoucher ? `${appliedVoucher.code} applied` : '');
+    const removeButton = document.getElementById('checkout-voucher-remove');
+    if (removeButton) removeButton.hidden = !appliedVoucher;
+    const applyButton = document.getElementById('checkout-voucher-apply');
+    if (applyButton) applyButton.disabled = voucherPending || placingOrder;
 
     const subtotalEl = document.getElementById('sidebar-subtotal');
     const shippingEl = document.getElementById('sidebar-shipping');
@@ -425,6 +505,18 @@ function escapeHtml(str) {
 
 // Bind interactive event listeners
 function bindCheckoutEvents() {
+    document.getElementById('checkout-voucher-apply')?.addEventListener('click', () => { if (!placingOrder) validateVoucher(); });
+    document.getElementById('checkout-voucher-remove')?.addEventListener('click', removeVoucher);
+    document.getElementById('checkout-voucher')?.addEventListener('blur', () => { if (!placingOrder) validateVoucher(); });
+    document.getElementById('checkout-voucher')?.addEventListener('input', () => {
+        ++voucherSequence; appliedVoucher = null; voucherPending = false; voucherError(''); renderSidebar();
+    });
+    document.getElementById('checkout-voucher')?.addEventListener('keydown', event => {
+        if (event.key === 'Enter') { event.preventDefault(); if (!placingOrder) validateVoucher(); }
+    });
+    document.getElementById('checkout-print-receipt')?.addEventListener('click', () => printReceipt(document.getElementById('checkout-receipt-doc')));
+    window.addEventListener('cartUpdated', () => { if (!checkoutComplete) { renderSidebar(); renderReviewItems(); } });
+    window.addEventListener(APP_CONSTANTS.SIGNALR_EVENTS.STOCK_UPDATED, () => { if (!checkoutComplete && appliedVoucher) validateVoucher(); });
     document.getElementById('option-fulfillment-pickup')?.addEventListener('click', () => {
         selectedFulfillment = 'pickup';
         updateFulfillmentUI();
@@ -451,7 +543,6 @@ function bindCheckoutEvents() {
         }
 
         setStep(2);
-        RealtimeManager.showToast('Customer & fulfillment details confirmed. Select payment method.', 'info');
     });
 
     document.querySelectorAll('.payment-method-card').forEach(card => {
@@ -468,7 +559,6 @@ function bindCheckoutEvents() {
     document.getElementById('btn-back-to-step-1')?.addEventListener('click', () => setStep(1));
     document.getElementById('btn-goto-step-3')?.addEventListener('click', () => {
         setStep(3);
-        RealtimeManager.showToast('Review your order before final confirmation.', 'info');
     });
 
     document.getElementById('btn-back-to-step-2')?.addEventListener('click', () => setStep(2));
@@ -482,6 +572,11 @@ function bindCheckoutEvents() {
             return;
         }
 
+        if (placingOrder) return;
+        placingOrder = true;
+        if (!await validateVoucher()) { placingOrder = false; document.getElementById('checkout-voucher')?.focus(); renderSidebar(); return; }
+        document.getElementById('checkout-voucher').disabled = true;
+        document.getElementById('checkout-voucher-remove').disabled = true;
         const btn = document.getElementById('btn-place-order');
         const textSpan = document.getElementById('btn-place-order-text');
         btn?.classList.add('btn--loading');
@@ -493,11 +588,15 @@ function bindCheckoutEvents() {
         if (!checkoutItems.length || checkoutItems.some(item =>
             !Number.isSafeInteger(Number(item.variantId)) || Number(item.variantId) <= 0 ||
             Number(item.availableStock) < Number(item.quantity))) {
+            placingOrder = false;
+            document.getElementById('checkout-voucher').disabled = false;
+            document.getElementById('checkout-voucher-remove').disabled = false;
             RealtimeManager.showToast('Review your cart: an item is unavailable or needs to be added again.', 'alert');
             btn?.classList.remove('btn--loading');
             btn?.classList.remove('btn--disabled');
             if (btn) btn.disabled = false;
             if (textSpan) textSpan.textContent = 'Place Order & Pay';
+            renderSidebar();
             return;
         }
 
@@ -535,6 +634,7 @@ function bindCheckoutEvents() {
             shippingPostalCode: zip,
             deliveryNotes: notes,
             notes: isDelivery ? `Door-to-Door Delivery (${regionName})` : 'Store Pickup at Flagship Hub (QC)',
+            voucherCode: appliedVoucher?.code || null,
             items: checkoutItems.map(item => ({
                 variantId: Number(item.variantId),
                 quantity: Number(item.quantity)
@@ -544,13 +644,16 @@ function bindCheckoutEvents() {
         try {
             const response = await ApiClient.createOrder(payload);
             const orderData = response?.data || response;
-            const orderNo = orderData?.orderNumber || `#HC-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
-            const totalPaid = orderData?.totalAmount || calculateTotals().total;
+            if (!orderData?.orderNumber) throw new Error('The server did not return an order confirmation.');
+            const orderNo = orderData.orderNumber;
+            const totalPaid = Number(orderData.totalAmount);
 
             // Clear saved draft state upon successful order placement
             clearCheckoutState();
 
-            const completeOrderDisplay = () => {
+            const completeOrderDisplay = async () => {
+                if (checkoutComplete) return;
+                checkoutComplete = true;
                 if (isBuyNowMode) {
                     clearBuyNowItem();
                     // Preserves cart items, but re-evaluates their stock from the server in case this buy-now depleted it
@@ -563,61 +666,33 @@ function bindCheckoutEvents() {
                     CartManager.updateCartBadge();
                 }
 
-                // Populate Receipt Card
-                const receiptOrderNo = document.getElementById('receipt-order-no');
-                const receiptDate = document.getElementById('receipt-date');
-                const receiptPayment = document.getElementById('receipt-payment');
-                const receiptTotal = document.getElementById('receipt-total');
-
-                if (receiptOrderNo) receiptOrderNo.textContent = orderNo;
-                if (receiptDate) {
-                    receiptDate.textContent = new Date().toLocaleDateString('en-US', {
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric'
-                    }) + ' - ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                }
-                if (receiptPayment) receiptPayment.textContent = selectedPaymentMethodName;
-                if (receiptTotal) receiptTotal.innerHTML = `&#8369;${totalPaid.toLocaleString()}`;
-
-                const addrLabel = document.getElementById('receipt-address-label');
-                const addrVal = document.getElementById('receipt-address');
-                const etaVal = document.getElementById('receipt-eta');
-                const step3Text = document.getElementById('tracker-step-3-text');
-                const step4Text = document.getElementById('tracker-step-4-text');
-
-                if (isDelivery) {
-                    if (addrLabel) addrLabel.textContent = 'Delivery Address';
-                    if (addrVal) addrVal.textContent = `${addr || ''}${brgy ? `, Brgy. ${brgy}` : ''}, ${city || ''}, ${prov || ''} ${zip || ''}`;
-                    if (etaVal) etaVal.textContent = `Dispatched via Courier (Est. ${shippingDetails?.eta || '2\u20134 Days'})`;
-
-                    if (step3Text) step3Text.textContent = 'In Transit / Dispatched';
-                    if (step4Text) step4Text.textContent = 'Delivered';
-                } else {
-                    if (addrLabel) addrLabel.textContent = 'Pickup Location';
-                    if (addrVal) addrVal.textContent = 'Helmet Cartel Flagship Hub \u2022 128 Commonwealth Ave, QC';
-                    if (etaVal) etaVal.textContent = 'Ready for Store Pickup in 1-2 Hours';
-
-                    if (step3Text) step3Text.textContent = 'Ready for Pickup';
-                    if (step4Text) step4Text.textContent = 'Collected';
-                }
+                // Load persisted payment data after simulation; order creation already returns saved totals.
+                let receiptOrder = orderData;
+                try { receiptOrder = await ApiClient.getUserOrderDetails(orderData.id); }
+                catch (error) { console.warn('Receipt refresh unavailable:', error.message); }
+                document.getElementById('checkout-receipt-doc').innerHTML = renderReceipt(receiptOrder);
+                document.getElementById('tracker-step-3-text').textContent = isDelivery ? 'In Transit / Dispatched' : 'Ready for Pickup';
+                document.getElementById('tracker-step-4-text').textContent = isDelivery ? 'Delivered' : 'Collected';
 
                 const stepperEl = document.getElementById('checkout-stepper');
                 const gridEl = document.getElementById('checkout-interactive-grid');
                 const successPanel = document.getElementById('checkout-success-panel');
 
-                if (stepperEl) stepperEl.style.display = 'none';
-                if (gridEl) gridEl.style.display = 'none';
+                stepperEl?.classList.add('is-hidden');
+                gridEl?.classList.add('is-hidden');
+                if (stepperEl) stepperEl.hidden = true;
+                if (gridEl) gridEl.hidden = true;
                 if (successPanel) successPanel.classList.add('is-active');
-
-                window.scrollTo({ top: 100, behavior: 'smooth' });
+                const confirmationTitle = successPanel?.querySelector('.success-title');
+                confirmationTitle?.focus({ preventScroll: true });
+                successPanel?.scrollIntoView({ block: 'start', behavior: 'smooth' });
                 RealtimeManager.showToast(`Order ${orderNo} confirmed! Inventory reserved.`, 'success');
             };
 
             // HitPay Online Payment Routing
             if (paymentGateway === 'HitPay') {
                 if (orderData?.checkoutUrl) {
-                    RealtimeManager.showToast('Redirecting to HitPay secure checkout...', 'info');
+                    RealtimeManager.showToast('Opening QRPh payment checkout...', 'info');
                     setTimeout(() => window.location.href = orderData.checkoutUrl, 800);
                     return;
                 }
@@ -628,19 +703,27 @@ function bindCheckoutEvents() {
                 if (btn) btn.disabled = false;
                 if (textSpan) textSpan.textContent = "Place Order & Pay";
 
-                showSimulationModal(orderNo, totalPaid, completeOrderDisplay);
+                showSimulationModal(orderNo, totalPaid, async payment => {
+                    if (payment) { orderData.paymentStatus = payment.paymentStatus; orderData.status = payment.status; orderData.gatewayReference = payment.paymentId; }
+                    await completeOrderDisplay();
+                });
                 return;
             }
 
             // Direct fulfillment (COD / Cash In-Store)
-            completeOrderDisplay();
+            await completeOrderDisplay();
         } catch (err) {
             console.error('[Checkout Error]', err);
+            if (err.errorCode === APP_CONSTANTS.ERROR_CODES.INVALID_VOUCHER) { appliedVoucher = null; voucherError(err.message); }
             RealtimeManager.showToast(err.message || 'Error processing order. Please check stock.', 'alert');
             btn?.classList.remove('btn--loading');
             btn?.classList.remove('btn--disabled');
             if (btn) btn.disabled = false;
             if (textSpan) textSpan.textContent = "Place Order & Pay";
+            placingOrder = false;
+            document.getElementById('checkout-voucher').disabled = false;
+            document.getElementById('checkout-voucher-remove').disabled = false;
+            renderSidebar();
         }
     });
 }
@@ -650,113 +733,68 @@ function bindCheckoutEvents() {
  */
 function showSimulationModal(orderNo, totalAmount, onSuccessCallback) {
     const modal = document.getElementById('payment-simulation-modal');
-    if (!modal) {
-        onSuccessCallback();
-        return;
-    }
-
+    if (!modal) { onSuccessCallback(); return; }
     const amountEl = document.getElementById('sim-order-amount');
     const statusBanner = document.getElementById('sim-status-banner');
     const statusText = document.getElementById('sim-status-banner-text');
     const alertEl = document.getElementById('sim-status-alert');
     const alertMsg = document.getElementById('sim-status-message');
     const closeBtn = document.getElementById('btn-close-sim-modal');
-    const failBtn = document.getElementById('btn-fail-sim');
     const successBtn = document.getElementById('btn-success-sim');
+    let confirming = false;
 
-    // Populate amount
-    const formattedAmount = Number(totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    if (amountEl) amountEl.innerHTML = `&#8369;${formattedAmount}`;
-
-    // Reset status
-    if (statusBanner) statusBanner.className = 'sim-status-banner is-waiting';
-    if (statusText) statusText.textContent = 'Waiting for simulated scan...';
-
+    if (amountEl) amountEl.innerHTML = `${APP_CONSTANTS.UI.CURRENCY_SYMBOL_HTML}${Number(totalAmount).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    statusBanner.hidden = true;
+    statusText.textContent = '';
     alertEl?.classList.add('is-hidden');
+    successBtn.disabled = false;
+    successBtn.classList.remove('btn--loading');
+    closeBtn.disabled = false;
     modal.classList.remove('is-hidden');
 
-    const closeModal = () => {
+    closeBtn.onclick = async () => {
+        if (confirming) return;
         modal.classList.add('is-hidden');
+        await onSuccessCallback();
+        RealtimeManager.showToast(`Order ${orderNo} saved as Pending Payment. Complete payment from Order History.`, 'info');
     };
 
-    closeBtn?.addEventListener('click', () => {
-        closeModal();
-        RealtimeManager.showToast(`Order ${orderNo} saved as Pending Payment. You can track or complete it anytime in Order History.`, 'info');
-    }, { once: true });
-
-    // Simulate Payment Failure / Decline
-    failBtn?.addEventListener('click', async () => {
-        failBtn.disabled = true;
+    successBtn.onclick = async () => {
+        if (confirming) return;
+        confirming = true;
         successBtn.disabled = true;
-        if (statusBanner) statusBanner.className = 'sim-status-banner is-processing';
-        if (statusText) statusText.textContent = 'Simulating scan decline in banking app...';
-
-        try {
-            await ApiClient.simulatePayment({
-                orderNumber: orderNo,
-                paymentChannel: APP_CONSTANTS.PAYMENT_CHANNELS?.QRPH || 'QRPH',
-                outcome: 'FAILED'
-            });
-
-            if (statusBanner) statusBanner.className = 'sim-status-banner is-declined';
-            if (statusText) statusText.textContent = 'Payment Declined: Transaction cancelled or timed out.';
-
-            if (alertEl && alertMsg) {
-                alertEl.className = 'modal-alert modal-alert--danger';
-                alertMsg.textContent = `Simulation: QR Ph payment was declined. Order ${orderNo} remains in Pending Payment status.`;
-                alertEl.classList.remove('is-hidden');
-            }
-        } catch (err) {
-            if (alertEl && alertMsg) {
-                alertEl.className = 'modal-alert modal-alert--danger';
-                alertMsg.textContent = err.message || 'Payment simulation failed.';
-                alertEl.classList.remove('is-hidden');
-            }
-        } finally {
-            failBtn.disabled = false;
-            successBtn.disabled = false;
-        }
-    });
-
-    // Simulate Customer Scan & Successful Payment
-    successBtn?.addEventListener('click', async () => {
-        successBtn.disabled = true;
-        failBtn.disabled = true;
+        closeBtn.disabled = true;
         successBtn.classList.add('btn--loading');
-
+        alertEl?.classList.add('is-hidden');
+        statusBanner.hidden = false;
+        statusBanner.className = 'sim-status-banner is-processing';
+        statusText.textContent = 'Confirming payment...';
         try {
-            if (statusBanner) statusBanner.className = 'sim-status-banner is-processing';
-            if (statusText) statusText.textContent = 'Simulating scan and payment verification...';
-
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Send simulation request to C# backend
-            await ApiClient.simulatePayment({
+            const payment = await ApiClient.simulatePayment({
                 orderNumber: orderNo,
-                paymentChannel: APP_CONSTANTS.PAYMENT_CHANNELS?.QRPH || 'QRPH',
+                paymentChannel: APP_CONSTANTS.PAYMENT_CHANNELS.QRPH,
                 outcome: 'SUCCESS'
             });
-
-            if (statusBanner) statusBanner.className = 'sim-status-banner is-success';
-            if (statusText) statusText.textContent = 'Payment Approved! Inventory reserved & order confirmed.';
-
-            setTimeout(() => {
-                closeModal();
-                onSuccessCallback();
-            }, 700);
-        } catch (err) {
+            if (payment?.paymentStatus !== APP_CONSTANTS.PAYMENT_STATUS.COMPLETED) {
+                throw new Error('Payment has not been confirmed. Please try again.');
+            }
+            statusBanner.className = 'sim-status-banner is-success';
+            statusText.textContent = 'Payment successful.';
+            await onSuccessCallback(payment);
+            modal.classList.add('is-hidden');
+        } catch (error) {
             if (alertEl && alertMsg) {
-                alertEl.className = 'modal-alert modal-alert--danger';
-                alertMsg.textContent = err.message || 'Unable to confirm payment simulation.';
+                alertMsg.textContent = error.message || 'Unable to confirm payment. Please try again.';
                 alertEl.classList.remove('is-hidden');
             }
-            if (statusBanner) statusBanner.className = 'sim-status-banner is-declined';
-            if (statusText) statusText.textContent = 'Payment simulation encountered an error.';
+            statusBanner.hidden = true;
             successBtn.disabled = false;
-            failBtn.disabled = false;
             successBtn.classList.remove('btn--loading');
+            confirming = false;
+        } finally {
+            closeBtn.disabled = false;
         }
-    });
+    };
 }
 
 // Adapt UI when checking out a single Buy Now item directly

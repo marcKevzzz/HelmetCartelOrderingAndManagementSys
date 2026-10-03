@@ -167,4 +167,160 @@ document.addEventListener('DOMContentLoaded', function () {
       console.warn('Dashboard brand chart init error:', e);
     }
   }
+
+  // 3. Recent Activity Feed - Dynamic Load More & Role Badge
+  const btnLoadMore = document.getElementById('btnLoadMoreActivities');
+  const activityList = document.querySelector('.admin-activity-list');
+  if (btnLoadMore && activityList) {
+    let currentOffset = activityList.querySelectorAll('.admin-activity-item').length;
+    const pageSize = 8;
+
+    const escapeHtml = (text) => {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    };
+
+    const formatDetail = (detail) => {
+      if (!detail) return '';
+      return escapeHtml(detail)
+        .replace(/PHP /g, '&#8369;')
+        .replace(/â€¢/g, '&bull;')
+        .replace(/•/g, '&bull;')
+        .replace(/&amp;bull;/g, '&bull;');
+    };
+
+    const formatTime = (dateStr) => {
+      if (!dateStr) return '';
+      try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '';
+        const now = new Date();
+        const diffMs = Math.max(0, now.getTime() - d.getTime());
+        const diffSec = Math.floor(diffMs / 1000);
+        const diffMin = Math.floor(diffSec / 60);
+        const diffHour = Math.floor(diffMin / 60);
+        const diffDay = Math.floor(diffHour / 24);
+
+        let relative = 'just now';
+        if (diffMin >= 1 && diffMin < 60) {
+          relative = `${diffMin}m ago`;
+        } else if (diffHour >= 1 && diffHour < 24) {
+          relative = `${diffHour}h ago`;
+        } else if (diffDay >= 1) {
+          relative = `${diffDay}d ago`;
+        }
+
+        const dateFormatted = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const timeFormatted = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        return `${relative} &middot; ${dateFormatted}, ${timeFormatted}`;
+      } catch (_) {
+        return '';
+      }
+    };
+
+    const getActivityIconMarkup = (type) => {
+      type = (type || '').toLowerCase();
+      if (type.includes('stock') || type.includes('inventory')) {
+        return '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>' +
+               '<polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>' +
+               '<line x1="12" y1="22.08" x2="12" y2="12"></line>';
+      }
+      if (type.includes('order')) {
+        return '<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>' +
+               '<line x1="3" y1="6" x2="21" y2="6"></line>' +
+               '<path d="M16 10a4 4 0 0 1-8 0"></path>';
+      }
+      return '<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>' +
+             '<polyline points="2 17 12 22 22 17"></polyline>' +
+             '<polyline points="2 12 12 17 22 12"></polyline>';
+    };
+
+    btnLoadMore.addEventListener('click', async function () {
+      if (btnLoadMore.disabled) return;
+      btnLoadMore.disabled = true;
+      const originalText = btnLoadMore.innerHTML;
+      btnLoadMore.innerHTML = `
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="admin-spin-icon">
+          <line x1="12" y1="2" x2="12" y2="6"></line>
+          <line x1="12" y1="18" x2="12" y2="22"></line>
+          <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+          <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+          <line x1="2" y1="12" x2="6" y2="12"></line>
+          <line x1="18" y1="12" x2="22" y2="12"></line>
+          <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+          <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+        </svg>
+        <span>Loading activities...</span>
+      `;
+
+      try {
+        const response = await fetch(`/api/v1/admin/dashboard/activity?limit=${pageSize}&offset=${currentOffset}`);
+        if (!response.ok) {
+          throw new Error('Failed to load activities');
+        }
+        const json = await response.json();
+        const items = json?.data || json?.Data || [];
+
+        if (!Array.isArray(items) || items.length === 0) {
+          btnLoadMore.innerHTML = '<span>No More Activities</span>';
+          btnLoadMore.disabled = true;
+          return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        items.forEach(item => {
+          const li = document.createElement('li');
+          li.className = 'admin-activity-item';
+          const roleClass = (item.actorRole || 'customer').toLowerCase();
+          const roleLabel = item.actorRole || 'Customer';
+
+          li.innerHTML = `
+            <div class="admin-activity-rail" aria-hidden="true">
+              <span class="admin-activity-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  ${getActivityIconMarkup(item.activityType)}
+                </svg>
+              </span>
+            </div>
+            <div class="admin-activity-content">
+              <div class="admin-activity-heading">
+                <div class="admin-activity-heading-left">
+                  <span class="admin-activity-actor">${escapeHtml(item.actor)}</span>
+                  <span class="admin-activity-role-badge admin-activity-role-badge--${roleClass}">${escapeHtml(roleLabel)}</span>
+                  <span class="admin-activity-type">${escapeHtml(item.activityType)}</span>
+                </div>
+                <span class="admin-activity-time">${formatTime(item.createdAt)}</span>
+              </div>
+              <div class="admin-activity-detail-card">
+                <span class="admin-activity-ref">${escapeHtml(item.reference)}</span>
+                <span class="admin-activity-detail">${formatDetail(item.detail)}</span>
+              </div>
+            </div>
+          `;
+          fragment.appendChild(li);
+        });
+
+        activityList.appendChild(fragment);
+        currentOffset += items.length;
+
+        if (items.length < pageSize) {
+          btnLoadMore.innerHTML = '<span>No More Activities</span>';
+          btnLoadMore.disabled = true;
+        } else {
+          btnLoadMore.innerHTML = originalText;
+          btnLoadMore.disabled = false;
+        }
+      } catch (err) {
+        console.error('Error loading more activities:', err);
+        btnLoadMore.innerHTML = originalText;
+        btnLoadMore.disabled = false;
+        if (window.showAdminToast) {
+          window.showAdminToast('Could not load more activities. Please try again.', 'error');
+        }
+      }
+    });
+  }
 });
+

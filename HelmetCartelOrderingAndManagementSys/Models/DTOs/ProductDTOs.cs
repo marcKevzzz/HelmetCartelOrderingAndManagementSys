@@ -10,7 +10,6 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string Slug { get; set; }
         public string Brand { get; set; }
         public string Category { get; set; }
-        public string RidingStyle { get; set; }
         public decimal BasePrice { get; set; }
         public int DiscountPercentage { get; set; }
         public decimal CalculatedEffectivePrice { get; set; }
@@ -61,7 +60,8 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public int OrderCount { get; set; }
         public string MainImageUrl { get; set; }
         public string Description { get; set; }
-        public bool IsFeatured { get; set; }
+        public string PublicationStatus { get; set; } = "Published";
+        public int UnitsSold { get; set; }
         public List<ProductVariantDto> Variants { get; set; } = new List<ProductVariantDto>();
         public List<ProductGalleryImageDto> GalleryImages { get; set; } = new List<ProductGalleryImageDto>();
     }
@@ -110,7 +110,6 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public int? BrandId { get; set; }
         public string Brand { get; set; }
         public string Category { get; set; }
-        public string RidingStyle { get; set; }
         public string Search { get; set; }
         public bool OnSale { get; set; }
         public decimal? MinPrice { get; set; }

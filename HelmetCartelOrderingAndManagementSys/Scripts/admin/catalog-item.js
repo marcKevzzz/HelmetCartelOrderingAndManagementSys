@@ -59,6 +59,7 @@
     cacheDomElements();
     initExistingData();
     bindPillToggles();
+    bindPublicationActiveToggle();
     bindColorShadeSystem();
     bindSpecificationsEvents();
     bindPricingLivePreview();
@@ -73,9 +74,10 @@
 
     // Toast feedback if redirected after saving draft
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('msg') === 'draft_saved') {
+    const msg = urlParams.get('msg');
+    if (msg === 'draft_saved' || msg === 'unpublished_saved') {
       if (typeof window.showAdminToast === 'function') {
-        window.showAdminToast('Draft saved successfully. All inputs are saved.', 'success', 'Draft Saved');
+        window.showAdminToast('Draft helmet model saved successfully.', 'success', 'Saved');
       }
     }
   }
@@ -100,7 +102,6 @@
       txtProductName: document.getElementById('txtProductName'),
       txtSlug: document.getElementById('txtSlug'),
       txtDescription: document.getElementById('txtDescription'),
-      chkIsFeatured: document.getElementById('chkIsFeatured'),
 
       // Tab 2 Elements
       specShellMaterial: document.getElementById('spec_shell_material'),
@@ -152,6 +153,9 @@
       btnDiscard: document.getElementById('btnDiscard'),
       btnSaveDraft: document.getElementById('btnSaveDraft'),
       btnPublish: document.getElementById('btnPublish'),
+      itemActiveToggle: document.getElementById('itemActiveToggle'),
+      btnStatusActive: document.getElementById('btnStatusActive'),
+      btnStatusInactive: document.getElementById('btnStatusInactive'),
 
       // Quick Modals & Unsaved Changes Confirmation Modal
       modalQuickBrand: document.getElementById('modalQuickBrand'),
@@ -183,6 +187,7 @@
               addCustomSpecRow(s.DisplayName || s.displayName || key, val, key);
             }
           });
+          serializeSpecifications();
         }
       } catch (e) {
         console.warn('Could not parse specifications:', e);
@@ -228,7 +233,8 @@
               price: itemPrice,
               priceAdjustment: adj,
               initialStock: v.CurrentStock || v.currentStock || v.initialStock || 0,
-              reorderPoint: v.ReorderPoint || v.reorderPoint || 3
+              reorderPoint: v.ReorderPoint || v.reorderPoint || 3,
+              isActive: (v.IsActive !== false && v.isActive !== false)
             };
           });
           const existingSizes = new Set(variants.map((v) => v.size));
@@ -282,7 +288,6 @@
     if (dom.txtProductName) dom.txtProductName.value = '';
     if (dom.txtSlug) dom.txtSlug.value = '';
     if (dom.txtDescription) dom.txtDescription.value = '';
-    if (dom.chkIsFeatured) dom.chkIsFeatured.checked = false;
     if (dom.ddlBrand) dom.ddlBrand.selectedIndex = 0;
     if (dom.ddlCategory) dom.ddlCategory.selectedIndex = 0;
 
@@ -341,9 +346,11 @@
     const badge = document.getElementById('badgePublishStatus');
     if (!badge) return;
 
+    const isActive = dom.hdnIsActive && dom.hdnIsActive.value === '1';
+
     if (overrideState === 'published') {
       badge.className = 'admin-item-status-pill is-published';
-      badge.textContent = 'PUBLISHED';
+      badge.textContent = isActive ? 'PUBLISHED' : 'PUBLISHED (Inactive)';
       return;
     }
     if (overrideState === 'saved') {
@@ -358,11 +365,13 @@
     }
 
     const pid = dom.hdnProductId ? parseInt(dom.hdnProductId.value, 10) : 0;
-    const isActive = dom.hdnIsActive && dom.hdnIsActive.value === '1';
+    const isDraftItem = (window.isCatalogItemDraft !== undefined)
+      ? window.isCatalogItemDraft
+      : (pid === 0 || !dom.btnStatusActive);
 
-    if (isActive) {
+    if (!isDraftItem) {
       badge.className = 'admin-item-status-pill is-published';
-      badge.textContent = 'PUBLISHED';
+      badge.textContent = isActive ? 'PUBLISHED' : 'PUBLISHED (Inactive)';
     } else if (pid > 0 && !isDirty) {
       badge.className = 'admin-item-status-pill is-draft';
       badge.textContent = 'DRAFT (Saved)';
@@ -370,6 +379,26 @@
       badge.className = 'admin-item-status-pill is-draft';
       badge.textContent = 'DRAFT (Not Saved)';
     }
+  }
+
+  function bindPublicationActiveToggle() {
+    if (!dom.btnStatusActive || !dom.btnStatusInactive) return;
+
+    dom.btnStatusActive.addEventListener('click', () => {
+      dom.btnStatusActive.classList.add('is-active');
+      dom.btnStatusInactive.classList.remove('is-active');
+      if (dom.hdnIsActive) dom.hdnIsActive.value = '1';
+      isDirty = true;
+      updateStatusBadge('published');
+    });
+
+    dom.btnStatusInactive.addEventListener('click', () => {
+      dom.btnStatusInactive.classList.add('is-active');
+      dom.btnStatusActive.classList.remove('is-active');
+      if (dom.hdnIsActive) dom.hdnIsActive.value = '0';
+      isDirty = true;
+      updateStatusBadge('published');
+    });
   }
 
   /* ==========================================================================
@@ -388,11 +417,18 @@
       el.addEventListener('change', markDirty);
     });
 
-    let pendingLeaveUrl = '/Admin/Catalog.aspx';
+    let pendingLeaveUrl = '/Pages/Admin/Catalog/Catalog.aspx';
+
+    const getCatalogUrl = () => {
+      if (document.referrer && document.referrer.includes('/Catalog/Catalog.aspx')) {
+        return document.referrer;
+      }
+      return '/Pages/Admin/Catalog/Catalog.aspx' + (window.isCatalogItemDraft ? '?tab=drafts' : '');
+    };
 
     const attemptLeavePage = (targetUrl, e) => {
       if (e && e.preventDefault) e.preventDefault();
-      pendingLeaveUrl = targetUrl || '/Admin/Catalog.aspx';
+      pendingLeaveUrl = targetUrl || getCatalogUrl();
       if (isDirty) {
         if (dom.modalUnsavedChanges) dom.modalUnsavedChanges.classList.remove('is-hidden');
       } else {
@@ -402,15 +438,16 @@
 
     if (dom.btnBackToCatalog) {
       dom.btnBackToCatalog.addEventListener('click', (e) => {
-        const fallbackUrl = (document.referrer && document.referrer.includes('/Admin/') && !document.referrer.includes('/Admin/CatalogItem.aspx'))
-          ? document.referrer
-          : '/Admin/Catalog.aspx';
-        attemptLeavePage(fallbackUrl, e);
+        if (e && e.preventDefault) e.preventDefault();
+        window.location.href = getCatalogUrl();
       });
     }
 
     if (dom.btnDiscard) {
-      dom.btnDiscard.addEventListener('click', (e) => attemptLeavePage('/Admin/Catalog.aspx', e));
+      dom.btnDiscard.addEventListener('click', (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        window.location.href = getCatalogUrl();
+      });
     }
 
     // Intercept sidebar navigation links and topbar links if changes are unsaved
@@ -438,17 +475,15 @@
     if (dom.btnDiscardAndLeave) {
       dom.btnDiscardAndLeave.addEventListener('click', () => {
         isDirty = false;
-        window.location.href = pendingLeaveUrl;
+        window.location.href = pendingLeaveUrl || '/Pages/Admin/Catalog/Catalog.aspx';
       });
     }
     if (dom.btnModalSaveDraft) {
       dom.btnModalSaveDraft.addEventListener('click', (e) => {
         if (dom.modalUnsavedChanges) dom.modalUnsavedChanges.classList.add('is-hidden');
         isDirty = false;
-        if (dom.hdnRedirectAfterSave) dom.hdnRedirectAfterSave.value = pendingLeaveUrl;
-        if (handleFormSubmit(e, true)) {
-          if (dom.btnSaveDraft) dom.btnSaveDraft.click();
-        }
+        if (dom.hdnRedirectAfterSave) dom.hdnRedirectAfterSave.value = pendingLeaveUrl || '/Pages/Admin/Catalog/Catalog.aspx';
+        window.triggerDraftSubmit();
       });
     }
 
@@ -767,7 +802,8 @@
             price: currentBase,
             priceAdjustment: 0.00,
             initialStock: 0,
-            reorderPoint: 3
+            reorderPoint: 3,
+            isActive: true
           });
         }
       });
@@ -845,6 +881,11 @@
         isDirty = true;
       });
 
+
+      if (!isVarActive) {
+        pill.classList.add('is-inactive');
+      }
+
       pill.appendChild(swatch);
       pill.appendChild(label);
       pill.appendChild(sizeBadge);
@@ -865,7 +906,7 @@
     if (variants.length === 0) {
       tbody.innerHTML = `
         <tr id="rowEmptyPricingMatrix">
-          <td colspan="5" class="admin-empty-cell-msg">
+          <td colspan="6" class="admin-empty-cell-msg">
             Configure colors and sizes in the Variants step to generate pricing matrix.
           </td>
         </tr>`;
@@ -880,6 +921,10 @@
       }
 
       const tr = document.createElement('tr');
+      const isVarActive = v.isActive !== false;
+      if (!isVarActive) {
+        tr.classList.add('is-row-inactive');
+      }
 
       // Variant (Color & Size)
       const tdVariant = document.createElement('td');
@@ -902,7 +947,6 @@
       inputPrice.className = 'admin-form-input admin-matrix-input admin-matrix-input--price';
       inputPrice.value = (v.price || 0) > 0 ? v.price : '';
       inputPrice.placeholder = '0.00';
-      inputPrice.style.width = '110px';
       inputPrice.addEventListener('input', () => {
         v.price = parseFloat(inputPrice.value) || 0;
         syncBasePriceFromVariants();
@@ -944,11 +988,31 @@
       });
       tdReorder.appendChild(inputReorder);
 
+      // Status Toggle (Single Click)
+      const tdStatus = document.createElement('td');
+      const btnStatus = document.createElement('button');
+      btnStatus.type = 'button';
+      btnStatus.className = `admin-variant-status-btn ${isVarActive ? 'is-active' : 'is-inactive'}`;
+      btnStatus.innerHTML = isVarActive
+        ? '<span>Active</span>'
+        : '<span>Inactive</span>';
+      btnStatus.title = isVarActive ? 'Click to deactivate variant' : 'Click to activate variant';
+      btnStatus.addEventListener('click', () => {
+        v.isActive = !isVarActive;
+        isDirty = true;
+        serializeVariants();
+        renderPricingMatrix();
+        renderVariantMatrix();
+        updateReviewSummary();
+      });
+      tdStatus.appendChild(btnStatus);
+
       tr.appendChild(tdVariant);
       tr.appendChild(tdSku);
       tr.appendChild(tdPrice);
       tr.appendChild(tdStock);
       tr.appendChild(tdReorder);
+      tr.appendChild(tdStatus);
 
       tbody.appendChild(tr);
     });
@@ -958,7 +1022,9 @@
 
   function syncBasePriceFromVariants() {
     if (!variants || variants.length === 0) return;
-    const validPrices = variants.map(v => v.price || 0).filter(p => p > 0);
+    const activeVariants = variants.filter(v => v.isActive !== false);
+    const candidateVariants = activeVariants.length > 0 ? activeVariants : variants;
+    const validPrices = candidateVariants.map(v => v.price || 0).filter(p => p > 0);
     if (validPrices.length > 0) {
       const minPrice = Math.min(...validPrices);
       if (dom.txtBasePrice) {
@@ -991,10 +1057,12 @@
     }
 
     document.querySelectorAll('.spec-field').forEach((input) => {
-      input.addEventListener('input', () => {
+      const handler = () => {
         serializeSpecifications();
         isDirty = true;
-      });
+      };
+      input.addEventListener('input', handler);
+      input.addEventListener('change', handler);
     });
   }
 
@@ -1004,6 +1072,9 @@
 
     const row = document.createElement('div');
     row.className = 'admin-custom-spec-row';
+    if (key) {
+      row.setAttribute('data-spec-key', key);
+    }
 
     const inputName = document.createElement('input');
     inputName.type = 'text';
@@ -1032,7 +1103,10 @@
       serializeSpecifications();
       isDirty = true;
     };
-    inputName.addEventListener('input', updateHandler);
+    inputName.addEventListener('input', () => {
+      row.removeAttribute('data-spec-key');
+      updateHandler();
+    });
     inputValue.addEventListener('input', updateHandler);
 
     inputName.addEventListener('blur', () => {
@@ -1071,10 +1145,15 @@
     document.querySelectorAll('.spec-field').forEach((input) => {
       const v = input.value.trim();
       if (v) {
+        const specKey = input.getAttribute('data-spec-key') || (input.dataset ? input.dataset.specKey : null) || '';
+        const displayName = input.getAttribute('data-display-name') || (input.dataset ? input.dataset.displayName : null) || specKey;
         list.push({
-          key: input.dataset.specKey,
-          name: input.dataset.displayName,
-          value: v
+          key: specKey,
+          SpecificationKey: specKey,
+          name: displayName,
+          DisplayName: displayName,
+          value: v,
+          SpecificationValue: v
         });
       }
     });
@@ -1085,10 +1164,14 @@
       const n = nInput ? nInput.value.trim() : '';
       const v = vInput ? vInput.value.trim() : '';
       if (n && v) {
+        const specKey = row.getAttribute('data-spec-key') || generateSlug(n).replace(/-/g, '_') || 'custom_spec';
         list.push({
-          key: generateSlug(n).replace(/-/g, '_'),
+          key: specKey,
+          SpecificationKey: specKey,
           name: n,
-          value: v
+          DisplayName: n,
+          value: v,
+          SpecificationValue: v
         });
       }
     });
@@ -1969,6 +2052,27 @@
     return true;
   }
 
+  window.triggerDraftSubmit = function () {
+    if (!handleFormSubmit(null, true)) return;
+    isDirty = false;
+    const target = dom.btnSaveDraft;
+    if (typeof __doPostBack === 'function' && target) {
+      __doPostBack(target.id, '');
+    } else if (target) {
+      target.click();
+    }
+  };
+
+  window.triggerPublishSubmit = function () {
+    if (!handleFormSubmit(null, false)) return;
+    isDirty = false;
+    if (typeof __doPostBack === 'function' && dom.btnPublish) {
+      __doPostBack(dom.btnPublish.id, '');
+    } else if (dom.btnPublish) {
+      dom.btnPublish.click();
+    }
+  };
+
   /* ==========================================================================
      11. WIZARD STEP NAVIGATION & TAB SWITCHING
      ========================================================================== */
@@ -1984,6 +2088,9 @@
         }
       }
     }
+
+    // Re-serialize specifications whenever moving steps
+    serializeSpecifications();
 
     // Switch active buttons
     document.querySelectorAll('.admin-wizard-tab-btn').forEach((btn) => {
@@ -2132,14 +2239,22 @@
 
     // Summary Counts
     let totalStock = 0;
-    variants.forEach((v) => { totalStock += (v.initialStock || 0); });
+    let activeVariantsCount = 0;
+    variants.forEach((v) => { 
+      totalStock += (v.initialStock || 0); 
+      if (v.isActive !== false) activeVariantsCount++;
+    });
 
     const elVariantsCount = document.getElementById('reviewSummaryVariantsCount');
     const elStockTotal = document.getElementById('reviewSummaryStockTotal');
     const elSpecsCount = document.getElementById('reviewSummarySpecsCount');
     const elImagesCount = document.getElementById('reviewSummaryImagesCount');
 
-    if (elVariantsCount) elVariantsCount.textContent = `${variants.length} SKUs`;
+    if (elVariantsCount) {
+      elVariantsCount.textContent = variants.length === activeVariantsCount 
+        ? `${variants.length} SKUs` 
+        : `${activeVariantsCount}/${variants.length} Active SKUs`;
+    }
     if (elStockTotal) elStockTotal.textContent = `${totalStock.toLocaleString()} Units`;
 
     let specsCount = 0;

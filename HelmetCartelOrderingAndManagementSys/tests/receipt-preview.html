@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Receipt layout verification</title><link rel="stylesheet" href="../Content/css/variables.css"><link rel="stylesheet" href="../Content/css/reset.css"><link rel="stylesheet" href="../Content/css/receipts.css"></head><body>
+<h1>Receipt layout verification</h1><nav aria-label="Receipt scenarios"><button id="paid">Paid receipt</button><button id="pending">Unpaid receipt</button><button id="long">Long receipt</button><button id="print">Print receipt</button></nav><main id="receipt"></main>
+<script type="module">
+import {renderReceipt, printReceipt} from '../Scripts/receipt.js';
+const item = {productName:'Full-face helmet with long model description', sku:'HC-HELMET-RED-XL',color:'Red and black',size:'XL',quantity:2,unitPrice:2490,totalPrice:4980};
+const order = {orderNumber:'HC-RECEIPT-PREVIEW',createdAt:'2026-10-03T03:30:00',customerName:'Academic demo customer',customerEmail:'demo@example.invalid',customerPhone:'Unavailable',status:'Processing',paymentStatus:'Completed',paymentMethod:'HitPay',gatewayReference:'SIM-QRPH-PREVIEW',shippingMethod:'Delivery',shippingAddress:'Sample delivery address',shippingCity:'Quezon City',shippingProvince:'Metro Manila',subtotal:4980,discountAmount:498,voucherCode:'DEMO10',shippingFee:150,totalAmount:4632,items:[item]};
+const doc=document.getElementById('receipt');
+const show = value => { doc.innerHTML=renderReceipt(value); };
+document.getElementById('paid').addEventListener('click',()=>show(order));
+document.getElementById('pending').addEventListener('click',()=>show({...order,paymentStatus:'Pending',gatewayReference:null,paymentMethod:'CashOnDelivery'}));
+document.getElementById('long').addEventListener('click',()=>show({...order,subtotal:199200,discountAmount:19920,totalAmount:179430,items:Array.from({length:40},(_,i)=>({...item,productName:`${i+1}. ${item.productName}`}))}));
+document.getElementById('print').addEventListener('click',()=>printReceipt(doc));
+show(order);
+</script></body></html>

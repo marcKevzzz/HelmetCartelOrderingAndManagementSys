@@ -129,6 +129,17 @@ export const SiteController = {
     AuthPromptModal.init();
     CartManager.updateCartBadge();
     FavoritesManager.updateFavoritesBadge();
+
+    // Check for pending login toast notification feedback
+    try {
+      const pendingToast = sessionStorage.getItem('hc_login_toast');
+      if (pendingToast) {
+        sessionStorage.removeItem('hc_login_toast');
+        setTimeout(() => {
+          RealtimeManager.showToast(pendingToast, 'success');
+        }, 350);
+      }
+    } catch (_) {}
   },
 
   /* ==========================================================================

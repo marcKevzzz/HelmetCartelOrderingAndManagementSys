@@ -9,22 +9,32 @@
         <header class="admin-item-sticky-header">
             <div class="admin-item-header-left">
                 <div class="admin-item-title-wrap">
-                    <button type="button" class="admin-back-btn" id="btnBackToCatalog" title="Back to Catalog" aria-label="Back to Catalog">
+                    <a href="/Pages/Admin/Catalog/Catalog.aspx" class="admin-back-btn" id="btnBackToCatalog" title="Back to Catalog" aria-label="Back to Catalog">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="19" y1="12" x2="5" y2="12"></line>
                             <polyline points="12 19 5 12 12 5"></polyline>
                         </svg>
-                    </button>
+                    </a>
                     <div class="admin-page-title-col">
                         <h1 class="admin-page-title" id="txtHeaderTitle" runat="server">New Helmet Model</h1>
                         <span class="admin-item-status-pill <%= IsDraft ? "is-draft" : "is-published" %>" id="badgePublishStatus">
-                            <%= !IsDraft ? "PUBLISHED" : (ProductId > 0 ? "DRAFT (Saved)" : "DRAFT (Not Saved)") %>
+                            <%= !IsDraft ? (hdnIsActive.Value == "1" ? "PUBLISHED" : "PUBLISHED (Inactive)") : (ProductId > 0 ? "DRAFT (Saved)" : "DRAFT (Not Saved)") %>
                         </span>
                     </div>
                 </div>
             </div>
 
             <div class="admin-item-header-actions">
+                <% if (!IsDraft && ProductId > 0) { %>
+                <div class="admin-segmented-pill admin-status-toggle-pill" id="itemActiveToggle" role="group" aria-label="Product Active Status">
+                    <button type="button" class="admin-pill-segment <%= hdnIsActive.Value == "1" ? "is-active" : "" %>" data-status="1" id="btnStatusActive">
+                        <span>Active</span>
+                    </button>
+                    <button type="button" class="admin-pill-segment <%= hdnIsActive.Value == "0" ? "is-active" : "" %>" data-status="0" id="btnStatusInactive">
+                        <span>Inactive</span>
+                    </button>
+                </div>
+                <% } %>
                 <button type="button" class="btn-pill btn-pill--outline" id="btnDiscard">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="3 6 5 6 21 6"></polyline>
@@ -32,7 +42,6 @@
                     </svg>
                     <span>Discard Changes</span>
                 </button>
-                <% if (IsDraft) { %>
                 <asp:LinkButton ID="btnSaveDraft" runat="server" CssClass="btn-pill btn-pill--secondary" OnClick="btnSaveDraft_Click" ClientIDMode="Static">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
@@ -41,7 +50,6 @@
                     </svg>
                     <span>Save as Draft</span>
                 </asp:LinkButton>
-                <% } %>
                 <asp:LinkButton ID="btnPublish" runat="server" CssClass="btn-pill btn-pill--primary" OnClick="btnPublish_Click" ClientIDMode="Static">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"></polyline>
@@ -62,6 +70,9 @@
         <asp:HiddenField ID="hdnSpecificationsJson" runat="server" Value="[]" ClientIDMode="Static" />
         <asp:HiddenField ID="hdnGalleryJson" runat="server" Value="[]" ClientIDMode="Static" />
         <asp:HiddenField ID="hdnRedirectAfterSave" runat="server" Value="" ClientIDMode="Static" />
+        <script>
+            window.isCatalogItemDraft = <%= IsDraft ? "true" : "false" %>;
+        </script>
 
         <!-- Wizard Step Tab Navigation (6 Sequential Steps) -->
         <div class="admin-wizard-tabs" id="catalogWizardTabs" role="tablist">
@@ -141,10 +152,6 @@
                 <label class="admin-form-label" for="txtDescription">Full Product Description <span class="admin-required-star">*</span></label>
                 <asp:TextBox ID="txtDescription" runat="server" TextMode="MultiLine" Rows="3" CssClass="admin-form-textarea" placeholder="Full face composite helmet with Pinlock EVO, emergency quick release, optimal wind noise isolation..." ClientIDMode="Static"></asp:TextBox>
                 <span class="inline-error-msg" id="errDescription">Product description is required.</span>
-            </div>
-
-            <div class="is-hidden">
-                <asp:CheckBox ID="chkIsFeatured" runat="server" ClientIDMode="Static" />
             </div>
 
             <div class="admin-wizard-footer">
@@ -342,11 +349,12 @@
                                 <th>Price (&#8369;) <span class="admin-required-star">*</span></th>
                                 <th>Initial Stock</th>
                                 <th>Reorder Point</th>
+                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody id="tbodyPricingMatrix">
                             <tr id="rowEmptyPricingMatrix">
-                                <td colspan="5" class="admin-empty-cell-msg">
+                                <td colspan="6" class="admin-empty-cell-msg">
                                     Configure colors and sizes in the Variants step to generate pricing matrix.
                                 </td>
                             </tr>
@@ -525,8 +533,10 @@
             <div class="admin-wizard-footer">
                 <button type="button" class="btn-pill btn-pill--outline" onclick="switchWizardTab(5);">&larr; Back: Images &amp; Upload</button>
                 <div class="admin-actions-group">
+                    <% if (IsDraft) { %>
                     <button type="button" class="btn-pill btn-pill--secondary" onclick="document.getElementById('btnSaveDraft').click();">Save as Draft</button>
-                    <button type="button" class="btn-pill btn-pill--primary" onclick="document.getElementById('btnPublish').click();">Publish Helmet</button>
+                    <% } %>
+                    <button type="button" class="btn-pill btn-pill--primary" onclick="document.getElementById('btnPublish').click();"><%= (ProductId > 0 && !IsDraft) ? "Save Changes" : "Publish Helmet" %></button>
                 </div>
             </div>
         </div>
@@ -595,12 +605,12 @@
             </header>
             <div class="admin-quick-modal-body">
                 <p class="admin-modal-description">
-                    You have unsaved changes on this helmet model. Would you like to save your work as a draft before leaving?
+                    You have unsaved changes on this helmet model. Would you like to save your work before leaving?
                 </p>
             </div>
             <footer class="admin-quick-modal-footer">
                 <button type="button" class="btn-pill btn-pill--danger" id="btnDiscardAndLeave">Discard &amp; Leave</button>
-                <button type="button" class="btn-pill btn-pill--secondary" id="btnModalSaveDraft">Save as Draft</button>
+                <button type="button" class="btn-pill btn-pill--secondary" id="btnModalSaveDraft"><%= IsDraft ? "Save as Draft" : "Save Changes" %></button>
                 <button type="button" class="btn-pill btn-pill--outline" id="btnCancelLeave">Keep Editing</button>
             </footer>
         </div>

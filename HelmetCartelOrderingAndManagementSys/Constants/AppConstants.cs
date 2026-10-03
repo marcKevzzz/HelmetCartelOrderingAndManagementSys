@@ -161,6 +161,20 @@ namespace HelmetCartelOrderingAndManagementSys.Constants
             public const string LastName = "family_name";
         }
 
+        public static class Receipts
+        {
+            public const string Brand = "HELMET CARTEL";
+            public const string SimulationPrefix = "SIM-";
+        }
+
+        public static class Vouchers
+        {
+            public const string Percentage = "PERCENTAGE";
+            public const string FixedAmount = "FIXED_AMOUNT";
+            public const int FirstSqlError = 54001;
+            public const int LastSqlError = 54016;
+        }
+
         public static class ErrorCodes
         {
             public const string InsufficientStock = "INSUFFICIENT_STOCK";
@@ -170,6 +184,7 @@ namespace HelmetCartelOrderingAndManagementSys.Constants
             public const string InvalidPaymentSignature = "INVALID_PAYMENT_SIGNATURE";
             public const string UnauthorizedAccess = "UNAUTHORIZED_ACCESS";
             public const string ConcurrencyConflict = "CONCURRENCY_CONFLICT";
+            public const string InvalidVoucher = "INVALID_VOUCHER";
             public const string DatabaseError = "DATABASE_ERROR";
         }
     }

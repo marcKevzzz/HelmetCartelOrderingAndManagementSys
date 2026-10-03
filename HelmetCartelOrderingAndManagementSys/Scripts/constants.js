@@ -7,6 +7,9 @@ export const APP_CONSTANTS = Object.freeze({
   API_BASE_URL: '/api/v1',
 
   ENDPOINTS: {
+    VOUCHER_VALIDATE: '/api/v1/vouchers/validate',
+    ADMIN_VOUCHERS: '/api/v1/admin/vouchers',
+    ADMIN_VOUCHER: (id) => `/api/v1/admin/vouchers/${id}`,
     AUTH_LOGIN: '/api/v1/auth/login',
     AUTH_REGISTER: '/api/v1/auth/register',
     AUTH_LOGOUT: '/api/v1/auth/logout',
@@ -41,6 +44,10 @@ export const APP_CONSTANTS = Object.freeze({
     ADMIN_RETURNS: '/api/v1/admin/returns',
     ADMIN_RETURN_PROCESS: (id) => `/api/v1/admin/returns/${id}/process`
   },
+
+  VOUCHER_TYPES: { PERCENTAGE: 'PERCENTAGE', FIXED_AMOUNT: 'FIXED_AMOUNT' },
+  ERROR_CODES: { INVALID_VOUCHER: 'INVALID_VOUCHER' },
+  RECEIPTS: { BRAND: 'HELMET CARTEL', SIMULATION_PREFIX: 'SIM-' },
 
   ORDER_STATUS: {
     PENDING_PAYMENT: 'PendingPayment',
@@ -152,6 +159,12 @@ export const APP_CONSTANTS = Object.freeze({
     ADMIN_USERS: '/Pages/Admin/Users/Users.aspx',
     ADMIN_REVIEWS: '/Pages/Admin/Reviews/Reviews.aspx',
     ADMIN_RETURNS: '/Pages/Admin/Returns/Returns.aspx',
+    ADMIN_VOUCHERS: '/Pages/Admin/Vouchers/Vouchers.aspx',
     ADMIN_PAYMENTS: '/Pages/Admin/Payments/Payments.aspx'
   }
 });
+
+if (typeof window !== 'undefined') {
+  window.APP_CONSTANTS = APP_CONSTANTS;
+}
+

@@ -27,6 +27,8 @@
                 <div class="admin-filters-left">
                     <div class="admin-segmented-tabs">
                         <asp:LinkButton ID="btnTabAll" runat="server" CssClass="admin-tab-btn" CommandArgument="all" OnClick="FilterTab_Click">All</asp:LinkButton>
+                        <asp:LinkButton ID="btnTabActive" runat="server" CssClass="admin-tab-btn active" CommandArgument="active" OnClick="FilterTab_Click">Active</asp:LinkButton>
+                        <asp:LinkButton ID="btnTabInactive" runat="server" CssClass="admin-tab-btn" CommandArgument="inactive" OnClick="FilterTab_Click">Inactive</asp:LinkButton>
                         <asp:LinkButton ID="btnTabInStock" runat="server" CssClass="admin-tab-btn" CommandArgument="in_stock" OnClick="FilterTab_Click">In Stock</asp:LinkButton>
                         <asp:LinkButton ID="btnTabLowStock" runat="server" CssClass="admin-tab-btn" CommandArgument="low_stock" OnClick="FilterTab_Click">Low Stock</asp:LinkButton>
                         <asp:LinkButton ID="btnTabOutOfStock" runat="server" CssClass="admin-tab-btn" CommandArgument="out_of_stock" OnClick="FilterTab_Click">Out of Stock</asp:LinkButton>
@@ -75,21 +77,21 @@
                             <th>Stock</th>
                             <th>Price</th>
                             <th>SKU</th>
-                            <th>Status</th>
+                            <th>Stock Status</th>
                             <th class="admin-table-align-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <asp:Repeater ID="rptInventory" runat="server">
                             <ItemTemplate>
-                                <tr>
+                                <tr class='<%# Convert.ToBoolean(Eval("IsActive")) ? "" : "is-row-inactive" %>'>
                                     <td>
                                         <div class="admin-thumb-container">
                                             <img src='<%# ResolveImageUrl(Eval("MainImageUrl")) %>' 
                                                  alt='<%# Server.HtmlEncode(Convert.ToString(Eval("ProductName"))) %>' 
                                                  class="admin-thumb-img" 
                                                  loading="lazy" 
-                                                 onerror="this.src='/Content/images/products/helmets/agv/images.jpg';" />
+                                                 onerror="this.onerror=null;this.src='/Content/images/placeholder-helmet.png';" />
                                         </div>
                                     </td>
                                     <td class="admin-cell-main">
@@ -126,6 +128,13 @@
                                     </td>
                                     <td class="admin-table-align-right">
                                         <div class="admin-actions-cell admin-actions-cell--right">
+                                             <button type="button" 
+                                                class='<%# "admin-variant-status-btn js-toggle-inventory-active " + (Convert.ToBoolean(Eval("IsActive")) ? "is-active" : "is-inactive") %>'
+                                                data-variant-id='<%# Eval("VariantId") %>'
+                                                data-active='<%# Convert.ToBoolean(Eval("IsActive")) ? "true" : "false" %>'
+                                                title='<%# Convert.ToBoolean(Eval("IsActive")) ? "Click to deactivate variant" : "Click to activate variant" %>'>
+                                            <span class="status-text"><%# Convert.ToBoolean(Eval("IsActive")) ? "Active" : "Inactive" %></span>
+                                        </button>
                                             <button type="button" class="btn-pill-sm btn-pill--outline js-open-stock-modal"
                                                 data-variant-id='<%# Eval("VariantId") %>'
                                                 data-title='<%# System.Web.HttpUtility.HtmlAttributeEncode(string.Format("{0} - {1} ({2})", Eval("ProductName"), Eval("Color"), Eval("Size"))) %>'
@@ -136,6 +145,7 @@
                                                 </svg>
                                                 <span>Add Stock</span>
                                             </button>
+                                            
                                         </div>
                                     </td>
                                 </tr>

@@ -30,14 +30,28 @@ namespace HelmetCartelOrderingAndManagementSys.Infrastructure
                 return;
             }
 
+            string token = null;
             var header = context.Request.Headers.Authorization;
-            if (header == null || !string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase))
+            if (header != null && string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase))
+            {
+                token = header.Parameter;
+            }
+            else
+            {
+                var cookieHeader = System.Linq.Enumerable.FirstOrDefault(context.Request.Headers.GetCookies(AppConstants.JwtConfiguration.AuthCookieName));
+                if (cookieHeader != null)
+                {
+                    token = cookieHeader[AppConstants.JwtConfiguration.AuthCookieName]?.Value;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(token))
             {
                 context.Response = context.Request.CreateResponse(HttpStatusCode.Unauthorized);
                 return;
             }
 
-            var tokenUser = new JwtTokenProvider().ValidateToken(header.Parameter);
+            var tokenUser = new JwtTokenProvider().ValidateToken(token);
             if (tokenUser == null || tokenUser.Id <= 0 || string.IsNullOrWhiteSpace(tokenUser.Email))
             {
                 context.Response = context.Request.CreateResponse(HttpStatusCode.Unauthorized);

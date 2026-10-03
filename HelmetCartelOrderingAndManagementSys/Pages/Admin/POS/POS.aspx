@@ -1,7 +1,8 @@
 <%@ Page Title="POS Counter" Language="C#" MasterPageFile="~/Pages/Admin/Portal.master" %>
 
 <asp:Content ID="PosHead" ContentPlaceHolderID="HeadContent" runat="server">
-    <link rel="stylesheet" href="/Content/css/admin/pos.css?v=4" />
+    <link rel="stylesheet" href="/Content/css/admin/pos.css?v=5" />
+    <link rel="stylesheet" href="/Content/css/receipts.css?v=1" />
 </asp:Content>
 
 <asp:Content ID="PosMain" ContentPlaceHolderID="MainContent" runat="server">
@@ -80,10 +81,8 @@
 
     <div id="posReceiptModal" class="pos-receipt-backdrop" role="dialog" aria-modal="true" aria-labelledby="posReceiptTitle" hidden>
         <div class="pos-receipt">
-            <div class="pos-receipt-head"><h2 id="posReceiptTitle">Sale Complete</h2><span id="posReceiptNumber"></span></div>
-            <div id="posReceiptItems" class="pos-receipt-items"></div>
-            <div class="pos-receipt-total"><span>Total</span><strong id="posReceiptTotal"></strong></div>
-            <div id="posReceiptPayment" class="pos-receipt-payment"></div>
+            <h2 id="posReceiptTitle" class="pos-receipt-head">Sale Complete</h2>
+            <div id="posReceiptDoc"></div>
             <div class="pos-receipt-actions">
                 <button type="button" id="posPrintReceipt" class="btn-pill btn-pill--outline">Print Receipt</button>
                 <button type="button" id="posNewSale" class="btn-pill btn-pill--primary">New Sale</button>
@@ -92,5 +91,5 @@
     </div>
     <script src="/Scripts/vendor/jquery-3.7.1.min.js"></script>
     <script src="/Scripts/vendor/jquery.signalR-2.4.3.min.js"></script>
-    <script type="module" src="/Scripts/admin/pos.js?v=7"></script>
+    <script type="module" src="/Scripts/admin/pos.js?v=11"></script>
 </asp:Content>

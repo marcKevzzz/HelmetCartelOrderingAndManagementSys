@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$DryRun, [ValidateRange(18,31)][int]$StartMigration = 18, [ValidateRange(18,31)][int]$EndMigration = 24)
+param([switch]$DryRun, [ValidateRange(18,99)][int]$StartMigration = 18, [ValidateRange(18,99)][int]$EndMigration = 41)
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 [xml]$configuration = Get-Content (Join-Path $repositoryRoot 'HelmetCartelOrderingAndManagementSys/Web.config')
@@ -25,9 +25,10 @@ try {
     $transaction = $connection.BeginTransaction()
     try {
         foreach ($number in $StartMigration..$EndMigration) {
-            $file = @(Get-ChildItem (Join-Path (Split-Path $PSScriptRoot -Parent) 'schema') -Filter ('{0}_*.sql' -f $number))
-            if ($file.Count -ne 1) { throw "Expected one migration for $number." }
-            $sql = [IO.File]::ReadAllText($file[0].FullName)
+            $file = @(Get-ChildItem (Join-Path (Split-Path $PSScriptRoot -Parent) 'schema') -Filter ('{0}_*.sql' -f $number) | Sort-Object Name)
+            if ($file.Count -eq 0) { throw "No migration found for $number." }
+            foreach ($migrationFile in $file) {
+            $sql = [IO.File]::ReadAllText($migrationFile.FullName)
             foreach ($batch in [regex]::Split($sql, '(?im)^\s*GO\s*$')) {
                 if ([string]::IsNullOrWhiteSpace($batch)) { continue }
                 $command = $connection.CreateCommand()
@@ -36,7 +37,8 @@ try {
                 $command.CommandText = $batch
                 [void]$command.ExecuteNonQuery()
             }
-            Write-Output ('Validated: ' + $file[0].Name)
+            Write-Output ('Validated: ' + $migrationFile.Name)
+            }
         }
         if ($DryRun) { $transaction.Rollback(); Write-Output 'Dry run passed; all changes rolled back.' }
         else { $transaction.Commit(); Write-Output "Migrations $StartMigration through $EndMigration committed." }
