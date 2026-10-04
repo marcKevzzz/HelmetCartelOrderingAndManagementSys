@@ -99,8 +99,13 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public string PaymentStatus { get; set; }
         public string GatewayReference { get; set; }
         public int ItemCount { get; set; }
+        public int RmaCount { get; set; }
+        public string LatestRmaType { get; set; }
+        public string LatestRmaStatus { get; set; }
+        public string LatestRmaResolution { get; set; }
         public string PreviewImages { get; set; }
         public List<string> PreviewImageList { get; set; } = new List<string>();
+        public List<OrderItemSummaryDto> Items { get; set; } = new List<OrderItemSummaryDto>();
     }
 
     public class UserPaymentHistoryDto

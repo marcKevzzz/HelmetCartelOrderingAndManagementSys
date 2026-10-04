@@ -51,13 +51,18 @@ function validateField(key) {
       msg = 'Code must be 3–30 letters, numbers, or hyphens.';
     }
   } else if (key === 'value') {
-    const isPct = input('type').value === APP_CONSTANTS.VOUCHER_TYPES.PERCENTAGE;
-    if (!value || !Number.isFinite(num) || num <= 0 || num > 999999999999) {
-      msg = 'Enter a positive discount amount.';
-    } else if (isPct && num > 100) {
-      msg = 'Percentage discount cannot exceed 100%.';
-    } else if (!/^\d+(\.\d{1,2})?$/.test(value)) {
-      msg = 'Enter a valid amount with at most 2 decimal places.';
+    const isFreeShipping = input('type').value === APP_CONSTANTS.VOUCHER_TYPES.FREE_SHIPPING;
+    if (isFreeShipping) {
+      msg = '';
+    } else {
+      const isPct = input('type').value === APP_CONSTANTS.VOUCHER_TYPES.PERCENTAGE;
+      if (!value || !Number.isFinite(num) || num <= 0 || num > 999999999999) {
+        msg = 'Enter a positive discount amount.';
+      } else if (isPct && num > 100) {
+        msg = 'Percentage discount cannot exceed 100%.';
+      } else if (!/^\d+(\.\d{1,2})?$/.test(value)) {
+        msg = 'Enter a valid amount with at most 2 decimal places.';
+      }
     }
   } else if (key === 'minimum') {
     if (!value || !Number.isFinite(num) || num < 0 || !/^\d+(\.\d{1,2})?$/.test(value)) {
@@ -83,14 +88,27 @@ function validateField(key) {
 function updateLivePreview() {
   const code = (input('code')?.value || '').trim().toUpperCase() || 'CODE';
   const type = input('type')?.value || APP_CONSTANTS.VOUCHER_TYPES.PERCENTAGE;
+  const isFreeShipping = type === APP_CONSTANTS.VOUCHER_TYPES.FREE_SHIPPING;
   const rawVal = parseFloat(input('value')?.value);
   const minSpend = parseFloat(input('minimum')?.value) || 0;
   const expiryVal = input('expiry')?.value;
-  const isActive = byId('voucher-active')?.checked ?? true;
+  const isActive = byId('voucher-active')?.checked ?? (editingVoucher ? editingVoucher.isActive : true);
+
+  // Toggle discount value field hint for Free Shipping
+  const valHint = byId('voucher-value-hint');
+  const valInput = input('value');
+  if (isFreeShipping) {
+    if (valHint) valHint.textContent = 'Free Delivery: 100% of customer shipping fee is waived at checkout.';
+    if (valInput && (!valInput.value || Number(valInput.value) <= 0)) valInput.value = '0';
+  } else {
+    if (valHint) valHint.textContent = '';
+  }
 
   // 1. Discount Callout
   let discountStr = '0% OFF';
-  if (!isNaN(rawVal) && rawVal > 0) {
+  if (isFreeShipping) {
+    discountStr = 'FREE DELIVERY';
+  } else if (!isNaN(rawVal) && rawVal > 0) {
     if (type === APP_CONSTANTS.VOUCHER_TYPES.PERCENTAGE) {
       discountStr = `${rawVal}% OFF`;
     } else {
@@ -135,7 +153,9 @@ function updateLivePreview() {
   // 6. Update unit label beside discount value
   const unitAddon = byId('voucher-value-unit');
   if (unitAddon) {
-    unitAddon.textContent = type === APP_CONSTANTS.VOUCHER_TYPES.PERCENTAGE ? '%' : '₱';
+    unitAddon.textContent = type === APP_CONSTANTS.VOUCHER_TYPES.PERCENTAGE 
+      ? '%' 
+      : (type === APP_CONSTANTS.VOUCHER_TYPES.FREE_SHIPPING ? 'FREE' : '₱');
   }
 }
 
@@ -164,6 +184,9 @@ function openModal(voucher = null) {
   }
   input('expiry').value = local;
   input('expiry').dataset.original = local;
+
+  const activeCheck = byId('voucher-active');
+  if (activeCheck) activeCheck.checked = voucher ? !!voucher.isActive : true;
 
   fields.forEach((k) => setError(k, ''));
   updateLivePreview();
@@ -322,8 +345,11 @@ function renderTable() {
   }
 
   tbody.innerHTML = filtered.map((v) => {
+    const isFreeShipping = v.discountType === APP_CONSTANTS.VOUCHER_TYPES.FREE_SHIPPING;
     const isPct = v.discountType === APP_CONSTANTS.VOUCHER_TYPES.PERCENTAGE;
-    const discountText = isPct ? `${Number(v.discountValue)}% OFF` : `${currency(v.discountValue)} OFF`;
+    const discountText = isFreeShipping 
+      ? 'FREE DELIVERY'
+      : (isPct ? `${Number(v.discountValue)}% OFF` : `${currency(v.discountValue)} OFF`);
     const minSpendText = Number(v.minimumSpend) > 0 ? currency(v.minimumSpend) : '<span class="voucher-min-spend-none">No minimum</span>';
 
     // Usage Progress
@@ -419,8 +445,8 @@ function renderTable() {
           <div class="voucher-discount-lead">
             ${discountText}
           </div>
-          <span class="voucher-type-badge ${isPct ? 'voucher-type-badge--pct' : 'voucher-type-badge--fixed'}">
-            ${isPct ? 'Percentage' : 'Fixed Peso'}
+          <span class="voucher-type-badge ${isFreeShipping ? 'voucher-type-badge--free' : (isPct ? 'voucher-type-badge--pct' : 'voucher-type-badge--fixed')}">
+            ${isFreeShipping ? 'Free Delivery' : (isPct ? 'Percentage' : 'Fixed Peso')}
           </span>
         </td>
 
@@ -490,16 +516,17 @@ async function saveVoucher() {
   if (alert) alert.classList.add('is-hidden');
 
   const unchangedExpiry = input('expiry').value === input('expiry').dataset.original && editingVoucher?.expiresAt;
+  const isFreeShipping = input('type').value === APP_CONSTANTS.VOUCHER_TYPES.FREE_SHIPPING;
   const request = {
     code: input('code').value.trim().toUpperCase(),
     discountType: input('type').value,
-    discountValue: Number(input('value').value),
+    discountValue: isFreeShipping ? 0 : Number(input('value').value),
     minimumSpend: Number(input('minimum').value || 0),
     expiresAt: unchangedExpiry
       ? utcDate(editingVoucher.expiresAt).toISOString()
       : (input('expiry').value ? new Date(input('expiry').value).toISOString() : null),
     usageLimit: input('limit').value ? Number(input('limit').value) : null,
-    isActive: byId('voucher-active').checked
+    isActive: byId('voucher-active')?.checked ?? (editingVoucher ? editingVoucher.isActive : true)
   };
 
   isBusy = true;

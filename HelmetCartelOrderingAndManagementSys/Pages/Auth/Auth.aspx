@@ -115,7 +115,7 @@
                     <div class="auth-field-group">
                         <label for="signin-email" class="auth-field-label">Email Address</label>
                         <div class="auth-input-container">
-                            <input type="email" id="signin-email" class="auth-input" placeholder="rider@helmetcartel.com" required autocomplete="username" />
+                            <input type="email" id="signin-email" class="auth-input" placeholder="juan@example.com" required autocomplete="username" />
                         </div>
                         <span class="auth-error-msg" id="err-signin-email"></span>
                     </div>
@@ -176,7 +176,7 @@
                     <div class="auth-field-group">
                         <label for="signup-email" class="auth-field-label">Email Address</label>
                         <div class="auth-input-container">
-                            <input type="email" id="signup-email" class="auth-input" placeholder="juan@rider.com" required autocomplete="email" />
+                            <input type="email" id="signup-email" class="auth-input" placeholder="juan@example.com" required autocomplete="email" />
                         </div>
                         <span class="auth-error-msg" id="err-signup-email"></span>
                     </div>
@@ -184,7 +184,7 @@
                     <div class="auth-field-group">
                         <label for="signup-phone" class="auth-field-label">Mobile Phone Number *</label>
                         <div class="auth-input-container">
-                            <input type="tel" id="signup-phone" class="auth-input" placeholder="0917-123-4567" required autocomplete="tel" />
+                            <input type="tel" id="signup-phone" class="auth-input" placeholder="09171234567" required autocomplete="tel" />
                         </div>
                         <span class="auth-error-msg" id="err-signup-phone"></span>
                     </div>

@@ -213,6 +213,28 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                        "<path d=\"M16 10a4 4 0 0 1-8 0\"></path>";
             }
 
+            if (type.IndexOf("rma", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                type.IndexOf("return", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                type.IndexOf("exchange", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "<polyline points=\"1 4 1 10 7 10\"></polyline>" +
+                       "<polyline points=\"23 20 23 14 17 14\"></polyline>" +
+                       "<path d=\"M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15\"></path>";
+            }
+
+            if (type.IndexOf("review", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                type.IndexOf("rating", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "<polygon points=\"12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2\"></polygon>";
+            }
+
+            if (type.IndexOf("payment", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                type.IndexOf("refund", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "<rect x=\"1\" y=\"4\" width=\"22\" height=\"16\" rx=\"2\" ry=\"2\"></rect>" +
+                       "<line x1=\"1\" y1=\"10\" x2=\"23\" y2=\"10\"></line>";
+            }
+
             return "<polygon points=\"12 2 2 7 12 12 22 7 12 2\"></polygon>" +
                    "<polyline points=\"2 17 12 22 22 17\"></polyline>" +
                    "<polyline points=\"2 12 12 17 22 12\"></polyline>";

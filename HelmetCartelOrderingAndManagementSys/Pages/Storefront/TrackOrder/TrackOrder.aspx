@@ -50,6 +50,9 @@
         <div class="track-order-content" id="track-order-content" style="display: none;">
             <!-- Row A: Order Header Card -->
             <div class="track-header-card">
+                <!-- RMA / Refund / Exchange Alert Banner -->
+                <div id="track-rma-banner" class="track-rma-banner is-hidden"></div>
+
                 <div class="track-header-main">
                     <div class="track-header-info">
                         <h1 class="track-order-number" id="track-order-number">#HC-20261001-13FF96BAF0</h1>
@@ -136,7 +139,7 @@
                 <!-- Left: Gear Items List Card -->
                 <div class="track-gear-card">
                     <div class="track-gear-card__header">
-                        <h2 class="track-gear-card__title">PURCHASED GEAR DETAILS</h2>
+                        <h2 class="track-gear-card__title">PURCHASED ITEM DETAILS</h2>
                         <span class="track-gear-count" id="track-gear-count">(1 item)</span>
                     </div>
                     <div class="track-gear-items-list" id="track-gear-items-list">
@@ -176,8 +179,11 @@
                                 <polyline points="7 7 17 7 17 17"></polyline>
                             </svg>
                         </button>
+                        <button type="button" class="btn btn--outline btn--block btn--cancel-track-order is-hidden" id="btn-track-cancel-order" style="display: none;">
+                            <span>Cancel Order</span>
+                        </button>
                         <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx" CssClass="btn btn--outline btn--block">
-                            <span>Shop Additional Gear</span>
+                            <span>Shop More Products</span>
                         </asp:HyperLink>
                     </div>
                 </div>
@@ -224,7 +230,7 @@
             <div class="modal-header">
                 <div>
                     <h3 class="modal-title">Request Return / Exchange</h3>
-                    <p class="modal-subtitle">Submit a request to exchange or return your purchased gear.</p>
+                    <p class="modal-subtitle">Submit a request to exchange or return your purchased item.</p>
                 </div>
                 <button type="button" class="modal-close-btn" id="btn-close-customer-rma">&times;</button>
             </div>
@@ -254,7 +260,7 @@
                     <label for="customer-rma-reason" class="modal-field-label">Primary Reason:</label>
                     <select id="customer-rma-reason" class="modal-input">
                         <option value="WRONG_SIZE">Wrong Size / Fit Issue</option>
-                        <option value="DEFECTIVE">Defective or Damaged Gear</option>
+                        <option value="DEFECTIVE">Defective or Damaged Product</option>
                         <option value="NOT_AS_DESCRIBED">Item Not as Described</option>
                         <option value="CHANGED_MIND">Changed Mind / Unused</option>
                         <option value="OTHER">Other Reason</option>
@@ -279,6 +285,95 @@
         </div>
     </div>
 
+    <!-- Order Cancellation Confirmation Modal -->
+    <div id="track-cancel-modal" class="modal-backdrop review-modal-backdrop is-hidden" role="dialog" aria-modal="true">
+        <div class="modal-dialog review-modal-dialog">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title">Cancel Order</h3>
+                    <p class="modal-subtitle">Are you sure you want to cancel this order? Reserved stock will be restored immediately.</p>
+                </div>
+                <button type="button" class="modal-close-btn" id="btn-close-track-cancel">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-field-group">
+                    <label class="modal-field-label">Order Number:</label>
+                    <div id="track-cancel-order-num" class="review-modal-product-name"></div>
+                </div>
+                <div class="modal-field-group">
+                    <label for="track-cancel-reason-select" class="modal-field-label">Cancellation Reason:</label>
+                    <select id="track-cancel-reason-select" class="modal-input">
+                        <option value="Changed mind">Changed my mind / No longer needed</option>
+                        <option value="Ordered wrong size or color">Ordered wrong size or color</option>
+                        <option value="Delivery time too long">Delivery time is too long</option>
+                        <option value="Found better alternative">Found a better alternative</option>
+                        <option value="Incorrect shipping address">Incorrect shipping or delivery details</option>
+                        <option value="Other">Other Reason</option>
+                    </select>
+                </div>
+                <div class="modal-field-group">
+                    <label for="track-cancel-notes" class="modal-field-label">Additional Comments (Optional):</label>
+                    <textarea id="track-cancel-notes" class="modal-textarea" rows="2" placeholder="Let us know why you are cancelling..."></textarea>
+                </div>
+                <div id="track-cancel-error" class="report-alert-danger is-hidden"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn--outline" id="btn-cancel-track-cancel-close">Keep Order</button>
+                <button type="button" class="btn btn--primary btn--danger" id="btn-confirm-track-cancel">Confirm Cancellation</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Review Submission Modal -->
+    <div id="track-review-modal" class="modal-backdrop review-modal-backdrop is-hidden" role="dialog" aria-modal="true">
+        <div class="modal-dialog review-modal-dialog">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title">Rate &amp; Review Purchased Product</h3>
+                    <p class="modal-subtitle">Share your riding experience with fellow motorcyclists.</p>
+                </div>
+                <button type="button" class="modal-close-btn" id="btn-close-track-review">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="track-review-product-id" value="" />
+                <input type="hidden" id="track-review-order-id" value="" />
+                
+                <div class="modal-field-group">
+                    <label class="modal-field-label">Product</label>
+                    <div id="track-review-product-name" class="review-modal-product-name"></div>
+                </div>
+
+                <div class="modal-field-group">
+                    <label class="modal-field-label">Overall Rating</label>
+                    <div class="review-stars-picker review-modal-stars-container" id="track-review-stars-picker">
+                        <span class="star-pick" data-val="1">&#9733;</span>
+                        <span class="star-pick" data-val="2">&#9733;</span>
+                        <span class="star-pick" data-val="3">&#9733;</span>
+                        <span class="star-pick" data-val="4">&#9733;</span>
+                        <span class="star-pick" data-val="5">&#9733;</span>
+                        <input type="hidden" id="track-review-rating-val" value="5" />
+                    </div>
+                </div>
+
+                <div class="modal-field-group">
+                    <label for="track-review-title" class="modal-field-label">Review Headline:</label>
+                    <input type="text" id="track-review-title" class="modal-input" placeholder="e.g. Outstanding helmet, snug fit, excellent airflow" maxlength="150" />
+                </div>
+
+                <div class="modal-field-group">
+                    <label for="track-review-comment" class="modal-field-label">Detailed Review:</label>
+                    <textarea id="track-review-comment" class="modal-textarea" rows="4" placeholder="How is the wind noise, comfort, visor clarity, or finish quality?"></textarea>
+                </div>
+
+                <div id="track-review-error" class="report-alert-danger is-hidden"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn--outline" id="btn-cancel-track-review-close">Cancel</button>
+                <button type="button" class="btn btn--primary" id="btn-submit-track-review">Submit Review</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Page Specific Script -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/track-order.js?v=4") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/track-order.js?v=5") %>'></script>
 </asp:Content>

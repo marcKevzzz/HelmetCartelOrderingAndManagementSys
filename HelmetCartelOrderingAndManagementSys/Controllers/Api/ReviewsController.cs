@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
+using HelmetCartelOrderingAndManagementSys.Constants;
 using HelmetCartelOrderingAndManagementSys.Infrastructure;
 using HelmetCartelOrderingAndManagementSys.Models.DTOs;
 using HelmetCartelOrderingAndManagementSys.Repositories;
@@ -27,7 +28,8 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
         [Route("product/{productId:int}")]
         public async Task<IHttpActionResult> GetProductReviews(int productId)
         {
-            var reviews = await _reviewRepository.GetProductReviewsAsync(productId).ConfigureAwait(false);
+            int? currentUserId = GetAuthenticatedUserId();
+            var reviews = await _reviewRepository.GetProductReviewsAsync(productId, includeHidden: false, currentUserId: currentUserId).ConfigureAwait(false);
             return Ok(ApiResponse<System.Collections.Generic.List<ProductReviewDto>>.Ok(reviews));
         }
 
@@ -41,7 +43,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
             }
 
             string clientIp = GetClientIpAddress();
-            int? userId = null; // Can be extracted from User.Identity if authenticated
+            int? userId = GetAuthenticatedUserId();
 
             var result = await _reviewRepository.ReportReviewAsync(
                 reviewId: request.ReviewId,
@@ -74,6 +76,11 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
             if (request == null || request.ProductId <= 0 || string.IsNullOrWhiteSpace(request.ReviewerName) || string.IsNullOrWhiteSpace(request.Comment))
             {
                 return BadRequest("Product ID, Reviewer Name, and Review Comment are required.");
+            }
+
+            if (!request.UserId.HasValue)
+            {
+                request.UserId = GetAuthenticatedUserId();
             }
 
             if (request.Rating < 1 || request.Rating > 5)
@@ -151,6 +158,26 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                 // Fallback
             }
             return "127.0.0.1";
+        }
+
+        private int? GetAuthenticatedUserId()
+        {
+            var authHeader = Request?.Headers?.Authorization;
+            if (authHeader != null && string.Equals(authHeader.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase))
+            {
+                var token = authHeader.Parameter;
+                var user = new JwtTokenProvider().ValidateToken(token);
+                if (user != null) return user.Id;
+            }
+
+            var cookieToken = HttpContext.Current?.Request?.Cookies?[AppConstants.JwtConfiguration.AuthCookieName]?.Value;
+            if (!string.IsNullOrEmpty(cookieToken))
+            {
+                var user = new JwtTokenProvider().ValidateToken(cookieToken);
+                if (user != null) return user.Id;
+            }
+
+            return null;
         }
     }
 }

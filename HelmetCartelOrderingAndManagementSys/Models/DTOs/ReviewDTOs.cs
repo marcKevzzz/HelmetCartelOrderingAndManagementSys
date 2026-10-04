@@ -15,9 +15,12 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public bool IsVerifiedPurchase { get; set; }
         public int FlagCount { get; set; }
         public bool IsHidden { get; set; }
+        public bool IsCurrentUser { get; set; }
         public DateTime CreatedAt { get; set; }
 
         public string FormattedDate => CreatedAt.ToString("MMMM dd, yyyy");
+        public string ProductName { get; set; }
+        public string ProductSlug { get; set; }
     }
 
     public class ReportReviewRequestDto
@@ -47,7 +50,6 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
 
     public class AdminReviewDto : ProductReviewDto
     {
-        public string ProductName { get; set; }
         public string BrandName { get; set; }
     }
 }

@@ -263,14 +263,14 @@
                         <!-- Column 4: Featured Spotlight -->
                         <div class="mega-menu__col mega-menu__col--featured">
                             <h3 class="mega-menu__col-title">SPOTLIGHT</h3>
-                            <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=1" CssClass="mega-featured-card">
+                            <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/ProductDetail/ProductDetail.aspx?slug=agv-pista-gp-rr-carbon" CssClass="mega-featured-card">
                                 <div class="mega-featured-card__media">
-                                    <img src="https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=500&auto=format&fit=crop&q=80" alt="Shoei RF-1400 Dedicated" class="mega-featured-card__img" />
-                                    <span class="mega-featured-card__badge">NEW DROP</span>
+                                    <img src='<%= ResolveUrl("~/Content/images/products/helmets/agv/pistagprrgc7.webp") %>' alt="AGV Pista GP RR Carbon Racing Helmet" class="mega-featured-card__img" />
+                                    <span class="mega-featured-card__badge">MOTOGP FLAGSHIP</span>
                                 </div>
                                 <div class="mega-featured-card__body">
-                                    <h4 class="mega-featured-card__title">SHOEI RF-1400 DEDICATED</h4>
-                                    <div class="mega-featured-card__price">&#8369;34,500</div>
+                                    <h4 class="mega-featured-card__title">AGV PISTA GP RR CARBON</h4>
+                                    <div class="mega-featured-card__price">&#8369;78,000</div>
                                     <div class="mega-featured-card__cta">
                                         <span>Explore Model</span>
                                         <svg class="nav-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

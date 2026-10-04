@@ -350,8 +350,18 @@
             <h1 class="success-title" tabindex="-1">ORDER CONFIRMED!</h1>
             <p class="success-subtitle">Thank you for riding with Helmet Cartel. Your order has been placed and inventory is reserved.</p>
 
-            <!-- Order Receipt Card -->
-            <div class="checkout-receipt-document" id="checkout-receipt-doc"></div>
+            <!-- Order Receipt Card (Collapsible) -->
+            <div class="checkout-receipt-wrapper">
+                <div class="checkout-receipt-document is-collapsed" id="checkout-receipt-doc"></div>
+                <div class="checkout-receipt-toggle-wrap" id="checkout-receipt-toggle-wrap">
+                    <button type="button" class="btn-receipt-toggle" id="btn-toggle-receipt" aria-expanded="false" aria-controls="checkout-receipt-doc">
+                        <span id="btn-toggle-receipt-text">View Full Receipt</span>
+                        <svg class="receipt-caret-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
 
             <!-- Order Timeline Tracker -->
             <div class="order-tracker" id="order-tracker-container">

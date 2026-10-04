@@ -1421,3 +1421,60 @@ BEGIN
         Id ASC;
 END;
 GO
+
+-- =====================================================================================
+-- 26. STORED PROCEDURE: sp_GetStorefrontStats
+-- Returns live counts for brands, total product catalog count, and completed orders
+-- =====================================================================================
+IF OBJECT_ID(N'dbo.sp_GetStorefrontStats', N'P') IS NULL EXEC(N'CREATE PROCEDURE dbo.sp_GetStorefrontStats AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_GetStorefrontStats
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @TotalBrands INT;
+    DECLARE @TotalProducts INT;
+    DECLARE @CompletedOrders INT;
+
+    SELECT @TotalBrands = COUNT(*) FROM dbo.Brands;
+    SELECT @TotalProducts = COUNT(*) FROM dbo.Products;
+    SELECT @CompletedOrders = COUNT(*) FROM dbo.Orders WHERE Status = 'Completed';
+
+    SELECT 
+        @TotalBrands AS TotalBrands,
+        @TotalProducts AS TotalProducts,
+        @CompletedOrders AS CompletedOrders;
+END;
+GO
+
+-- =====================================================================================
+-- 27. STORED PROCEDURE: sp_GetTopCustomerReviews
+-- Returns top highest rated customer reviews across any products
+-- =====================================================================================
+IF OBJECT_ID(N'dbo.sp_GetTopCustomerReviews', N'P') IS NULL EXEC(N'CREATE PROCEDURE dbo.sp_GetTopCustomerReviews AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_GetTopCustomerReviews
+    @Limit INT = 6
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT TOP (@Limit)
+        r.Id,
+        r.ProductId,
+        r.ReviewerName,
+        r.Rating,
+        r.Title,
+        r.Comment,
+        r.IsVerifiedPurchase,
+        r.CreatedAt,
+        p.Name AS ProductName,
+        p.Slug AS ProductSlug
+    FROM dbo.ProductReviews r
+    INNER JOIN dbo.Products p ON r.ProductId = p.Id
+    WHERE r.IsHidden = 0
+    ORDER BY r.Rating DESC, r.CreatedAt DESC, r.Id DESC;
+END;
+GO
+

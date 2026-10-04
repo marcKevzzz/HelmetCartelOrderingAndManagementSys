@@ -231,18 +231,7 @@ export const Storefront = {
     });
 
     // 2. Testimonials Carousel
-    const prevBtn = document.getElementById('prev-testimonial');
-    const nextBtn = document.getElementById('next-testimonial');
-    const carousel = document.querySelector('.testimonials-carousel');
-
-    if (carousel && prevBtn && nextBtn) {
-      prevBtn.addEventListener('click', () => {
-        carousel.scrollBy({ left: -340, behavior: 'smooth' });
-      });
-      nextBtn.addEventListener('click', () => {
-        carousel.scrollBy({ left: 340, behavior: 'smooth' });
-      });
-    }
+    this.initTestimonialsCarousel();
 
     // 3. User Profile Header State
     const userBtn = document.getElementById('nav-user-btn') || document.getElementById('navUserBtn');
@@ -264,6 +253,99 @@ export const Storefront = {
         // Fallback
       }
     }
+  },
+
+  /* ==========================================================================
+     TESTIMONIALS SLIDER CONTROLLER (Non-Scrollable, 3-Card Responsive & Button Driven)
+     ========================================================================== */
+  initTestimonialsCarousel() {
+    const track = document.getElementById('testimonials-track');
+    const prevBtn = document.getElementById('prev-testimonial');
+    const nextBtn = document.getElementById('next-testimonial');
+
+    if (!track) return;
+
+    const cards = Array.from(track.querySelectorAll('.testimonial-card'));
+    if (!cards || cards.length === 0) return;
+
+    let currentIndex = 0;
+
+    // Helper: determine visible cards per viewport
+    const getVisibleCount = () => {
+      const w = window.innerWidth;
+      if (w > 1024) return 3;
+      if (w > 640) return 2;
+      return 1;
+    };
+
+    // Helper: calculate step (card width + column gap)
+    const getStep = () => {
+      const firstCard = cards[0];
+      const gap = parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap) || 24;
+      return (firstCard ? firstCard.getBoundingClientRect().width : 320) + gap;
+    };
+
+    const getMaxIndex = () => {
+      const visibleCount = getVisibleCount();
+      return Math.max(0, cards.length - visibleCount);
+    };
+
+    const updateSlider = (smooth = true) => {
+      const maxIndex = getMaxIndex();
+      if (currentIndex > maxIndex) currentIndex = maxIndex;
+      if (currentIndex < 0) currentIndex = 0;
+
+      const step = getStep();
+      const offset = currentIndex * step;
+
+      track.style.transition = smooth ? 'transform 450ms cubic-bezier(0.16, 1, 0.3, 1)' : 'none';
+      track.style.transform = `translateX(-${offset}px)`;
+    };
+
+    const handleNext = () => {
+      const maxIndex = getMaxIndex();
+      if (currentIndex >= maxIndex) {
+        currentIndex = 0; // Loop back to start
+      } else {
+        currentIndex++;
+      }
+      updateSlider(true);
+    };
+
+    const handlePrev = () => {
+      const maxIndex = getMaxIndex();
+      if (currentIndex <= 0) {
+        currentIndex = maxIndex; // Loop back to end
+      } else {
+        currentIndex--;
+      }
+      updateSlider(true);
+    };
+
+    if (nextBtn) {
+      nextBtn.onclick = (e) => {
+        e.preventDefault();
+        handleNext();
+      };
+    }
+
+    if (prevBtn) {
+      prevBtn.onclick = (e) => {
+        e.preventDefault();
+        handlePrev();
+      };
+    }
+
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        updateSlider(false);
+      }, 100);
+    }, { passive: true });
+
+    // Initial positioning
+    updateSlider(false);
   },
 
   /* ==========================================================================

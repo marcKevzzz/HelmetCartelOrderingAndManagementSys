@@ -22,15 +22,15 @@
 
                 <div class="hero-stats">
                     <div class="hero-stat">
-                        <div class="hero-stat__number">200+</div>
-                        <div class="hero-stat__label">International Brands</div>
+                        <div class="hero-stat__number"><asp:Literal ID="litBrandsCount" runat="server">0</asp:Literal></div>
+                        <div class="hero-stat__label">Top Brands</div>
                     </div>
                     <div class="hero-stat">
-                        <div class="hero-stat__number">2,000+</div>
+                        <div class="hero-stat__number"><asp:Literal ID="litHelmetsCount" runat="server">0</asp:Literal></div>
                         <div class="hero-stat__label">High-Quality Helmets</div>
                     </div>
                     <div class="hero-stat">
-                        <div class="hero-stat__number">30,000+</div>
+                        <div class="hero-stat__number"><asp:Literal ID="litRidersCount" runat="server">0</asp:Literal></div>
                         <div class="hero-stat__label">Satisfied Riders</div>
                     </div>
                 </div>
@@ -183,15 +183,18 @@
     <!-- 6. OUR HAPPY CUSTOMERS (Testimonials Carousel) -->
     <section class="container testimonials-section">
         <div class="testimonials-header">
-            <h2 class="section-title section-title--no-margin">OUR HAPPY CUSTOMERS</h2>
+            <div>
+                <h2 class="section-title section-title--no-margin">OUR HAPPY CUSTOMERS</h2>
+                <p class="testimonials-subtitle">Real feedback and track-tested impressions from verified riders across the Philippines.</p>
+            </div>
             <div class="testimonials-nav">
-                <button type="button" class="carousel-arrow" id="prev-testimonial" aria-label="Previous">
+                <button type="button" class="carousel-arrow" id="prev-testimonial" aria-label="Previous Reviews">
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="19" y1="12" x2="5" y2="12"></line>
                         <polyline points="12 19 5 12 12 5"></polyline>
                     </svg>
                 </button>
-                <button type="button" class="carousel-arrow" id="next-testimonial" aria-label="Next">
+                <button type="button" class="carousel-arrow" id="next-testimonial" aria-label="Next Reviews">
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                         <polyline points="12 5 19 12 12 19"></polyline>
@@ -200,72 +203,40 @@
             </div>
         </div>
 
-        <div class="testimonials-carousel">
-            <div class="testimonial-card">
-                <div class="stars">
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                </div>
-                <div class="testimonial-card__header">
-                    <span class="author-name">
-                        Sarah M.
-                        <span class="verified-icon">
-                            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                        </span>
-                    </span>
-                </div>
-                <p class="testimonial-card__text">
-                    "I'm blown away by the fit and noise isolation of the Shoei RF-1400. Stock levels on the site were 100% accurate and delivery took only 2 days."
-                </p>
-            </div>
-
-            <div class="testimonial-card">
-                <div class="stars">
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                </div>
-                <div class="testimonial-card__header">
-                    <span class="author-name">
-                        Alex K.
-                        <span class="verified-icon">
-                            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                        </span>
-                    </span>
-                </div>
-                <p class="testimonial-card__text">
-                    "Finding a genuine AGV carbon helmet in Medium used to be impossible. With Helmet Cartel's live stock, I secured it online and walked in to collect without fuss."
-                </p>
-            </div>
-
-            <div class="testimonial-card">
-                <div class="stars">
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                </div>
-                <div class="testimonial-card__header">
-                    <span class="author-name">
-                        James L.
-                        <span class="verified-icon">
-                            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                        </span>
-                    </span>
-                </div>
-                <p class="testimonial-card__text">
-                    "Seamless HitPay transaction, rapid order confirmation email, and immaculate packaging. Definitely my go-to motorcycle gear shop."
-                </p>
+        <div class="testimonials-viewport">
+            <div class="testimonials-track" id="testimonials-track" role="region" aria-label="Customer Testimonials Carousel">
+                <asp:Repeater ID="rptHappyCustomers" runat="server">
+                    <ItemTemplate>
+                        <div class="testimonial-card" data-review-id='<%# Eval("Id") %>'>
+                            <div class="testimonial-card__header">
+                                <div class="testimonial-card__user">
+                                    <div class="testimonial-card__name-row">
+                                        <span class="testimonial-card__name"><%# Server.HtmlEncode((string)Eval("ReviewerName")) %></span>
+                                        <%# (bool)Eval("IsVerifiedPurchase") ? "<span class=\"verified-badge\" title=\"Verified Customer\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg></span>" : "" %>
+                                    </div>
+                                    <div class="testimonial-card__rating-row">
+                                        <span class="testimonial-card__score"><%# Convert.ToDecimal(Eval("Rating")).ToString("0.0") %></span>
+                                        <div class="stars" aria-label='<%# Eval("Rating") %> out of 5 stars'>
+                                            <%# RenderStars(Convert.ToDecimal(Eval("Rating"))) %>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="testimonial-card__quote-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <p class="testimonial-card__text">
+                                <%# Server.HtmlEncode((string)Eval("Comment")) %>
+                            </p>
+                        </div>
+                    </ItemTemplate>
+                </asp:Repeater>
             </div>
         </div>
     </section>
 
     <!-- Client-Side Dynamic Loader -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/storefront.js?v=8") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/storefront.js?v=10") %>'></script>
 </asp:Content>

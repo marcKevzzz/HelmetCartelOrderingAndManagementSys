@@ -173,6 +173,11 @@
   color: #1e40af;
 }
 
+.voucher-type-badge--free {
+  background: rgba(147, 51, 234, 0.12);
+  color: #7e22ce;
+}
+
 /* Min Spend */
 .voucher-min-spend {
   font-size: var(--text-body-sm);

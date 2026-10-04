@@ -294,11 +294,19 @@
                 <% if (Reviews != null && Reviews.Count > 0) {
                        int reviewIndex = 0;
                        foreach (var rev in Reviews) { %>
-                    <div class="review-card-full <%= reviewIndex++ >= 3 ? "is-review-page-hidden" : "" %>"
+                    <div class="review-card-full <%= reviewIndex++ >= 3 ? "is-review-page-hidden" : "" %> <%= rev.IsHidden ? "is-hidden-disabled" : "" %>"
                          data-review-id="<%= rev.Id %>" 
+                         data-user-id="<%= rev.UserId.HasValue ? rev.UserId.Value.ToString() : "" %>"
+                         data-is-hidden="<%= rev.IsHidden ? "true" : "false" %>"
                          data-rating="<%= rev.Rating %>" 
                          data-verified="<%= rev.IsVerifiedPurchase ? "true" : "false" %>"
                          data-date="<%= rev.CreatedAt.ToString("o") %>">
+                        <% if (rev.IsHidden) { %>
+                            <div class="review-hidden-banner">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                <span>Your review is currently hidden / under moderation (visible only to you)</span>
+                            </div>
+                        <% } %>
                         <div class="review-card__top">
                             <div class="review-card-row">
                                 <span class="review-avatar" aria-hidden="true"><%= Server.HtmlEncode(GetReviewerInitial(rev.ReviewerName)) %></span>
@@ -312,8 +320,9 @@
                                     <%= RenderReviewStars(rev.Rating) %>
                                 </div>
                             </div>
+                            <% if (!rev.IsCurrentUser) { %>
                             <div class="review-actions-wrap">
-                                <button type="button" class="review-more-btn" aria-label="Review actions" title="More options" data-review-id="<%= rev.Id %>">•••</button>
+                                <button type="button" class="review-more-btn" aria-label="Review actions" title="More options" data-review-id="<%= rev.Id %>">&#8226;&#8226;&#8226;</button>
                                 <div class="review-action-popover" id="review-popover-<%= rev.Id %>">
                                     <button type="button" class="review-popover-item btn-report-review" data-review-id="<%= rev.Id %>" data-reviewer="<%= Server.HtmlEncode(rev.ReviewerName) %>">
                                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
@@ -321,6 +330,7 @@
                                     </button>
                                 </div>
                             </div>
+                            <% } %>
                         </div>
                         <% if (!string.IsNullOrEmpty(rev.Title)) { %>
                             <div class="review-title-heading"><%= Server.HtmlEncode(rev.Title) %></div>

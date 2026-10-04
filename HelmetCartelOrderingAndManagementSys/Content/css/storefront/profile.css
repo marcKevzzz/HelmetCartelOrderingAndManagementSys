@@ -582,6 +582,30 @@
   border: 1px solid #FECACA;
 }
 
+.status--refunded {
+  background-color: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.status--exchanged {
+  background-color: rgba(147, 51, 234, 0.12);
+  color: #9333ea;
+  border: 1px solid rgba(147, 51, 234, 0.3);
+}
+
+.status--rma-pending {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.status--rma-approved {
+  background-color: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
 .order-row-card__summary-right {
   display: flex;
   align-items: center;
@@ -877,6 +901,30 @@
 .order-status-hint--cancelled {
   color: #ef4444;
 }
+
+.order-status-hint--rma {
+  font-style: italic;
+  font-size: var(--text-caption);
+}
+
+.order-status-hint--rma-pending {
+  color: #b88400;
+}
+
+.order-status-hint--rma-approved,
+.order-status-hint--rma-received {
+  color: #1b61b6;
+}
+
+.order-status-hint--rma-completed {
+  color: #028d25;
+}
+
+.order-status-hint--rma-rejected,
+.order-status-hint--rma-cancelled {
+  color: #9c1515;
+}
+
 
 .order-dropdown-actions {
   display: flex;
@@ -1265,15 +1313,23 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-3);
+  padding: var(--space-4);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-subtle);
   background-color: #FAFAFA;
 }
 
+.track-item-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: 1;
+  min-width: 0;
+}
+
 .track-item-img {
-  width: 60px;
-  height: 60px;
+  width: 64px;
+  height: 64px;
   object-fit: cover;
   object-position: center;
   background-color: var(--color-surface-subtle);
@@ -1290,8 +1346,9 @@
 .track-item-meta {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   flex: 1;
+  min-width: 0;
 }
 
 .track-item-name {
@@ -1309,9 +1366,29 @@
   flex-wrap: wrap;
 }
 
-.track-item-qty-price {
+.track-item-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.track-item-pricing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  text-align: right;
+  flex-shrink: 0;
+  gap: 2px;
+  padding-left: var(--space-2);
+}
+
+.track-item-qty-sub {
   font-size: var(--text-caption);
-  color: var(--color-text-secondary);
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 .track-item-total {
@@ -2305,4 +2382,395 @@
   color: var(--color-text-muted);
   margin: 2px 0 0;
 }
+
+/* RMA & Review Elements in TrackOrder & Profile */
+.track-rma-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-medium);
+  margin-bottom: var(--space-4);
+}
+
+.track-rma-banner.banner--refunded {
+  background-color: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.track-rma-banner.banner--exchanged {
+  background-color: rgba(147, 51, 234, 0.12);
+  border: 1px solid rgba(147, 51, 234, 0.3);
+  color: #a855f7;
+}
+
+.track-rma-banner.banner--pending {
+  background-color: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #f59e0b;
+}
+
+.track-rma-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.track-rma-chip--pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b88400;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.track-rma-chip--approved,
+.track-rma-chip--received {
+  background: rgba(59, 130, 246, 0.15);
+  color: #1b61b6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.track-rma-chip--completed {
+  background: rgba(16, 185, 129, 0.15);
+  color: #028d25;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.track-rma-chip--rejected,
+.track-rma-chip--cancelled {
+  background: rgba(239, 68, 68, 0.15);
+  color: #9c1515;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.track-reviewed-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.15);
+  color: #028d25;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  letter-spacing: 0.02em;
+}
+
+.btn-open-rma,
+.btn-open-review {
+  border-radius: var(--radius-pill) !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  padding: 4px 12px !important;
+  line-height: 1.2 !important;
+}
+
+.btn--cancel-track-order {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+.btn--cancel-track-order:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  color: #dc2626;
+}
+
+.is-hidden {
+  display: none !important;
+}
+
+
+.review-stars-picker .star-pick {
+  transition: transform var(--transition-fast, 0.15s ease), color var(--transition-fast, 0.15s ease);
+  user-select: none;
+  font-size: var(--text-h3);
+}
+
+.review-stars-picker .star-pick:hover,
+.review-stars-picker .star-pick.active {
+  transform: scale(1.15);
+  color: var(--color-accent-amber, #f59e0b);
+}
+
+.review-stars-picker .star-pick.inactive {
+  fill: var(--color-border-subtle, #e5e5e5);
+  color: var(--color-border-subtle, #e5e5e5);
+}
+
+/* ==========================================================================
+   RATE & REVIEW PURCHASED PRODUCT MODAL (STRICT DESIGN SYSTEM)
+   ========================================================================== */
+.review-modal-dialog {
+  background-color: var(--color-surface-contrast, #0a0a0a);
+  border: 1px solid var(--color-border-strong, #262626);
+  border-radius: var(--radius-xl, 16px);
+  color: var(--color-text-main, #ffffff);
+  box-shadow: var(--shadow-modal, 0 20px 48px rgba(0, 0, 0, 0.5));
+}
+
+.review-modal-dialog .modal-header {
+  padding: var(--space-5) var(--space-6);
+}
+
+.review-modal-dialog .modal-title {
+  font-family: var(--font-body) !important;
+  font-size: var(--text-h3, 1.25rem);
+  font-weight: var(--weight-bold, 700);
+  color: var(--color-text-main, #ffffff);
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--space-1);
+}
+
+.review-modal-dialog .modal-subtitle {
+  font-family: var(--font-body);
+  font-size: var(--text-body-sm, 0.8125rem);
+  color: var(--color-text-inverse-muted, #a3a3a3);
+  margin: 0;
+}
+
+.review-modal-dialog .modal-close-btn {
+  background: var(--color-surface-hover, #1f1f1f);
+  border: 1px solid var(--color-border-strong, #333333);
+  color: var(--color-text-inverse-muted, #a3a3a3);
+}
+
+.review-modal-dialog .modal-close-btn:hover {
+  background: var(--color-border-strong, #333333);
+  color: var(--color-text-inverse, #ffffff);
+}
+
+.review-modal-dialog .modal-body {
+  padding: var(--space-5) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.review-modal-dialog .modal-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.review-modal-dialog .modal-field-label {
+  font-family: var(--font-body);
+  font-size: var(--text-caption, 0.75rem);
+  font-weight: var(--weight-semibold, 600);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-inverse-muted, #a3a3a3);
+}
+
+.review-modal-product-name {
+  font-family: var(--font-body);
+  font-weight: var(--weight-bold, 700);
+  color: var(--color-text-main, #ffffff);
+  font-size: var(--text-body-lg, 1rem);
+  line-height: var(--leading-snug, 1.3);
+}
+
+.review-modal-stars-container {
+  display: flex;
+  gap: var(--space-2);
+  cursor: pointer;
+  margin-top: var(--space-1);
+}
+
+.review-modal-dialog .modal-input,
+.review-modal-dialog .modal-textarea {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-subtle, #2a2a2a);
+  border-radius: var(--radius-md, 8px);
+  color: var(--color-text-main, #ffffff);
+  font-family: var(--font-body);
+  font-size: var(--text-body-sm, 0.875rem);
+  padding: var(--space-3) var(--space-4);
+  transition: border-color var(--transition-fast);
+}
+
+.review-modal-dialog .modal-input:focus,
+.review-modal-dialog .modal-textarea:focus {
+  border-color: var(--color-border-strong, #ffffff);
+  outline: none;
+}
+
+.review-modal-dialog .modal-footer {
+  background-color: transparent;
+  padding: var(--space-4) var(--space-6);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.review-modal-dialog .modal-footer .btn--outline {
+  border-color: var(--color-border-medium, #333333);
+  color: var(--color-text-main, #ffffff);
+  background-color: var(--color-bg-body);
+}
+
+.review-modal-dialog .modal-footer .btn--outline:hover {
+  background-color: var(--color-surface-subtle);
+}
+
+.review-modal-dialog .modal-footer .btn--primary {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+  font-weight: var(--weight-bold, 700);
+}
+
+.review-modal-dialog .modal-footer .btn--primary:hover {
+  background-color: var(--color-primary-hover, #ebebeb);
+}
+
+/* Multi-Item RMA Checklist & Enhanced Badges */
+.status--rma-received {
+  background-color: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.status--rma-completed {
+  background-color: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status--rma-rejected,
+.status--rma-cancelled {
+  background-color: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.rma-items-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.btn-select-all-rma {
+  background: none;
+  border: none;
+  color: var(--color-text-main);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  text-decoration: underline;
+}
+
+.btn-select-all-rma:hover {
+  color: var(--color-primary);
+}
+
+.rma-items-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  background: var(--color-surface-subtle);
+}
+
+.rma-item-checkbox-row {
+  display: grid;
+  grid-template-columns: 24px 44px 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.rma-item-checkbox-row:hover:not(.is-disabled) {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-hover);
+}
+
+.rma-item-checkbox-row.is-selected {
+  border-color: var(--color-text-main);
+  background: var(--color-surface-subtle);
+}
+
+.rma-item-checkbox-row.is-disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  background: var(--color-surface-muted);
+}
+
+.rma-item-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-muted);
+}
+
+.rma-item-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rma-item-name {
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rma-item-specs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+}
+
+.rma-item-price {
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-bold);
+  color: var(--color-text-main);
+  text-align: right;
+}
+
+.rma-item-status-chip {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  display: inline-block;
+  margin-top: 2px;
+}
+
+.order-item-action-wrap {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+
 

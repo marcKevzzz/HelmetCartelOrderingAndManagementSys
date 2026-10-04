@@ -171,6 +171,7 @@ namespace HelmetCartelOrderingAndManagementSys.Constants
         {
             public const string Percentage = "PERCENTAGE";
             public const string FixedAmount = "FIXED_AMOUNT";
+            public const string FreeShipping = "FREE_SHIPPING";
             public const int FirstSqlError = 54001;
             public const int LastSqlError = 54016;
         }

@@ -46,8 +46,18 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
             {
                 if (!await reader.ReadAsync().ConfigureAwait(false)) throw new InvalidOperationException("Voucher validation returned no result.");
-                return new VoucherQuoteDto { Code = reader.GetString(0), Subtotal = reader.GetDecimal(1),
-                    DiscountAmount = reader.GetDecimal(2), DiscountedSubtotal = reader.GetDecimal(3) };
+                var quote = new VoucherQuoteDto
+                {
+                    Code = reader.GetString(0),
+                    Subtotal = reader.GetDecimal(1),
+                    DiscountAmount = reader.GetDecimal(2),
+                    DiscountedSubtotal = reader.GetDecimal(3)
+                };
+                if (reader.FieldCount > 4 && !reader.IsDBNull(4))
+                {
+                    quote.DiscountType = reader.GetString(4);
+                }
+                return quote;
             }
         }
 

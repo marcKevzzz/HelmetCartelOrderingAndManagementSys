@@ -316,11 +316,14 @@ export const ProfileController = {
           ? response.data
           : [];
       this.orders = list;
+      // Pre-populate order details cache instantly from preloaded order items
+      for (const ord of list) {
+        if (ord && ord.id && Array.isArray(ord.items) && ord.items.length > 0) {
+          this.orderDetailsCache.set(ord.id, ord);
+        }
+      }
       this.updateCounters();
       this.renderOrders();
-
-      // Pre-fetch details for the most recent orders to render stacked deck images
-      this.prefetchOrderDetails(list.slice(0, 10));
     } catch (err) {
       console.error("[ProfileController] Failed to load orders:", err);
       this.orders = [];
@@ -331,20 +334,8 @@ export const ProfileController = {
     }
   },
 
-  async prefetchOrderDetails(orders) {
-    for (const order of orders) {
-      if (!this.orderDetailsCache.has(order.id)) {
-        try {
-          const res = await ApiClient.getUserOrderDetails(order.id);
-          const data = res?.data || res;
-          if (data && Array.isArray(data.items)) {
-            this.orderDetailsCache.set(order.id, data);
-            // Refresh deck preview
-            this.updateOrderCardDeck(order.id, data.items);
-          }
-        } catch (_) {}
-      }
-    }
+  async prefetchOrderDetails(_orders) {
+    // Deprecated: orders are now pre-loaded with ItemsJson from dbo.sp_GetUserOrders
   },
 
   bindSearchAndSortEvents() {
@@ -492,11 +483,25 @@ export const ProfileController = {
 
     // Stacking image deck placeholder / items if cached or from preview list
     const cachedDetails = this.orderDetailsCache.get(order.id);
-    const items = cachedDetails ? cachedDetails.items : [];
+    const items = cachedDetails ? cachedDetails.items : (Array.isArray(order.items) ? order.items : []);
     const deckHtml = this.createStackingDeckHtml(order, items);
 
     const canCancel = ["PendingPayment", "Processing"].includes(status);
     const canReturn = ["Delivered", "Completed"].includes(status);
+
+    // Evaluate if there are items eligible for return (not already in an active/completed RMA)
+    let eligibleItemsCount = 0;
+    if (items && items.length > 0) {
+      eligibleItemsCount = items.filter((item) => {
+        const st = String(item.rmaStatus || '').trim().toLowerCase();
+        return !item.rmaNumber || st === 'rejected' || st === 'cancelled';
+      }).length;
+    } else {
+      const rmaCount = Number(order.rmaCount || 0);
+      const itemCount = Number(order.itemCount || 1);
+      eligibleItemsCount = Math.max(0, itemCount - rmaCount);
+    }
+    const hasEligibleItems = eligibleItemsCount > 0;
 
     return `
       <article class="order-row-card" data-order-id="${order.id}" data-order-number="${this.escapeHtml(order.orderNumber)}">
@@ -510,12 +515,17 @@ export const ProfileController = {
             </div>
             <div class="order-row-card__status-line">
               <span class="order-pill-badge status--${status.toLowerCase()}">${statusLabel}</span>
+              ${
+                order.latestRmaStatus
+                  ? `<span class="order-pill-badge status--rma-${order.latestRmaStatus.toLowerCase()}">${this.getRmaDescriptor(order.latestRmaType, order.latestRmaStatus)}</span>`
+                  : ''
+              }
             </div>
           </div>
 
           <div class="order-row-card__summary-right">
             <!-- 4th Screenshot: Stacking Deck Layout Preview -->
-            <div class="order-deck-stack" id="deck-stack-${order.id}" aria-label="Purchased gear preview">
+            <div class="order-deck-stack" id="deck-stack-${order.id}" aria-label="Purchased item preview">
               ${deckHtml}
             </div>
 
@@ -535,7 +545,7 @@ export const ProfileController = {
         <!-- Collapsible Dropdown for Items Details, Quantity, Price, etc. -->
         <div class="order-row-card__dropdown" id="order-details-dropdown-${order.id}">
           <div class="order-items-body" id="order-items-body-${order.id}">
-            <div class="order-items-loading">Loading purchased gear details...</div>
+            <div class="order-items-loading">Loading purchased item details...</div>
           </div>
 
           <div class="order-dropdown-footer">
@@ -550,11 +560,26 @@ export const ProfileController = {
                   : ""
               }
               ${
-                canReturn
+                canReturn && hasEligibleItems && (!order.rmaCount || order.rmaCount === 0)
                   ? `
                 <button type="button" class="btn btn--outline btn--sm btn-return-order" data-order-id="${order.id}" data-order-number="${this.escapeHtml(order.orderNumber)}">
                   <span>Return / Exchange</span>
                 </button>
+              `
+                  : canReturn && hasEligibleItems && order.rmaCount > 0
+                  ? `
+                <button type="button" class="btn btn--outline btn--sm btn-return-order" data-order-id="${order.id}" data-order-number="${this.escapeHtml(order.orderNumber)}">
+                  <span>Return Remaining Items</span>
+                </button>
+                <span class="order-status-hint order-status-hint--rma order-status-hint--rma-${(order.latestRmaStatus || 'pending').toLowerCase()}">
+                  ${this.getRmaDescriptor(order.latestRmaType, order.latestRmaStatus)}
+                </span>
+              `
+                  : order.rmaCount > 0
+                  ? `
+                <span class="order-status-hint order-status-hint--rma order-status-hint--rma-${(order.latestRmaStatus || 'pending').toLowerCase()}">
+                  ${this.getRmaDescriptor(order.latestRmaType, order.latestRmaStatus)}
+                </span>
               `
                   : ""
               }
@@ -690,12 +715,32 @@ export const ProfileController = {
                     <div class="order-item-detail-pricing">
                       <span class="order-item-qty-tag">${item.quantity} pc${item.quantity > 1 ? "s" : ""} &times; &#8369;${unitPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                       <strong class="order-item-line-total">&#8369;${totalPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
+                      ${
+                        item.rmaNumber
+                          ? `<div class="order-item-action-wrap"><span class="track-rma-chip track-rma-chip--${(item.rmaStatus || 'pending').toLowerCase()}">${this.getRmaDescriptor(item.rmaType, item.rmaStatus)} &bull; #${this.escapeHtml(item.rmaNumber)}</span></div>`
+                          : (orderData.orderStatus === 'Completed' || orderData.status === 'Completed' || orderData.orderStatus === 'Delivered' || orderData.status === 'Delivered')
+                          ? `<div class="order-item-action-wrap">
+                               <button type="button" class="btn btn--outline btn--xs btn-item-return" data-order-id="${orderId}" data-order-number="${this.escapeHtml(orderData.orderNumber)}" data-item-id="${item.orderItemId || item.id}">Return / Exchange</button>
+                               <a href="/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=${item.productId || 1}#reviews-grid" class="btn btn--outline btn--xs">Review Item</a>
+                             </div>`
+                          : ''
+                      }
                     </div>
                   </div>
                 `;
                 })
                 .join("");
               body.dataset.loaded = "true";
+
+              body.querySelectorAll('.btn-item-return').forEach((itemBtn) => {
+                itemBtn.addEventListener('click', (ev) => {
+                  ev.stopPropagation();
+                  const oId = Number(itemBtn.dataset.orderId);
+                  const oNum = itemBtn.dataset.orderNumber;
+                  const itmId = Number(itemBtn.dataset.itemId);
+                  this.openRmaModal(oId, oNum, itmId);
+                });
+              });
             } else {
               body.innerHTML =
                 '<div class="order-items-empty">No item records found for this order.</div>';
@@ -829,14 +874,43 @@ export const ProfileController = {
   },
 
   /* ==========================================================================
-     ORDER RETURN / EXCHANGE MODAL
+     ORDER RETURN / EXCHANGE (RMA) MODAL & MULTI-ITEM SUPPORT
      ========================================================================== */
   currentRmaOrderId: null,
 
-  async openRmaModal(orderId, orderNumber) {
+  getRmaDescriptor(type, status) {
+    const normType = String(type || 'RETURN').trim().toUpperCase();
+    const normStatus = String(status || 'PENDING').trim().toUpperCase();
+    const isExchange = normType === 'EXCHANGE';
+    const prefix = isExchange ? 'Exchange' : 'Return';
+
+    switch (normStatus) {
+      case 'PENDING':
+        return `${prefix}: Pending Staff Review`;
+      case 'APPROVED':
+        return isExchange 
+          ? 'Exchange: Approved &bull; Awaiting Item Handover' 
+          : 'Return: Approved &bull; Awaiting Item Handover';
+      case 'RECEIVED':
+        return `${prefix}: Item Received &bull; Inspection in Progress`;
+      case 'COMPLETED':
+        return isExchange 
+          ? 'Exchange: Completed &bull; Replacement Dispatched' 
+          : 'Return: Completed &bull; Refund Processed';
+      case 'REJECTED':
+        return `${prefix}: Request Declined`;
+      case 'CANCELLED':
+        return `${prefix}: Request Cancelled`;
+      default:
+        return `${prefix}: ${this.escapeHtml(status || 'Under Review')}`;
+    }
+  },
+
+  async openRmaModal(orderId, orderNumber, preselectedItemId = null) {
     this.currentRmaOrderId = orderId;
     const modal = document.getElementById("profileRmaModal");
-    const itemSelect = document.getElementById("profile-rma-item-select");
+    const checklistEl = document.getElementById("profile-rma-items-checklist");
+    const selectAllBtn = document.getElementById("btn-select-all-rma");
     const errEl = document.getElementById("profile-rma-error");
     const notesEl = document.getElementById("profile-rma-notes");
     if (errEl) {
@@ -853,33 +927,95 @@ export const ProfileController = {
       document.body.classList.add("modal-open");
     }
 
-    // Populate order items
-    if (itemSelect) {
-      itemSelect.innerHTML = '<option value="">Loading order items...</option>';
-      try {
-        let order = this.orderDetailsCache.get(orderId);
-        if (!order) {
+    if (checklistEl) {
+      const renderChecklist = (orderObj) => {
+        if (orderObj && Array.isArray(orderObj.items) && orderObj.items.length > 0) {
+          const eligibleItems = orderObj.items.filter((item) => {
+            const st = String(item.rmaStatus || '').trim().toLowerCase();
+            return !item.rmaNumber || st === 'rejected' || st === 'cancelled';
+          });
+
+          if (selectAllBtn) {
+            selectAllBtn.classList.toggle("is-hidden", eligibleItems.length < 2);
+            selectAllBtn.textContent = "Select All Eligible Items";
+            selectAllBtn.dataset.allSelected = "false";
+          }
+
+          checklistEl.innerHTML = orderObj.items
+            .map((item) => {
+              const itemId = item.orderItemId || item.id;
+              const st = String(item.rmaStatus || '').trim().toLowerCase();
+              const hasActiveRma = item.rmaNumber && !['rejected', 'cancelled'].includes(st);
+              const imgUrl = item.mainImageUrl || item.imageUrl || "/Content/images/placeholder-helmet.png";
+              const unitPrice = Number(item.unitPrice || 0);
+              const totalPrice = Number(item.totalPrice || unitPrice * item.quantity);
+              const isChecked = !hasActiveRma && (preselectedItemId ? (Number(itemId) === Number(preselectedItemId)) : (eligibleItems.length === 1));
+
+              if (hasActiveRma) {
+                return `
+                  <div class="rma-item-checkbox-row is-disabled">
+                    <input type="checkbox" disabled />
+                    <img src="${this.escapeHtml(imgUrl)}" alt="${this.escapeHtml(item.productName)}" class="rma-item-thumb" />
+                    <div class="rma-item-details">
+                      <div class="rma-item-name">${this.escapeHtml(item.productName)}</div>
+                      <div class="rma-item-specs">
+                        <span>Size: <strong>${this.escapeHtml(item.size || 'N/A')}</strong></span>
+                        <span>Color: <strong>${this.escapeHtml(item.color || 'N/A')}</strong></span>
+                        <span>Qty: <strong>${item.quantity}</strong></span>
+                      </div>
+                      <div>
+                        <span class="track-rma-chip track-rma-chip--${st}">${this.getRmaDescriptor(item.rmaType, item.rmaStatus)} &bull; #${this.escapeHtml(item.rmaNumber)}</span>
+                      </div>
+                    </div>
+                    <div class="rma-item-price">&#8369;${totalPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+                  </div>
+                `;
+              }
+
+              return `
+                <label class="rma-item-checkbox-row ${isChecked ? 'is-selected' : ''}">
+                  <input type="checkbox" name="profile-rma-selected-item" value="${itemId}" ${isChecked ? 'checked' : ''} class="rma-checkbox" />
+                  <img src="${this.escapeHtml(imgUrl)}" alt="${this.escapeHtml(item.productName)}" class="rma-item-thumb" />
+                  <div class="rma-item-details">
+                    <div class="rma-item-name">${this.escapeHtml(item.productName)}</div>
+                    <div class="rma-item-specs">
+                      <span>Size: <strong>${this.escapeHtml(item.size || 'N/A')}</strong></span>
+                      <span>Color: <strong>${this.escapeHtml(item.color || 'N/A')}</strong></span>
+                      <span>Qty: <strong>${item.quantity}</strong></span>
+                    </div>
+                  </div>
+                  <div class="rma-item-price">&#8369;${totalPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+                </label>
+              `;
+            })
+            .join("");
+
+          checklistEl.querySelectorAll('input[name="profile-rma-selected-item"]').forEach((chk) => {
+            chk.addEventListener('change', () => {
+              chk.closest('.rma-item-checkbox-row')?.classList.toggle('is-selected', chk.checked);
+              if (errEl) errEl.classList.add('is-hidden');
+            });
+          });
+        } else {
+          checklistEl.innerHTML = '<div class="order-items-empty">No items found for this order.</div>';
+        }
+      };
+
+      let order = this.orderDetailsCache.get(orderId);
+      if (order && Array.isArray(order.items) && order.items.length > 0) {
+        // Immediate synchronous render from preloaded order details
+        renderChecklist(order);
+      } else {
+        // Asynchronous fallback in case order was not in cache
+        checklistEl.innerHTML = '<div class="rma-item-loading">Loading purchased items...</div>';
+        try {
           const res = await ApiClient.getUserOrderDetails(orderId);
           order = res?.data || res;
           if (order) this.orderDetailsCache.set(orderId, order);
+          renderChecklist(order);
+        } catch (err) {
+          checklistEl.innerHTML = '<div class="order-items-error">Error loading order items.</div>';
         }
-
-        if (order && Array.isArray(order.items) && order.items.length > 0) {
-          itemSelect.innerHTML = order.items
-            .map(
-              (item) => `
-            <option value="${item.orderItemId || item.id}">
-              ${this.escapeHtml(item.productName)} (Size: ${this.escapeHtml(item.size || "N/A")}, Color: ${this.escapeHtml(item.color || "N/A")}, Qty: ${item.quantity})
-            </option>
-          `,
-            )
-            .join("");
-        } else {
-          itemSelect.innerHTML =
-            '<option value="">No items found for this order</option>';
-        }
-      } catch (err) {
-        itemSelect.innerHTML = '<option value="">Error loading items</option>';
       }
     }
   },
@@ -898,6 +1034,7 @@ export const ProfileController = {
     const closeBtn = document.getElementById("btn-close-profile-rma");
     const cancelBtn = document.getElementById("btn-cancel-profile-rma");
     const submitBtn = document.getElementById("btn-submit-profile-rma");
+    const selectAllBtn = document.getElementById("btn-select-all-rma");
 
     const close = () => this.closeRmaModal();
     closeBtn?.addEventListener("click", close);
@@ -906,9 +1043,22 @@ export const ProfileController = {
       if (e.target === modal) close();
     });
 
+    selectAllBtn?.addEventListener("click", () => {
+      const checkboxes = Array.from(document.querySelectorAll('input[name="profile-rma-selected-item"]:not(:disabled)'));
+      const isAll = selectAllBtn.dataset.allSelected === "true";
+      checkboxes.forEach((cb) => {
+        cb.checked = !isAll;
+        cb.closest('.rma-item-checkbox-row')?.classList.toggle('is-selected', !isAll);
+      });
+      selectAllBtn.dataset.allSelected = isAll ? "false" : "true";
+      selectAllBtn.textContent = isAll ? "Select All Eligible Items" : "Deselect All";
+    });
+
     submitBtn?.addEventListener("click", async () => {
       if (!this.currentRmaOrderId) return;
-      const itemSelect = document.getElementById("profile-rma-item-select");
+      const checkedBoxes = Array.from(
+        document.querySelectorAll('input[name="profile-rma-selected-item"]:checked:not(:disabled)'),
+      );
       const typeRadio = document.querySelector(
         'input[name="profile-rma-type"]:checked',
       );
@@ -916,52 +1066,70 @@ export const ProfileController = {
       const notesInput = document.getElementById("profile-rma-notes");
       const errEl = document.getElementById("profile-rma-error");
 
-      const orderItemId = parseInt(itemSelect?.value || "0", 10);
-      if (!orderItemId) {
+      if (checkedBoxes.length === 0) {
         if (errEl) {
-          errEl.textContent = "Please select an item to return or exchange.";
+          errEl.textContent = "Please select at least one item to return or exchange.";
           errEl.classList.remove("is-hidden");
         }
         return;
       }
 
       submitBtn.disabled = true;
-      submitBtn.textContent = "Submitting...";
+      submitBtn.textContent = checkedBoxes.length > 1 ? `Submitting (${checkedBoxes.length} items)...` : "Submitting...";
 
-      try {
-        const payload = {
-          OrderId: this.currentRmaOrderId,
-          OrderItemId: orderItemId,
-          RequestType: typeRadio?.value || "RETURN",
-          Reason: reasonSelect?.value || "WRONG_SIZE",
-          CustomerNotes: notesInput?.value?.trim() || "",
-        };
+      const itemIds = checkedBoxes.map((cb) => parseInt(cb.value, 10));
+      const requestType = typeRadio?.value || "RETURN";
+      const reason = reasonSelect?.value || "WRONG_SIZE";
+      const customerNotes = notesInput?.value?.trim() || "";
 
-        const res = await ApiClient.createReturnRequest(payload);
-        if (res && res.success) {
-          RealtimeManager.showToast(
-            res.message || "Return / Exchange request submitted successfully!",
-            "info",
-          );
-          close();
-          await this.loadUserOrders();
-        } else {
-          throw new Error(res?.message || "Failed to submit return request.");
+      let successCount = 0;
+      const errors = [];
+
+      for (const orderItemId of itemIds) {
+        try {
+          const payload = {
+            OrderId: this.currentRmaOrderId,
+            OrderItemId: orderItemId,
+            RequestType: requestType,
+            Reason: reason,
+            CustomerNotes: customerNotes,
+          };
+
+          const res = await ApiClient.createReturnRequest(payload);
+          if (res && res.success) {
+            successCount++;
+          } else {
+            errors.push(res?.message || `Item #${orderItemId} request could not be completed.`);
+          }
+        } catch (itemErr) {
+          errors.push(itemErr.message || `Item #${orderItemId} request failed.`);
         }
-      } catch (err) {
+      }
+
+      if (successCount > 0) {
+        RealtimeManager.showToast(
+          successCount === 1
+            ? "Return / Exchange request submitted successfully!"
+            : `Successfully submitted ${successCount} return/exchange requests!`,
+          "info",
+        );
+        close();
+        this.orderDetailsCache.delete(this.currentRmaOrderId);
+        await this.loadUserOrders();
+      } else {
         if (errEl) {
-          errEl.textContent = err.message || "Failed to submit return request.";
+          errEl.textContent = errors.join("; ") || "Failed to submit return request.";
           errEl.classList.remove("is-hidden");
         } else {
           RealtimeManager.showToast(
-            err.message || "Failed to submit return request.",
+            errors.join("; ") || "Failed to submit return request.",
             "alert",
           );
         }
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Submit Request";
       }
+
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Submit Request";
     });
   },
 

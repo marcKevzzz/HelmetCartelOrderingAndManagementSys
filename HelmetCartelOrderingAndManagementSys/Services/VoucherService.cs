@@ -37,13 +37,26 @@ namespace HelmetCartelOrderingAndManagementSys.Services
         {
             if (request == null) throw new ArgumentException("Voucher details are required.");
             request.Code = NormalizeCode(request.Code);
-            if (request.DiscountType != AppConstants.Vouchers.Percentage && request.DiscountType != AppConstants.Vouchers.FixedAmount)
-                throw new ArgumentException("Choose percentage or fixed-peso discount.");
-            if (request.DiscountValue <= 0 || request.DiscountValue > 9999999999999999.99m ||
-                (request.DiscountType == AppConstants.Vouchers.Percentage && request.DiscountValue > 100) ||
-                request.MinimumSpend < 0 || request.MinimumSpend > 9999999999999999.99m || request.UsageLimit <= 0 ||
-                decimal.Round(request.DiscountValue, 2) != request.DiscountValue || decimal.Round(request.MinimumSpend, 2) != request.MinimumSpend)
-                throw new ArgumentException("Check the discount, minimum spend and usage limit; amounts allow two decimal places.");
+            if (request.DiscountType != AppConstants.Vouchers.Percentage &&
+                request.DiscountType != AppConstants.Vouchers.FixedAmount &&
+                request.DiscountType != AppConstants.Vouchers.FreeShipping)
+                throw new ArgumentException("Choose percentage, fixed-peso discount, or free delivery.");
+
+            if (request.DiscountType == AppConstants.Vouchers.FreeShipping)
+            {
+                if (request.DiscountValue < 0) request.DiscountValue = 0m;
+                if (request.MinimumSpend < 0 || request.MinimumSpend > 9999999999999999.99m || request.UsageLimit <= 0 ||
+                    decimal.Round(request.MinimumSpend, 2) != request.MinimumSpend)
+                    throw new ArgumentException("Check the minimum spend and usage limit; amounts allow two decimal places.");
+            }
+            else
+            {
+                if (request.DiscountValue <= 0 || request.DiscountValue > 9999999999999999.99m ||
+                    (request.DiscountType == AppConstants.Vouchers.Percentage && request.DiscountValue > 100) ||
+                    request.MinimumSpend < 0 || request.MinimumSpend > 9999999999999999.99m || request.UsageLimit <= 0 ||
+                    decimal.Round(request.DiscountValue, 2) != request.DiscountValue || decimal.Round(request.MinimumSpend, 2) != request.MinimumSpend)
+                    throw new ArgumentException("Check the discount, minimum spend and usage limit; amounts allow two decimal places.");
+            }
             if (request.ExpiresAt.HasValue) request.ExpiresAt = request.ExpiresAt.Value.ToUniversalTime();
         }
     }

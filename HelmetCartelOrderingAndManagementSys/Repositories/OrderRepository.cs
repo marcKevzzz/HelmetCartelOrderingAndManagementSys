@@ -218,9 +218,18 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                         if (!string.IsNullOrWhiteSpace(request.VoucherCode))
                         {
                             var quote = await VoucherRepository.ApplyAsync(conn, transaction, orderId, request.VoucherCode).ConfigureAwait(false);
-                            voucherDiscount = quote.DiscountAmount;
                             voucherCode = quote.Code;
-                            total = subtotal - voucherDiscount + shippingFee;
+                            if (quote.DiscountType == AppConstants.Vouchers.FreeShipping)
+                            {
+                                voucherDiscount = 0.00m;
+                                shippingFee = 0.00m;
+                                total = subtotal;
+                            }
+                            else
+                            {
+                                voucherDiscount = quote.DiscountAmount;
+                                total = subtotal - voucherDiscount + shippingFee;
+                            }
                         }
 
                         using (var totalsCmd = new SqlCommand("dbo.sp_ValidateOrderTotals", conn, transaction))
@@ -344,6 +353,10 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 TrackingNumber = reader.IsDBNull(reader.GetOrdinal("TrackingNumber")) ? null : reader.GetString(reader.GetOrdinal("TrackingNumber")),
                                 DeliveryNotes = reader.IsDBNull(reader.GetOrdinal("DeliveryNotes")) ? null : reader.GetString(reader.GetOrdinal("DeliveryNotes")),
                                 CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+                                RmaCount = reader.GetInt32(reader.GetOrdinal("RmaCount")),
+                                LatestRmaType = reader.IsDBNull(reader.GetOrdinal("LatestRmaType")) ? null : reader.GetString(reader.GetOrdinal("LatestRmaType")),
+                                LatestRmaStatus = reader.IsDBNull(reader.GetOrdinal("LatestRmaStatus")) ? null : reader.GetString(reader.GetOrdinal("LatestRmaStatus")),
+                                LatestRmaResolution = reader.IsDBNull(reader.GetOrdinal("LatestRmaResolution")) ? null : reader.GetString(reader.GetOrdinal("LatestRmaResolution")),
                                 Items = new List<OrderItemSummaryDto>()
                             };
                         }
@@ -358,6 +371,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 {
                                     Id = reader.GetInt32(reader.GetOrdinal("Id")),
                                     VariantId = reader.GetInt32(reader.GetOrdinal("VariantId")),
+                                    ProductId = reader.IsDBNull(reader.GetOrdinal("ProductId")) ? (int?)null : reader.GetInt32(reader.GetOrdinal("ProductId")),
                                     ProductName = reader.GetString(reader.GetOrdinal("ProductName")),
                                     SKU = reader.GetString(reader.GetOrdinal("SKU")),
                                     Size = reader.GetString(reader.GetOrdinal("Size")),
@@ -366,7 +380,13 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                     UnitPrice = reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
                                     TotalPrice = reader.GetDecimal(reader.GetOrdinal("TotalPrice")),
                                     MainImageUrl = mainImg,
-                                    ImageUrl = mainImg
+                                    ImageUrl = mainImg,
+                                    RmaId = reader.IsDBNull(reader.GetOrdinal("RmaId")) ? (int?)null : reader.GetInt32(reader.GetOrdinal("RmaId")),
+                                    RmaNumber = reader.IsDBNull(reader.GetOrdinal("RmaNumber")) ? null : reader.GetString(reader.GetOrdinal("RmaNumber")),
+                                    RmaType = reader.IsDBNull(reader.GetOrdinal("RmaType")) ? null : reader.GetString(reader.GetOrdinal("RmaType")),
+                                    RmaStatus = reader.IsDBNull(reader.GetOrdinal("RmaStatus")) ? null : reader.GetString(reader.GetOrdinal("RmaStatus")),
+                                    RmaResolution = reader.IsDBNull(reader.GetOrdinal("RmaResolution")) ? null : reader.GetString(reader.GetOrdinal("RmaResolution")),
+                                    ReviewId = reader.IsDBNull(reader.GetOrdinal("ReviewId")) ? (int?)null : reader.GetInt32(reader.GetOrdinal("ReviewId"))
                                 });
                             }
                         }

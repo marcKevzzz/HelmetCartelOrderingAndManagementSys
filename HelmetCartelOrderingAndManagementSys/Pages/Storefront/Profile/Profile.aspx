@@ -551,8 +551,11 @@
                 <input type="hidden" id="profile-rma-order-id" value="" />
                 
                 <div class="form-group">
-                    <label for="profile-rma-item-select" class="form-label">Select Item to Return / Exchange *</label>
-                    <select id="profile-rma-item-select" class="form-input" required></select>
+                    <div class="rma-items-header">
+                        <label class="form-label" id="profile-rma-items-label">Select Gear to Return / Exchange *</label>
+                        <button type="button" class="btn-select-all-rma is-hidden" id="btn-select-all-rma">Select All Eligible Items</button>
+                    </div>
+                    <div id="profile-rma-items-checklist" class="rma-items-checklist" role="group" aria-labelledby="profile-rma-items-label"></div>
                 </div>
 
                 <div class="form-group">
@@ -599,5 +602,5 @@
     </div>
 
     <!-- Page Specific Script -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/profile.js?v=vouchers-12") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/profile.js?v=vouchers-14") %>'></script>
 </asp:Content>

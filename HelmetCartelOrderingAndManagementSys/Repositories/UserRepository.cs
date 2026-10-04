@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using HelmetCartelOrderingAndManagementSys.Infrastructure;
 using HelmetCartelOrderingAndManagementSys.Models.DTOs;
 
@@ -134,8 +135,18 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
 
                 using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
                 {
+                    int itemsJsonOrdinal = -1;
+                    try { itemsJsonOrdinal = reader.GetOrdinal("ItemsJson"); } catch { }
+
                     while (await reader.ReadAsync().ConfigureAwait(false))
                     {
+                        var itemsJson = (itemsJsonOrdinal >= 0 && !reader.IsDBNull(itemsJsonOrdinal))
+                            ? reader.GetString(itemsJsonOrdinal)
+                            : null;
+                        var orderItems = !string.IsNullOrWhiteSpace(itemsJson)
+                            ? JsonConvert.DeserializeObject<List<OrderItemSummaryDto>>(itemsJson) ?? new List<OrderItemSummaryDto>()
+                            : new List<OrderItemSummaryDto>();
+
                         list.Add(new UserOrderSummaryDto
                         {
                             Id = reader.GetInt32(reader.GetOrdinal("Id")),
@@ -167,10 +178,15 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             PaymentStatus = reader.GetString(reader.GetOrdinal("PaymentStatus")),
                             GatewayReference = reader.IsDBNull(reader.GetOrdinal("GatewayReference")) ? null : reader.GetString(reader.GetOrdinal("GatewayReference")),
                             ItemCount = reader.GetInt32(reader.GetOrdinal("ItemCount")),
+                            RmaCount = reader.GetInt32(reader.GetOrdinal("RmaCount")),
+                            LatestRmaType = reader.IsDBNull(reader.GetOrdinal("LatestRmaType")) ? null : reader.GetString(reader.GetOrdinal("LatestRmaType")),
+                            LatestRmaStatus = reader.IsDBNull(reader.GetOrdinal("LatestRmaStatus")) ? null : reader.GetString(reader.GetOrdinal("LatestRmaStatus")),
+                            LatestRmaResolution = reader.IsDBNull(reader.GetOrdinal("LatestRmaResolution")) ? null : reader.GetString(reader.GetOrdinal("LatestRmaResolution")),
                             PreviewImages = reader.IsDBNull(reader.GetOrdinal("PreviewImages")) ? null : reader.GetString(reader.GetOrdinal("PreviewImages")),
                             PreviewImageList = reader.IsDBNull(reader.GetOrdinal("PreviewImages"))
                                 ? new List<string>()
-                                : new List<string>(reader.GetString(reader.GetOrdinal("PreviewImages")).Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                                : new List<string>(reader.GetString(reader.GetOrdinal("PreviewImages")).Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)),
+                            Items = orderItems
                         });
                     }
                 }

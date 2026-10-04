@@ -17,7 +17,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             _dbFactory = dbFactory ?? throw new ArgumentNullException(nameof(dbFactory));
         }
 
-        public async Task<List<ProductReviewDto>> GetProductReviewsAsync(int productId, bool includeHidden = false)
+        public async Task<List<ProductReviewDto>> GetProductReviewsAsync(int productId, bool includeHidden = false, int? currentUserId = null)
         {
             var list = new List<ProductReviewDto>();
 
@@ -30,16 +30,18 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.Parameters.Add(new SqlParameter("@ProductId", SqlDbType.Int) { Value = productId });
                     cmd.Parameters.Add(new SqlParameter("@IncludeHidden", SqlDbType.Bit) { Value = includeHidden });
+                    cmd.Parameters.Add(new SqlParameter("@CurrentUserId", SqlDbType.Int) { Value = (object)currentUserId ?? DBNull.Value });
 
                     using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
                     {
                         while (await reader.ReadAsync().ConfigureAwait(false))
                         {
+                            int? reviewUserId = reader.IsDBNull(reader.GetOrdinal("UserId")) ? (int?)null : reader.GetInt32(reader.GetOrdinal("UserId"));
                             var review = new ProductReviewDto
                             {
                                 Id = reader.GetInt32(reader.GetOrdinal("Id")),
                                 ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
-                                UserId = reader.IsDBNull(reader.GetOrdinal("UserId")) ? (int?)null : reader.GetInt32(reader.GetOrdinal("UserId")),
+                                UserId = reviewUserId,
                                 OrderId = reader.IsDBNull(reader.GetOrdinal("OrderId")) ? (int?)null : reader.GetInt32(reader.GetOrdinal("OrderId")),
                                 ReviewerName = reader.GetString(reader.GetOrdinal("ReviewerName")),
                                 Rating = reader.GetInt32(reader.GetOrdinal("Rating")),
@@ -48,6 +50,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 IsVerifiedPurchase = reader.GetBoolean(reader.GetOrdinal("IsVerifiedPurchase")),
                                 FlagCount = Convert.ToInt32(reader["FlagCount"]),
                                 IsHidden = reader.GetBoolean(reader.GetOrdinal("IsHidden")),
+                                IsCurrentUser = currentUserId.HasValue && reviewUserId.HasValue && currentUserId.Value == reviewUserId.Value,
                                 CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"))
                             };
 
@@ -203,6 +206,46 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                     return newIsHiddenParam.Value != DBNull.Value && (bool)newIsHiddenParam.Value;
                 }
             }
+        }
+
+        public async Task<List<ProductReviewDto>> GetTopCustomerReviewsAsync(int limit = 6)
+        {
+            var list = new List<ProductReviewDto>();
+
+            using (var conn = (SqlConnection)_dbFactory.CreateConnection())
+            {
+                await conn.OpenAsync().ConfigureAwait(false);
+
+                using (var cmd = new SqlCommand("dbo.sp_GetTopCustomerReviews", conn))
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.Parameters.Add(new SqlParameter("@Limit", SqlDbType.Int) { Value = limit });
+
+                    using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+                    {
+                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            var review = new ProductReviewDto
+                            {
+                                Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                                ProductId = reader.GetInt32(reader.GetOrdinal("ProductId")),
+                                ReviewerName = reader.GetString(reader.GetOrdinal("ReviewerName")),
+                                Rating = reader.GetInt32(reader.GetOrdinal("Rating")),
+                                Title = reader.IsDBNull(reader.GetOrdinal("Title")) ? null : reader.GetString(reader.GetOrdinal("Title")),
+                                Comment = reader.GetString(reader.GetOrdinal("Comment")),
+                                IsVerifiedPurchase = reader.GetBoolean(reader.GetOrdinal("IsVerifiedPurchase")),
+                                CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+                                ProductName = reader.IsDBNull(reader.GetOrdinal("ProductName")) ? null : reader.GetString(reader.GetOrdinal("ProductName")),
+                                ProductSlug = reader.IsDBNull(reader.GetOrdinal("ProductSlug")) ? null : reader.GetString(reader.GetOrdinal("ProductSlug"))
+                            };
+
+                            list.Add(review);
+                        }
+                    }
+                }
+            }
+
+            return list;
         }
     }
 }

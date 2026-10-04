@@ -169,17 +169,19 @@
                         <select id="voucher-type" class="admin-form-select">
                             <option value="PERCENTAGE">Percentage Discount (%)</option>
                             <option value="FIXED_AMOUNT">Fixed Peso Amount (&#8369;)</option>
+                            <option value="FREE_SHIPPING">Free Delivery Fee (100% Off Shipping)</option>
                         </select>
                         <span id="voucher-type-error" class="inline-error-msg" role="alert"></span>
                     </div>
 
                     <!-- 3. Discount Value -->
-                    <div class="admin-form-group">
+                    <div class="admin-form-group" id="voucher-value-group">
                         <label class="admin-form-label" for="voucher-value">Discount Value <span class="admin-required-star">*</span></label>
                         <div class="admin-input-addon-wrap">
                             <input type="number" id="voucher-value" class="admin-form-input" min="0.01" step="0.01" placeholder="e.g. 10" />
                             <span class="admin-input-addon" id="voucher-value-unit">%</span>
                         </div>
+                        <span class="voucher-field-hint" id="voucher-value-hint"></span>
                         <span id="voucher-value-error" class="inline-error-msg" role="alert"></span>
                     </div>
 
@@ -208,6 +210,14 @@
                         <input type="number" id="voucher-limit" class="admin-form-input" min="1" step="1" placeholder="e.g. 100 (Leave blank for unlimited)" />
                         <span class="voucher-field-hint">Total redemptions allowed across all customers.</span>
                         <span id="voucher-limit-error" class="inline-error-msg" role="alert"></span>
+                    </div>
+
+                    <!-- 7. Active Status -->
+                    <div class="admin-form-group admin-form-group--full">
+                        <label class="admin-checkbox-custom" for="voucher-active">
+                            <input type="checkbox" id="voucher-active" checked />
+                            <span class="admin-checkbox-label">Voucher is Active &amp; Redeemable</span>
+                        </label>
                     </div>
 
                 </div>

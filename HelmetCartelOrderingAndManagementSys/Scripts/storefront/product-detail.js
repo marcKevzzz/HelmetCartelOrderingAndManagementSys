@@ -367,6 +367,32 @@ function initProductDetailPage() {
     const btnCloseReport = document.getElementById('btn-close-report-modal');
     const btnCancelReport = document.getElementById('btn-cancel-report-modal');
 
+    // 8.1 SANITIZE REVIEW CARDS & HIDE REPORT FOR SELF
+    const currentUser = (typeof ApiClient !== 'undefined' && ApiClient.getCurrentUser) ? ApiClient.getCurrentUser() : null;
+    const currentUserId = currentUser ? String(currentUser.id) : null;
+
+    document.querySelectorAll('#reviews-grid .review-card-full').forEach(card => {
+        const reviewUserId = card.getAttribute('data-user-id');
+        const isHidden = card.getAttribute('data-is-hidden') === 'true';
+        const isSelf = currentUserId && reviewUserId && currentUserId === reviewUserId;
+
+        if (isHidden && !isSelf) {
+            // Never expose other users' hidden reviews to strangers
+            card.remove();
+            return;
+        }
+
+        if (isSelf) {
+            // Cannot report your own review
+            const reportBtn = card.querySelector('.btn-report-review');
+            if (reportBtn) reportBtn.remove();
+            const moreBtn = card.querySelector('.review-more-btn');
+            if (moreBtn) moreBtn.remove();
+            const popover = card.querySelector('.review-action-popover');
+            if (popover) popover.remove();
+        }
+    });
+
     // Delegation for review more actions and report triggers
     document.addEventListener('click', (e) => {
         // Toggle popover

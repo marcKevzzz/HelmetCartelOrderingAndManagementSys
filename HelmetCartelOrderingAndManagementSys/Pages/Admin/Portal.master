@@ -292,17 +292,17 @@
                         <form id="adminChangePasswordForm" class="admin-profile-form" novalidate>
                             <div class="admin-form-group">
                                 <label for="adminPwdCurrent" class="admin-form-label">Current Password *</label>
-                                <input type="password" id="adminPwdCurrent" class="admin-form-input" placeholder="Enter current password" required />
+                                <input type="password" id="adminPwdCurrent" class="admin-form-input" placeholder="Enter current password" autocomplete="current-password" required />
                                 <span class="inline-error-msg" id="errAdminPwdCurrent"></span>
                             </div>
                             <div class="admin-form-group">
                                 <label for="adminPwdNew" class="admin-form-label">New Password *</label>
-                                <input type="password" id="adminPwdNew" class="admin-form-input" placeholder="Minimum 6 characters" required />
+                                <input type="password" id="adminPwdNew" class="admin-form-input" placeholder="Minimum 6 characters" autocomplete="new-password" required />
                                 <span class="inline-error-msg" id="errAdminPwdNew"></span>
                             </div>
                             <div class="admin-form-group">
                                 <label for="adminPwdConfirm" class="admin-form-label">Confirm New Password *</label>
-                                <input type="password" id="adminPwdConfirm" class="admin-form-input" placeholder="Re-type new password" required />
+                                <input type="password" id="adminPwdConfirm" class="admin-form-input" placeholder="Re-type new password" autocomplete="new-password" required />
                                 <span class="inline-error-msg" id="errAdminPwdConfirm"></span>
                             </div>
                             <div>

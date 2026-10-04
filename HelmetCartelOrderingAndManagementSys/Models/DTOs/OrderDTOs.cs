@@ -63,6 +63,10 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public DateTime CreatedAt { get; set; }
         public string PreviewImages { get; set; }
         public List<string> PreviewImageList { get; set; } = new List<string>();
+        public int RmaCount { get; set; }
+        public string LatestRmaType { get; set; }
+        public string LatestRmaStatus { get; set; }
+        public string LatestRmaResolution { get; set; }
         public List<OrderItemSummaryDto> Items { get; set; } = new List<OrderItemSummaryDto>();
     }
 
@@ -70,6 +74,7 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
     {
         public int Id { get; set; }
         public int VariantId { get; set; }
+        public int? ProductId { get; set; }
         public string ProductName { get; set; }
         public string SKU { get; set; }
         public string Size { get; set; }
@@ -79,6 +84,12 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public decimal TotalPrice { get; set; }
         public string MainImageUrl { get; set; }
         public string ImageUrl { get; set; }
+        public int? RmaId { get; set; }
+        public string RmaNumber { get; set; }
+        public string RmaType { get; set; }
+        public string RmaStatus { get; set; }
+        public string RmaResolution { get; set; }
+        public int? ReviewId { get; set; }
     }
 
     public class UpdateOrderStatusDto

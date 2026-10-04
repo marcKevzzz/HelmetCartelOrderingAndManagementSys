@@ -1,6 +1,143 @@
 # AI Change Log & Architectural Evolution: Helmet Cartel
 
-## [2026-10-03] — Receipt Seal Clean-up, Activity Feed Dynamic Pagination & Actor Badges, Modal Design System Standardization, Admin User Profile & Security Modal, and Storefront Login Redirect with Toast Feedback
+## [2026-10-04] — Comprehensive Realistic Product Specifications, Authentic Customer Reviews, and "OUR HAPPY CUSTOMERS" Testimonial Carousel (Migration 47)
+
+- **Comprehensive Realistic Product Details & Specifications (Migration 47, `database/schema/47_realistic_products_specs_and_reviews.sql`):**
+  - **Cleaned Up Test Records:** Permanently deleted test drafts (Products 49 and 51, `asdas`, `xc`) along with their orphaned color variants, gallery images, and inventory records.
+  - **Authentic Motorcycle Helmet Catalog:** Updated all 35 catalog helmets (Shoei, AGV, Gille, Zebra, HNJ) with realistic, authentic model names, marketing positioning, and comprehensive technical descriptions (e.g., Shoei RF-1400 Dedicated, AGV Pista GP RR Carbon, Shoei X-Fifteen Racing, Shoei Neotec II Touring Modular, AGV K6 S Ultra-lightweight, Shoei Hornet ADV Dual-Sport, Gille 135 GTS V1 Aerodynamic Full-Face, Zebra Sym Jet Dual Visor Modular, HNJ 902 Commuter Full-Face).
+  - **Structured Technical Specifications Database:** Seeded 315 complete technical specification attributes across all 35 catalog items in `dbo.ProductSpecificationValues` across 9 official motorcycle engineering dimensions:
+    1. `helmet_type`: Full Face, Modular (Flip-Up), Dual-Sport / Adventure, Open Face.
+    2. `shell_material`: AIM+ Multi-Ply Matrix Composite, 100% Carbon Fiber, Carbon-Aramidic Fiberglass, High-Impact Thermoplastic / ABS.
+    3. `safety_certifications`: ECE 22.06, SNELL M2020D / M2025, DOT FMVSS No. 218, FIM Racing Homologated, BPS / ICC certified.
+    4. `visor_style`: CWR-F2 Pinlock-Ready 2D Racing Shield, Ultravision Optical Class 1 (5mm), Anti-Scratch MaxVision Pinlock, Integrated Drop-Down Sun Visor.
+    5. `retention_system`: Double D-Ring (Titanium / Stainless Steel) Racing Retention or Quick-Release Steel Micrometric Ratchet Buckle.
+    6. `ventilation`: Multi-Channel Dynamic EPS channeling with chin, crown, and brow intakes plus negative pressure vacuum exhaust extractors.
+    7. `interior_liner`: 3D Max-Dry moisture-wicking removable/washable antimicrobial cheek pads with Emergency Quick Release System (E.Q.R.S.) and 2Dry Shalimar fabrics.
+    8. `weight`: Exact weight in grams (e.g., 1,450g ± 50g, 1,255g ± 50g).
+    9. `comm_ready`: Bluetooth communication integration readiness (e.g., Sena SRL3 / SRL-Mesh dedicated cutouts, AGV INSYDE / Cardo universal speaker pockets).
+
+- **Authentic Customer Reviews (Migration 47, `dbo.ProductReviews`):**
+  - Replaced placeholder and sample reviews with 12 realistic, authentic reviews written from the perspective of real Philippine motorcycle riders across diverse helmets and use cases (track days, expressway touring, daily city commuting, weekend dual-sport trails).
+  - Included authentic rider names, verified purchase badges, realistic feedback highlighting helmet acoustics, ventilation, weight balance, and fitment.
+
+- **"OUR HAPPY CUSTOMERS" Testimonial Slider & Reference Layout (`Default.aspx`, `Default.aspx.cs`, `storefront.js`, `storefront.css`, `components.css`):**
+  - **Dynamic Review Capacity:** Increased `_reviewRepository.GetTopCustomerReviewsAsync` from 6 to 12 top rated reviews.
+  - **Reference Card Layout (Exact Match to User Reference):**
+    - Redesigned `.testimonial-card` to match the provided modern card design:
+      - Clean bold customer name with verified green checkmark badge (`.verified-badge`).
+      - Star rating row directly below the name displaying numerical score (`5.0`) alongside 5 gold star SVGs.
+      - Decorative quote mark icon (`.testimonial-card__quote-icon`) in pale sage/mint (`#D2E6DC`) positioned at the top-right corner.
+      - Body comment in relaxed typography with high readability.
+      - Excluded profile image avatar and completely removed purchased product names as requested.
+      - Soft rounded pill corners (`border-radius: var(--radius-xl)` / 20px) with subtle card shadow (`0 4px 20px rgba(0, 0, 0, 0.04)`).
+  - **Non-Scrollable, Button-Driven Slider:**
+    - Eliminated manual horizontal scrollbars, wheel scrolling, and swipe dragging (`overflow: hidden` on viewport, `transform: translateX` on track).
+    - Slider is strictly controlled via top `#prev-testimonial` and `#next-testimonial` circular buttons.
+    - Displays exactly **3 cards at a time** on desktop (> 1024px), **2 cards at a time** on tablet (641px – 1024px), and **1 card at a time** on mobile (<= 640px).
+    - Smooth cubic-bezier sliding transition (`450ms`) with infinite looping upon reaching either boundary.
+    - Removed bottom pagination dots for a distraction-free, button-only interface.
+
+## [2026-10-04] — Instantaneous Return Modal Items Pre-Loading & Orders Optimization (Migration 46)
+
+- **Instantaneous Return Modal Items Loading (`Profile.aspx`, `profile.js`, `dbo.sp_GetUserOrders`, `UserRepository.cs`, `AuthDTOs.cs`):**
+  - **Identified Root Cause:** When opening the Return modal, `profile.js` had to fetch order details on-demand via `ApiClient.getUserOrderDetails(orderId)` or wait behind a background `prefetchOrderDetails` loop that fired up to 10 sequential HTTP requests on page load, choking browser connection pools and causing an extended "Loading purchased items..." wait.
+  - **MSSQL Optimization (Migration 46):** Enhanced `dbo.sp_GetUserOrders` to project order items and RMA states directly as an `ItemsJson` subquery column (`FOR JSON PATH`).
+  - **C# Repository & DTO:** Added `Items` list to `UserOrderSummaryDto` and deserialized `ItemsJson` in `UserRepository.GetUserOrdersAsync`.
+  - **Frontend In-Memory Cache:** In `profile.js`, prepopulated `orderDetailsCache` immediately upon initial orders load with zero extra round trips. Removed the blocking `prefetchOrderDetails` loop.
+  - **Instant Modal Rendering:** Updated `openRmaModal` in `profile.js` to immediately render the items checklist synchronously from cache (0ms delay), eliminating the "Loading purchased items..." stall. Removed hardcoded loading text from `Profile.aspx`.
+
+## [2026-10-04] — Free Delivery Fee Vouchers, Multi-Item Order Return/Exchange Handling, Descriptive Return Statuses, Activity Feed QRPh Labeling, Vouchers Null Pointer Fix, and Admin Password Autocomplete
+
+- **Multi-Item Order Returns & Exchange Workflow (`Profile.aspx`, `profile.js`, `profile.css`, `track-order.js`):**
+  - **Dynamic Multi-Item Selection Checklist:** Redesigned the RMA modal in `Profile.aspx` from a single dropdown to a rich, accessible multi-item checklist with thumbnail preview, product specs (Color, Size, Quantity), line totals, and selection checkboxes.
+  - **Multi-Item Batch Submission:** Customers who order multiple items can select 1, several, or all items in a delivered order to return or exchange in a single flow with a "Select All Eligible Items" toggle.
+  - **Item-Level Return Independence & Prevention of Lockouts:** Prevents multi-item orders from being locked out of returns once 1 item is submitted. If an item already has an active RMA, it is rendered in a disabled state with its active status chip, allowing unreturned items to still be submitted independently.
+  - **Item-Level Quick Actions in Order History:** Added "Return / Exchange Item" buttons directly on unreturned items inside the expanded order details dropdown in `Profile.aspx`, preselecting the clicked item when the modal opens.
+- **Descriptive Return Status Wording in Order History & Tracking (`profile.js`, `track-order.js`, `profile.css`):**
+  - Replaced ambiguous, raw return status codes (`Return: Completed`, `Return: Pending`) with informative, rider-friendly status descriptions:
+    - `Return: Pending Staff Review`
+    - `Return: Approved • Awaiting Item Handover`
+    - `Return: Item Received • Inspection in Progress`
+    - `Return: Completed • Refund Processed`
+    - `Return: Request Declined` / `Return: Request Cancelled`
+    - `Exchange: Pending Staff Review`
+    - `Exchange: Approved • Awaiting Item Handover`
+    - `Exchange: Item Received • Inspection in Progress`
+    - `Exchange: Completed • Replacement Dispatched`
+    - `Exchange: Request Declined` / `Exchange: Request Cancelled`
+  - Added dedicated color-coded status badges in order header cards, footer hints, and item list chips (`.status--rma-completed`, `.status--rma-approved`, `.status--rma-received`, `.status--rma-pending`, `.status--rma-rejected`).
+- **Free Delivery Fee Vouchers (Migration 45, `AppConstants.cs`, `constants.js`, `VoucherService.cs`, `VoucherRepository.cs`, `OrderRepository.cs`, `Vouchers.aspx`, `vouchers.js`, `checkout.js`):**
+  - Added `FREE_SHIPPING` discount type allowing vouchers that grant 100% free delivery fee regardless of merchandise total or shipping region.
+  - **Database Migration 45 (`database/schema/45_free_shipping_vouchers_and_activity_qrph.sql`):** Updated `CK_Vouchers_Discount` constraint on `dbo.Vouchers` and updated `dbo.sp_AdminSaveVoucher`, `dbo.sp_CalculateVoucher`, `dbo.sp_PreviewVoucher`, and `dbo.sp_ApplyOrderVoucher` to recognize `FREE_SHIPPING`.
+  - **Storefront Checkout Application:** When a `FREE_SHIPPING` voucher is applied, the checkout summary dynamically waives shipping fee (`FREE (Voucher)`), sets discount equal to shipping cost, recalculates total amount, and preserves delivery details without charge.
+  - **Admin Voucher Management:** Added `Free Delivery Fee (100% Off Shipping)` option in `Vouchers.aspx`, live preview badge (`.voucher-type-badge--free`), and custom ticket preview ("FREE DELIVERY").
+- **Admin Activity Feed Payment Label (`dbo.sp_AdminRecentActivity` / Migration 45):**
+  - Replaced *"Payment received via HitPay"* with *"Payment received via QRPh"* across both order status summaries and payment transaction logs in the recent activity feed.
+- **Admin Password Autocomplete Warning Fix (`Portal.master`):**
+  - Resolved browser DOM autocomplete warning by adding `autocomplete="current-password"` to `#adminPwdCurrent` and `autocomplete="new-password"` to `#adminPwdNew` and `#adminPwdConfirm`.
+- **Vouchers.js TypeError Null Reference Fix (`Vouchers.aspx`, `vouchers.js`):**
+  - Fixed `Uncaught TypeError: Cannot read properties of null (reading 'checked') at saveVoucher` by adding the Active Status toggle checkbox (`#voucher-active`) to the modal in `Vouchers.aspx` and adding safe optional chaining fallbacks in `vouchers.js`.
+
+- **Dynamic Default Page Hero Stats & Stored Procedure (`dbo.sp_GetStorefrontStats`, `Default.aspx`, `Default.aspx.cs`):**
+  - Updated `dbo.sp_GetStorefrontStats` to query exact live counts:
+    - `TotalBrands`: count of registered brands in `dbo.Brands`.
+    - `TotalProducts`: count of active products in catalog `dbo.Products`.
+    - `CompletedOrders`: count of completed customer transactions in `dbo.Orders WHERE Status = 'Completed'`.
+  - Wired into `Default.aspx.cs` directly during `Page_Load` and rendered into `litBrandsCount`, `litHelmetsCount`, and `litRidersCount` as formatted strings (`5+ Brands`, `37+ High-Quality Helmets`, `9+ Satisfied Riders`).
+- **Dynamic Customer Reviews Across Any Products (`dbo.sp_GetTopCustomerReviews`, `ReviewRepository.cs`, `Default.aspx`):**
+  - Updated `dbo.sp_GetTopCustomerReviews` to fetch the top 6 highest rating customer reviews (`Rating DESC, CreatedAt DESC`) across any product reviews in `dbo.ProductReviews`.
+  - Fixed star rating evaluation casting `Convert.ToDecimal(Eval("Rating"))` in `rptHappyCustomers` repeater template, rendering authentic 5-star cards with reviewer names, verified badges, and testimonials in `Default.aspx`.
+- **Mega Menu Categories, Brands & Spotlight (`Site.Master`):**
+  - Verified 5 Categories, 5 Brands, 4 Popular Finishes.
+  - Featured AGV Pista GP RR Carbon Racing Helmet (₱78,000) with local asset `/Content/images/products/helmets/agv/pistagprrgc7.webp` in SPOTLIGHT.
+- **Responsiveness & Equal Product Card Sizing (`layout.css`, `components.css`, `storefront.css`):**
+  - Resolved `brand-ticker` mobile overflow by constraining max width to viewport and wrapping list cleanly without document blowouts.
+  - Enforced strict equal heights and proportional balance across `.product-card` with flex column layouts, 2-line title clamps, and `margin-top: auto` on rating and pricing elements.
+- **Collapsible Checkout Receipt with Caret Toggle (`Checkout.aspx`, `receipts.css`, `checkout.js`):**
+  - Styled collapsible receipt container (`.checkout-receipt-document.is-collapsed`) with height constraint and gradient bottom fade mask.
+  - Added interactive toggle button with caret SVG (`#btn-toggle-receipt`) to expand and collapse receipt height on demand.
+- **Admin Authentication Role Redirection (`auth.js`):**
+  - Configured sign-in response logic to redirect `Admin` and `Staff` users straight to the Admin Management side (`APP_CONSTANTS.ROUTES.ADMIN_DASHBOARD`), while directing regular `Customer` users to the storefront or requested return URL.
+
+## [2026-10-03] — TrackOrder Cancel & RMA Actions, Completed Order Item Reviews, Self-Review Visibility & Self-Report Prevention, Refund/Exchange Indicators, and All-Activity Feed Expansion (Migration 44)
+
+- **Order Cancellation & Return/Exchange Actions in TrackOrder (`TrackOrder.aspx`, `track-order.js`, `profile.css`):**
+  - Integrated dynamic cancellation action (`#btn-track-cancel-order`) inside `TrackOrder.aspx` for orders in `PendingPayment` or `Processing` status. Removed the SVG icon for a sleek text-only button, and enforced strict status checks ensuring the button is completely hidden on completed, delivered, shipped, or cancelled orders.
+  - Added dedicated cancellation modal (`#track-cancel-modal`) enabling customers to specify cancellation reasons with notes, executing via `POST /api/v1/orders/{orderId}/cancel`.
+  - Added item-level Return/Exchange initiation button directly on each delivered order item, opening the RMA modal prefilled with order details.
+  - Replaced return button with a dedicated RMA status badge (`.track-rma-chip`) showing `RMA #{rmaNumber} &bull; {status}` once an RMA has been submitted.
+  - Redesigned the order history footer return status indicators in `Profile.aspx` from pill chips to clean, italic text-only hints (`.order-status-hint--rma`) matching screenshot 3.
+  - Improved layout of purchased items in TrackOrder: separated product specs and horizontal action buttons from right-aligned pricing (`{quantity} pcs × {unitPrice}` over total price), avoiding awkward vertical button stacking.
+  - Renamed "Purchased Gear Details" and related modal/button labels from "Gear" to "Item" or "Product".
+  - Prefilled realistic random waybill / tracking numbers in Admin Dispatch modal and TrackOrder courier cards.
+  - Added prominent header RMA banner (`#track-rma-banner`) summarizing order-level RMA resolution status (Pending, Approved, Refunded, Exchanged, Rejected).
+
+
+- **Verified Buyer Product Review from Completed Orders (`TrackOrder.aspx`, `track-order.js`, `Profile.aspx`, `profile.js`):**
+  - Added "Write Review" action for completed order items in both TrackOrder and Customer Profile order history.
+  - Added dedicated interactive review modal (`#track-review-modal`) with dynamic 5-star rating picker, review headline, and detailed feedback comment.
+  - Links submission to `POST /api/v1/reviews` with `OrderId` and `ProductId`, automatically granting the `Verified Buyer` badge upon completion.
+  - Automatically replaces the review action button with a `.track-reviewed-chip` ("Reviewed &#10003;") once submitted.
+
+- **Self-Review Visibility and Self-Reporting Prevention (Migration 44, `sp_GetProductReviews`, `sp_ReportReview`, `ReviewsController.cs`, `ProductDetail.aspx`, `product-detail.js`):**
+  - **Self-Reporting Block:** Updated `dbo.sp_ReportReview` with database-level validation to prevent a user from reporting their own reviews (`IF @UserId = @ReviewAuthorId THROW 'You cannot report your own review.'`).
+  - **Suppressed Report UI:** Suppressed the "Report this review" action entirely on the author's own review cards on `ProductDetail.aspx`.
+  - **Author Visibility for Hidden/Moderated Reviews:** Resolved the UX policy requirement: authors can view their own review even if flagged/hidden (`IsHidden = 1`), rendered in a muted/disabled state (`.review-card-full.is-hidden-disabled`) with an informational banner: *"Your review is currently hidden / under moderation (visible only to you)"*, preventing confusion and duplicate reviews while protecting public shoppers from unmoderated content.
+
+- **Refunded and Exchanged Status Indicators (`Profile.aspx`, `profile.js`, `TrackOrder.aspx`, `track-order.js`, `profile.css`):**
+  - Added explicit visual status pills (`.status--refunded`, `.status--exchanged`, `.status--rma-pending`, `.status--rma-approved`) in Order History cards and TrackOrder headers.
+  - Seamlessly updates order status displays to reflect when an order has been partially or fully refunded or exchanged based on `LatestRmaResolution` and `LatestRmaStatus`.
+
+- **Comprehensive Scope for Recent Activity Feed (Migration 44, `sp_AdminRecentActivity`, `AdminDataRepository.cs`, `Dashboard.aspx.cs`, `dashboard.js`):**
+  - Created and executed Migration 44 (`database/schema/44_orders_rmas_reviews_activity_enhancements.sql`) expanding `dbo.sp_AdminRecentActivity` to capture **ALL** core system events:
+    - **Orders:** Placed orders, payment completions, and in-store POS checkouts.
+    - **Stock:** Real-time stock audit logs, restocks, sales deductions, and adjustments.
+    - **Returns/RMAs:** Return and exchange requests filed by customers, as well as approvals, rejections, and resolutions by staff/admin.
+    - **Customer Reviews:** New product reviews submitted by verified buyers.
+    - **Review Moderation:** Review moderation reports submitted for staff inspection.
+    - **Payments & Refunds:** Electronic payments received and processed refunds.
+  - Added SVG icons and badge styling for `RMA`, `Review`, and `Payment` activities in admin dashboard feeds.
+
 
 - **Receipt Seal Clean-up (`receipt.js`, `track-order.js`):**
   - Removed "Helmet Cartel MSSQL Ledger" from receipt seals across all customer, order tracking, and checkout receipt templates.

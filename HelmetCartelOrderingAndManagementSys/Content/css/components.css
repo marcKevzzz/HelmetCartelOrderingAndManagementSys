@@ -95,6 +95,7 @@ a:hover > .btn-arrow-icon {
 .product-card {
   display: flex;
   flex-direction: column;
+  height: 100%;
   background: transparent;
   text-decoration: none;
   color: inherit;
@@ -108,6 +109,7 @@ a:hover > .btn-arrow-icon {
 .product-card__link {
   display: flex;
   flex-direction: column;
+  height: 100%;
   color: inherit;
   text-decoration: none;
 }
@@ -129,6 +131,7 @@ a:hover > .btn-arrow-icon {
   margin-bottom: var(--space-3);
   isolation: isolate;
   -webkit-mask-image: -webkit-radial-gradient(white, black);
+  flex-shrink: 0;
 }
 
 .product-card__image-box {
@@ -144,6 +147,7 @@ a:hover > .btn-arrow-icon {
   margin-bottom: var(--space-3);
   isolation: isolate;
   -webkit-mask-image: -webkit-radial-gradient(white, black);
+  flex-shrink: 0;
 }
 
 .product-card__img {
@@ -211,19 +215,34 @@ a:hover > .btn-arrow-icon {
   font-family: var(--font-body);
   font-size: 1rem;
   font-weight: 700;
+  line-height: 1.35;
   letter-spacing: -0.01em;
   color: var(--color-text-main);
   text-transform: none;
   margin-bottom: 4px;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.product-card__description {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.8em;
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-normal);
 }
 
 .product-card__rating {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  margin-bottom: var(--space-2);
 }
 
 .stars {
@@ -320,55 +339,124 @@ a:hover > .btn-arrow-icon {
   }
 }
 
-/* 5. TESTIMONIAL REVIEW CARDS */
+/* 5. TESTIMONIAL REVIEW CARDS (Shop.co / Helmet Cartel Reference) */
 .testimonial-card {
   background-color: #FFFFFF;
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-  padding: var(--space-5);
+  border-radius: var(--radius-xl);
+  padding: 26px 28px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  min-width: 320px;
-  box-shadow: var(--shadow-subtle);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal), border-color var(--transition-normal);
+  user-select: none;
+  min-height: 200px;
+  box-sizing: border-box;
+}
+
+.testimonial-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+  border-color: var(--color-border-medium);
 }
 
 .testimonial-card__header {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 
-.author-name {
-  font-weight: var(--weight-bold);
-  font-size: var(--text-body);
-  color: var(--color-text-main);
+.testimonial-card__user {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.testimonial-card__name-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
-.verified-icon {
+.testimonial-card__name {
+  font-family: var(--font-body);
+  font-size: 17px;
+  font-weight: var(--weight-bold);
+  color: var(--color-text-main);
+  line-height: 1.25;
+}
+
+.verified-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
   background-color: var(--color-accent-green);
   color: #FFFFFF;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
-.verified-icon svg {
+.verified-badge svg {
   width: 10px;
   height: 10px;
-  fill: #FFFFFF;
+  stroke: #FFFFFF;
+}
+
+.testimonial-card__rating-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.testimonial-card__score {
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-bold);
+  color: var(--color-text-main);
+  line-height: 1;
+}
+
+.testimonial-card__rating-row .stars {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #F59E0B;
+}
+
+.testimonial-card__rating-row .stars svg {
+  width: 15px;
+  height: 15px;
+  fill: #F59E0B;
+}
+
+.testimonial-card__rating-row .stars svg.star--empty {
+  fill: #E5E7EB;
+}
+
+.testimonial-card__quote-icon {
+  width: 38px;
+  height: 38px;
+  color: #D2E6DC;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.testimonial-card__quote-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .testimonial-card__text {
   font-size: var(--text-body-sm);
   color: var(--color-text-secondary);
-  line-height: var(--leading-relaxed);
+  line-height: 1.65;
+  margin: 0;
+  flex-grow: 1;
 }
 
 /* 6. QUANTITY STEPPER */
@@ -735,7 +823,7 @@ textarea.is-invalid:focus {
 }
 
 .modal-title {
-  font-family: var(--font-heading, inherit);
+  font-family: var(--font-body, inherit);
   font-size: 1.25rem;
   font-weight: var(--weight-black, 800);
   letter-spacing: -0.01em;

@@ -3,17 +3,29 @@
  * Handles dispatch modal interactions, tracking number verification, and courier dispatch APIs.
  */
 
+function generateRandomWaybill(courier) {
+    const c = (courier || '').toLowerCase();
+    const prefix = c.includes('lalamove') ? 'LLM' :
+                   c.includes('grab') ? 'GRB' :
+                   c.includes('ninja') ? 'NVPH' : 'JT';
+    const randDigits = Math.floor(100000000000 + Math.random() * 900000000000);
+    return `${prefix}${randDigits}`;
+}
+
 function openDispatchModal(orderId, orderNo, customerName, city) {
     const orderIdInput = document.getElementById('dispatchOrderId');
     const summaryText = document.getElementById('dispatchOrderSummaryText');
     const trackingInput = document.getElementById('dispatchTrackingNumber');
+    const courierSelect = document.getElementById('dispatchCourier');
     const notesInput = document.getElementById('dispatchNotes');
     const errSpan = document.getElementById('err-dispatch-tracking');
     const modalBackdrop = document.getElementById('dispatchModalBackdrop');
 
+    const courier = courierSelect ? courierSelect.value : 'J&T Express';
+
     if (orderIdInput) orderIdInput.value = orderId;
     if (summaryText) summaryText.textContent = `Order: ${orderNo} \u2022 Customer: ${customerName} \u2022 Destination: ${city}`;
-    if (trackingInput) trackingInput.value = '';
+    if (trackingInput) trackingInput.value = generateRandomWaybill(courier);
     if (notesInput) notesInput.value = '';
     if (errSpan) {
         errSpan.textContent = '';
@@ -21,6 +33,7 @@ function openDispatchModal(orderId, orderNo, customerName, city) {
     }
     if (modalBackdrop) modalBackdrop.style.display = 'flex';
 }
+
 
 function closeDispatchModal() {
     const modalBackdrop = document.getElementById('dispatchModalBackdrop');
@@ -90,3 +103,14 @@ async function confirmDispatch() {
 window.openDispatchModal = openDispatchModal;
 window.closeDispatchModal = closeDispatchModal;
 window.confirmDispatch = confirmDispatch;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const courierSelect = document.getElementById('dispatchCourier');
+    const trackingInput = document.getElementById('dispatchTrackingNumber');
+    if (courierSelect && trackingInput) {
+        courierSelect.addEventListener('change', () => {
+            trackingInput.value = generateRandomWaybill(courierSelect.value);
+        });
+    }
+});
+

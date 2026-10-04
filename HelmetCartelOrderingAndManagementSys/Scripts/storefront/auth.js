@@ -231,18 +231,27 @@ document.addEventListener('DOMContentLoaded', () => {
           showAlert('Authentication verified. Redirecting...', 'success');
 
           setTimeout(() => {
+            const role = user ? (user.role || user.Role) : null;
+            const isAdminOrStaff = role === 'Admin' || role === 'Staff' || role === APP_CONSTANTS.ROLES.ADMIN || role === APP_CONSTANTS.ROLES.STAFF;
             const returnUrl = urlParams.get('returnUrl');
+
+            if (isAdminOrStaff) {
+              // Admin/Staff users must always be routed to the Admin panel (unless returnUrl is already within Admin area)
+              if (returnUrl && returnUrl.toLowerCase().includes('/admin/')) {
+                window.location.href = returnUrl;
+              } else {
+                window.location.href = APP_CONSTANTS.ROUTES.ADMIN_DASHBOARD;
+              }
+              return;
+            }
+
+            // Customer users redirect to requested returnUrl or Default page
             if (returnUrl) {
               window.location.href = returnUrl;
               return;
             }
 
-            const role = user ? (user.role || user.Role) : null;
-            if (role === 'Admin' || role === 'Staff') {
-              window.location.href = APP_CONSTANTS.ROUTES.ADMIN_DASHBOARD;
-            } else {
-              window.location.href = APP_CONSTANTS.ROUTES.HOME;
-            }
+            window.location.href = APP_CONSTANTS.ROUTES.HOME;
           }, 800);
         } else {
           const msg = (result ? (result.message || result.Message) : null) || 'Invalid email or password.';

@@ -210,9 +210,11 @@ function calculateTotals() {
     const items = getCheckoutItems();
     const validQuote = appliedVoucher && voucherSignature === voucherItemsSignature();
     const subtotal = merchandiseQuote?.signature === voucherItemsSignature() ? merchandiseQuote.subtotal : items.reduce((sum, i) => sum + (i.price * i.quantity), 0);
-    const discount = validQuote ? Number(appliedVoucher.discountAmount) : 0;
-    const total = subtotal - discount + selectedShippingCost;
-    return { subtotal, discount, total };
+    const isFreeShipping = validQuote && appliedVoucher.discountType === (APP_CONSTANTS.VOUCHER_TYPES?.FREE_SHIPPING || 'FREE_SHIPPING');
+    const effectiveShipping = isFreeShipping ? 0 : selectedShippingCost;
+    const discount = validQuote ? (isFreeShipping ? selectedShippingCost : Number(appliedVoucher.discountAmount)) : 0;
+    const total = subtotal - (isFreeShipping ? 0 : discount) + effectiveShipping;
+    return { subtotal, discount, total, isFreeShipping, effectiveShipping };
 }
 
 function renderSidebar() {
@@ -232,12 +234,14 @@ function renderSidebar() {
         return;
     }
 
-    const { subtotal, discount, total } = calculateTotals();
+    const { subtotal, discount, total, isFreeShipping } = calculateTotals();
     const discountRow = document.getElementById('sidebar-voucher-row');
     if (discountRow) discountRow.hidden = !appliedVoucher;
     const discountLabelEl = document.getElementById('sidebar-voucher-label');
     if (discountLabelEl && appliedVoucher) {
-        if (appliedVoucher.discountType === APP_CONSTANTS.VOUCHER_TYPES?.PERCENTAGE && appliedVoucher.discountValue) {
+        if (isFreeShipping) {
+            discountLabelEl.textContent = `Free Delivery (${appliedVoucher.code})`;
+        } else if (appliedVoucher.discountType === APP_CONSTANTS.VOUCHER_TYPES?.PERCENTAGE && appliedVoucher.discountValue) {
             discountLabelEl.textContent = `Discount (-${appliedVoucher.discountValue}%)`;
         } else if (appliedVoucher.code) {
             discountLabelEl.textContent = `Discount (${appliedVoucher.code})`;
@@ -248,7 +252,7 @@ function renderSidebar() {
     const discountEl = document.getElementById('sidebar-voucher-discount');
     if (discountEl) discountEl.textContent = `-${APP_CONSTANTS.UI.CURRENCY_SYMBOL}${discount.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
     const voucherStatus = document.getElementById('checkout-voucher-status');
-    if (voucherStatus) voucherStatus.textContent = voucherPending ? 'Checking voucher...' : (appliedVoucher ? `${appliedVoucher.code} applied` : '');
+    if (voucherStatus) voucherStatus.textContent = voucherPending ? 'Checking voucher...' : (appliedVoucher ? `${appliedVoucher.code} applied${isFreeShipping ? ' (100% Free Delivery)' : ''}` : '');
     const removeButton = document.getElementById('checkout-voucher-remove');
     if (removeButton) removeButton.hidden = !appliedVoucher;
     const applyButton = document.getElementById('checkout-voucher-apply');
@@ -262,6 +266,8 @@ function renderSidebar() {
     if (shippingEl) {
         if (selectedFulfillment === 'pickup') {
             shippingEl.innerHTML = 'FREE (In-Store Pickup)';
+        } else if (isFreeShipping) {
+            shippingEl.innerHTML = '<span class="status-badge status--completed">FREE (Voucher)</span>';
         } else {
             shippingEl.innerHTML = `&#8369;${selectedShippingCost.toLocaleString()}`;
         }
@@ -515,6 +521,24 @@ function bindCheckoutEvents() {
         if (event.key === 'Enter') { event.preventDefault(); if (!placingOrder) validateVoucher(); }
     });
     document.getElementById('checkout-print-receipt')?.addEventListener('click', () => printReceipt(document.getElementById('checkout-receipt-doc')));
+    document.getElementById('btn-toggle-receipt')?.addEventListener('click', () => {
+        const doc = document.getElementById('checkout-receipt-doc');
+        const btn = document.getElementById('btn-toggle-receipt');
+        const label = document.getElementById('btn-toggle-receipt-text');
+        if (!doc || !btn) return;
+        const isCollapsed = doc.classList.contains('is-collapsed');
+        if (isCollapsed) {
+            doc.classList.remove('is-collapsed');
+            btn.classList.add('is-expanded');
+            btn.setAttribute('aria-expanded', 'true');
+            if (label) label.textContent = 'Collapse Receipt';
+        } else {
+            doc.classList.add('is-collapsed');
+            btn.classList.remove('is-expanded');
+            btn.setAttribute('aria-expanded', 'false');
+            if (label) label.textContent = 'View Full Receipt';
+        }
+    });
     window.addEventListener('cartUpdated', () => { if (!checkoutComplete) { renderSidebar(); renderReviewItems(); } });
     window.addEventListener(APP_CONSTANTS.SIGNALR_EVENTS.STOCK_UPDATED, () => { if (!checkoutComplete && appliedVoucher) validateVoucher(); });
     document.getElementById('option-fulfillment-pickup')?.addEventListener('click', () => {
@@ -619,13 +643,15 @@ function bindCheckoutEvents() {
         const zip = isDelivery ? (selectedAddress?.postalCode || null) : null;
         const notes = isDelivery ? (selectedAddress?.deliveryLandmark || null) : null;
 
+        const { isFreeShipping, effectiveShipping } = calculateTotals();
+
         const payload = {
             customerName: customerName,
             customerEmail: email,
             customerPhone: phone,
             paymentMethod: paymentGateway,
             shippingMethod: isDelivery ? 'Delivery' : 'Pickup',
-            shippingFee: isDelivery ? selectedShippingCost : 0,
+            shippingFee: isDelivery ? (isFreeShipping ? 0 : selectedShippingCost) : 0,
             shippingRegion: regionName,
             shippingAddress: addr,
             shippingBarangay: brgy,

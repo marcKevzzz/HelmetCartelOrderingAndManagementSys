@@ -153,9 +153,21 @@ namespace HelmetCartelOrderingAndManagementSys.Pages
             }
 
             int targetProductId = ProductItem?.Id ?? productId;
+            int? currentUserId = null;
             try
             {
-                Reviews = await _reviewRepository.GetProductReviewsAsync(targetProductId).ConfigureAwait(false);
+                var cookieToken = Request.Cookies[Constants.AppConstants.JwtConfiguration.AuthCookieName]?.Value;
+                if (!string.IsNullOrEmpty(cookieToken))
+                {
+                    var user = new JwtTokenProvider().ValidateToken(cookieToken);
+                    if (user != null) currentUserId = user.Id;
+                }
+            }
+            catch { }
+
+            try
+            {
+                Reviews = await _reviewRepository.GetProductReviewsAsync(targetProductId, includeHidden: false, currentUserId: currentUserId).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

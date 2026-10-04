@@ -857,11 +857,8 @@
   max-width: 680px;
   margin: var(--space-4) auto var(--space-12);
   background-color: #FFFFFF;
-  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
-  padding: clamp(2rem, 4vw, 3.5rem);
   text-align: center;
-  box-shadow: var(--shadow-sm);
   display: none;
 }
 

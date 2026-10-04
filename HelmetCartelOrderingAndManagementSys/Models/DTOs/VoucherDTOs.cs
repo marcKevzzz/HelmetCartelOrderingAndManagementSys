@@ -15,6 +15,7 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public decimal Subtotal { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal DiscountedSubtotal { get; set; }
+        public string DiscountType { get; set; }
     }
 
     public sealed class SaveVoucherDto
