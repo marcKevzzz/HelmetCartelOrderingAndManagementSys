@@ -5,8 +5,9 @@
  */
 
 import { ApiClient } from '../api.js';
-import { CartManager } from '../cart.js';
-import { FavoritesManager } from '../favorites.js';
+import { CartManager } from '../cart.js?v=20261004';
+import { ShoppingState } from '../shopping-state.js?v=20261004';
+import { FavoritesManager } from '../favorites.js?v=20261004';
 import { RealtimeManager } from '../realtime.js';
 import { APP_CONSTANTS } from '../constants.js';
 
@@ -205,19 +206,10 @@ export const Storefront = {
 
         const id = parseInt(favBtn.getAttribute('data-fav-id'), 10);
         const card = favBtn.closest('.product-card');
-        const alreadySaved = FavoritesManager.isFavorite(id);
-        let product = alreadySaved ? { id, name: card?.querySelector('.product-card__title')?.textContent || 'Helmet' } :
-          this.allProducts.find(p => p.id === id);
-        if (!product) {
-          try {
-            product = await ApiClient.getProductById(id);
-          } catch {
-            RealtimeManager.showToast('Could not load this product for your Wishlist.', 'alert');
-            return;
-          }
-        }
+        const product = { id, name: card?.querySelector('.product-card__title')?.textContent || 'Helmet' };
         const name = product.name;
-        const added = FavoritesManager.toggleFavorite(product);
+        const added = await ShoppingState.run(() => FavoritesManager.toggleFavorite(product));
+        if (added === undefined) return;
         favBtn.classList.toggle('active', added);
         const heartSvg = favBtn.querySelector('.heart-icon');
         if (heartSvg) heartSvg.setAttribute('fill', added ? 'currentColor' : 'none');

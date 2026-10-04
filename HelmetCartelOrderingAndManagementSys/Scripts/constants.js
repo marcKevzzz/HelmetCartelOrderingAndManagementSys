@@ -7,6 +7,13 @@ export const APP_CONSTANTS = Object.freeze({
   API_BASE_URL: '/api/v1',
 
   ENDPOINTS: {
+    SHOPPING: '/api/v1/shopping',
+    SHOPPING_IMPORT: '/api/v1/shopping/import',
+    SHOPPING_CART: '/api/v1/shopping/cart',
+    SHOPPING_CART_ITEM: id => `/api/v1/shopping/cart/${id}`,
+    SHOPPING_CART_SELECTION: selected => `/api/v1/shopping/cart/selection/${selected}`,
+    SHOPPING_FAVORITES: '/api/v1/shopping/favorites',
+    SHOPPING_FAVORITE: id => `/api/v1/shopping/favorites/${id}`,
     VOUCHER_VALIDATE: '/api/v1/vouchers/validate',
     ADMIN_VOUCHERS: '/api/v1/admin/vouchers',
     ADMIN_VOUCHER: (id) => `/api/v1/admin/vouchers/${id}`,

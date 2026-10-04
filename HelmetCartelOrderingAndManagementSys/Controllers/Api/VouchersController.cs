@@ -22,10 +22,40 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
             try
             {
                 if (!ModelState.IsValid) return BadRequest(ModelState);
+                if (request != null)
+                {
+                    var user = GetCurrentUser();
+                    if (user != null)
+                    {
+                        request.UserId = user.Id;
+                        if (string.IsNullOrWhiteSpace(request.CustomerEmail)) request.CustomerEmail = user.Email;
+                    }
+                }
                 return Ok(ApiResponse<VoucherQuoteDto>.Ok(await new VoucherService(_repository).PreviewAsync(request).ConfigureAwait(false)));
             }
             catch (ArgumentException e) { return VoucherError(e.Message); }
             catch (SqlException e) when (IsVoucherError(e)) { return VoucherError(e.Message); }
+        }
+
+        private UserProfileDto GetCurrentUser()
+        {
+            try
+            {
+                var provider = new JwtTokenProvider();
+                var authHeader = Request.Headers.Authorization;
+                if (authHeader != null && string.Equals(authHeader.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase))
+                {
+                    var user = provider.ValidateToken(authHeader.Parameter);
+                    if (user != null) return user;
+                }
+                var cookieToken = System.Web.HttpContext.Current?.Request?.Cookies?[AppConstants.JwtConfiguration.AuthCookieName]?.Value;
+                if (!string.IsNullOrEmpty(cookieToken))
+                {
+                    return provider.ValidateToken(cookieToken);
+                }
+            }
+            catch { }
+            return null;
         }
 
         [HttpGet, Route("~/api/v1/admin/vouchers"), StaffAuthorize(adminOnly: true)]

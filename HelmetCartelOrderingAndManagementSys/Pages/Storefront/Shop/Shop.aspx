@@ -1,4 +1,4 @@
-<%@ Page Title="Shop Helmets & Riding Gear" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Shop.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Pages.ShopPage" ResponseEncoding="utf-8" Async="true" %>
+<%@ Page Title="Shop Helmets & Riding Gear" EnableViewState="false" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Shop.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Pages.ShopPage" ResponseEncoding="utf-8" Async="true" %>
 <%@ Register Src="~/Pages/Storefront/Shop/ProductFilterControl.ascx" TagPrefix="hc" TagName="ProductFilter" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
@@ -55,7 +55,7 @@
                             <article class="product-card product-card--with-favorite" data-product-id='<%# Eval("Id") %>'>
                               <asp:HyperLink runat="server" CssClass="product-card__link" NavigateUrl='<%# "~/Pages/Storefront/ProductDetail/ProductDetail.aspx?slug=" + Eval("Slug") %>'>
                                 <div class="product-card__img-wrap">
-                                    <img src='<%# System.Web.HttpUtility.HtmlAttributeEncode(Convert.ToString(Eval("MainImageUrl"))) %>' alt='<%# System.Web.HttpUtility.HtmlAttributeEncode(Convert.ToString(Eval("Name"))) %>' class="product-card__img" loading="lazy" />
+                                    <img src='<%# System.Web.HttpUtility.HtmlAttributeEncode(HelmetCartelOrderingAndManagementSys.Infrastructure.CatalogImageHelper.GetUrl(Convert.ToString(Eval("MainImageUrl")))) %>' alt='<%# System.Web.HttpUtility.HtmlAttributeEncode(Convert.ToString(Eval("Name"))) %>' class="product-card__img" decoding="async" loading='<%# Container.ItemIndex < 3 ? "eager" : "lazy" %>' />
                                 </div>
                                 <h3 class="product-card__title"><%# Server.HtmlEncode(Convert.ToString(Eval("Name"))) %></h3>
                                 <p class="product-card__description"><%# Server.HtmlEncode(Convert.ToString(Eval("Description"))) %></p>
@@ -114,5 +114,5 @@
         </div>
     </div>
 
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/storefront.js?v=9") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/storefront.js?v=20261004") %>'></script>
 </asp:Content>

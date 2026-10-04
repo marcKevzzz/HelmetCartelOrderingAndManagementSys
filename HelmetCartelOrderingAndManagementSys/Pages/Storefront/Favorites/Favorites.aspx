@@ -34,5 +34,5 @@
     </div>
 
     <!-- External Storefront Favorites Script -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/favorites.js?v=1") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/favorites.js?v=20261004") %>'></script>
 </asp:Content>

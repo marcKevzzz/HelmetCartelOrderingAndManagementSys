@@ -1,8 +1,8 @@
 <%@ Page Title="Secure Checkout" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Checkout.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Pages.CheckoutPage" ResponseEncoding="utf-8" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
-    <link rel="stylesheet" href='<%= ResolveUrl("~/Content/css/storefront/checkout.css?v=6") %>' />
-    <link rel="stylesheet" href="/Content/css/receipts.css?v=1" />
+    <link rel="stylesheet" href='<%= ResolveUrl("~/Content/css/storefront/checkout.css?v=20261004-3") %>' />
+    <link rel="stylesheet" href="/Content/css/receipts.css?v=2" />
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
@@ -395,11 +395,11 @@
             <div class="success-actions">
                 <button type="button" class="btn btn--outline" id="checkout-print-receipt">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                        <rect x="6" y="14" width="12" height="8"></rect>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    <span>Print Receipt</span>
+                    <span>Download Receipt</span>
                 </button>
                 <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx" CssClass="btn btn--primary">
                     <span>Continue Shopping</span>
@@ -506,6 +506,9 @@
                             <span class="btn-spinner"></span>
                             <span>Complete Demo Payment</span>
                         </button>
+                        <button type="button" class="btn btn--outline btn-cancel-sim" id="btn-cancel-sim">
+                            <span>Cancel Payment</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -513,5 +516,5 @@
     </div>
 
     <!-- External Storefront Checkout Script -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/checkout.js?v=qrph-6") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/checkout.js?v=20261004-3") %>'></script>
 </asp:Content>

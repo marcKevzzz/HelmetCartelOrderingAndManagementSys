@@ -156,13 +156,12 @@ namespace HelmetCartelOrderingAndManagementSys.Services
             if (request == null) throw new ArgumentNullException(nameof(request));
             if (string.IsNullOrWhiteSpace(request.FirstName)) throw new ArgumentException("First name is required.");
             if (string.IsNullOrWhiteSpace(request.LastName)) throw new ArgumentException("Last name is required.");
-            if (string.IsNullOrWhiteSpace(request.PhoneNumber)) throw new ArgumentException("Mobile phone number is required.");
 
             return await _userRepository.UpdateProfileAsync(
                 userId,
                 request.FirstName.Trim(),
                 request.LastName.Trim(),
-                request.PhoneNumber.Trim()
+                string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim()
             ).ConfigureAwait(false);
         }
 

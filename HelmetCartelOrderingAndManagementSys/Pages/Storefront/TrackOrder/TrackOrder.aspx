@@ -1,7 +1,7 @@
 <%@ Page Title="Live Order Tracking & Fulfillment" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="TrackOrder.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Pages.TrackOrderPage" ResponseEncoding="utf-8" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
-    <link rel="stylesheet" href='<%= ResolveUrl("~/Content/css/storefront/profile.css?v=8") %>' />
+    <link rel="stylesheet" href='<%= ResolveUrl("~/Content/css/storefront/profile.css?v=9") %>' />
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
@@ -35,7 +35,7 @@
         </div>
 
         <!-- Not Found State -->
-        <div class="empty-orders-card" id="track-error-state" style="display: none;">
+        <div class="empty-orders-card is-hidden" id="track-error-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-orders-icon">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="15" y1="9" x2="9" y2="15"></line>
@@ -47,7 +47,7 @@
         </div>
 
         <!-- 2. Main Order Tracking Content (Row Layout) -->
-        <div class="track-order-content" id="track-order-content" style="display: none;">
+        <div class="track-order-content is-hidden" id="track-order-content">
             <!-- Row A: Order Header Card -->
             <div class="track-header-card">
                 <!-- RMA / Refund / Exchange Alert Banner -->
@@ -157,7 +157,7 @@
                             <span>Subtotal</span>
                             <span id="track-subtotal">&#8369;0.00</span>
                         </div>
-                        <div class="track-summary-line" id="track-discount-row" style="display: none; color: #047857;">
+                        <div class="track-summary-line track-summary-discount is-hidden" id="track-discount-row">
                             <span>Voucher Discount</span>
                             <span id="track-discount">-&#8369;0.00</span>
                         </div>
@@ -179,7 +179,10 @@
                                 <polyline points="7 7 17 7 17 17"></polyline>
                             </svg>
                         </button>
-                        <button type="button" class="btn btn--outline btn--block btn--cancel-track-order is-hidden" id="btn-track-cancel-order" style="display: none;">
+                        <button type="button" class="btn btn--outline btn--block btn--return-track-order is-hidden" id="btn-track-return-order">
+                            <span>Return / Exchange</span>
+                        </button>
+                        <button type="button" class="btn btn--outline btn--block btn--cancel-track-order is-hidden" id="btn-track-cancel-order">
                             <span>Cancel Order</span>
                         </button>
                         <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx" CssClass="btn btn--outline btn--block">
@@ -214,11 +217,11 @@
             <div class="receipt-modal-footer">
                 <button type="button" class="btn btn--outline btn--sm" id="btn-print-receipt">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                        <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                        <rect x="6" y="14" width="12" height="8"></rect>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    <span>Print / Save Receipt</span>
+                    <span>Download Receipt</span>
                 </button>
             </div>
         </div>
@@ -236,20 +239,24 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="rma-target-item-id" value="" />
-                <div class="modal-field-group">
+                <div class="modal-field-group is-hidden" id="rma-item-selector-wrap">
+                    <label for="rma-item-selector" class="modal-field-label">Select Item for Return / Exchange:</label>
+                    <select id="rma-item-selector" class="modal-input"></select>
+                </div>
+                <div class="modal-field-group" id="rma-target-item-single-wrap">
                     <label class="modal-field-label">Selected Item:</label>
-                    <div id="rma-target-item-name" style="font-weight: 600; color: #fff;"></div>
-                    <div id="rma-target-item-spec" style="font-size: 0.85rem; color: var(--color-text-muted, #94a3b8);"></div>
+                    <div id="rma-target-item-name" class="rma-target-item-name"></div>
+                    <div id="rma-target-item-spec" class="rma-target-item-spec"></div>
                 </div>
 
                 <div class="modal-field-group">
                     <label class="modal-field-label">Request Type:</label>
-                    <div style="display: flex; gap: 16px; margin-top: 4px;">
-                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #fff;">
+                    <div class="rma-radio-group">
+                        <label class="rma-radio-label">
                             <input type="radio" name="customer-rma-type" value="RETURN" checked />
                             <span>Return for Refund</span>
                         </label>
-                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #fff;">
+                        <label class="rma-radio-label">
                             <input type="radio" name="customer-rma-type" value="EXCHANGE" />
                             <span>Exchange for Size / Color</span>
                         </label>
@@ -272,11 +279,11 @@
                     <textarea id="customer-rma-notes" class="modal-textarea" rows="3" placeholder="Provide any details about the fit issue, defect, or exchange preference..."></textarea>
                 </div>
 
-                <div style="background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8; padding: 0.75rem; border-radius: 4px; font-size: 0.8rem; color: #cbd5e1; margin-top: 0.5rem;">
+                <div class="rma-notice-box">
                     &#9432; Items must be unridden, with all helmet factory tags, visor films, and original packaging intact.
                 </div>
 
-                <div id="customer-rma-error" class="report-alert-danger is-hidden" style="margin-top: 0.75rem;"></div>
+                <div id="customer-rma-error" class="report-alert-danger is-hidden"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn--outline" id="btn-cancel-customer-rma">Cancel</button>
@@ -375,5 +382,5 @@
     </div>
 
     <!-- Page Specific Script -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/track-order.js?v=5") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/track-order.js?v=6") %>'></script>
 </asp:Content>

@@ -74,7 +74,7 @@
                             <tr>
                                 <td>
                                     <div class="admin-thumb-container">
-                                        <img src='<%# ResolveImageUrl(Eval("MainImageUrl")) %>' 
+                                        <img src='<%# HelmetCartelOrderingAndManagementSys.Infrastructure.CatalogImageHelper.GetUrl(ResolveImageUrl(Eval("MainImageUrl"))) %>' 
                                              alt='<%# Server.HtmlEncode(Convert.ToString(Eval("Name"))) %>' 
                                              class="admin-thumb-img" 
                                              loading="lazy" 
@@ -137,7 +137,7 @@
                                             data-brand='<%# Server.HtmlEncode(Convert.ToString(Eval("Brand"))) %>'
                                             data-category='<%# Server.HtmlEncode(Convert.ToString(Eval("Category"))) %>'
                                             data-sku='<%# Server.HtmlEncode(Convert.ToString(Eval("Slug"))) %>'
-                                            data-img='<%# ResolveImageUrl(Eval("MainImageUrl")) %>'
+                                            data-img='<%# HelmetCartelOrderingAndManagementSys.Infrastructure.CatalogImageHelper.GetUrl(ResolveImageUrl(Eval("MainImageUrl"))) %>'
                                             data-variants='<%# Eval("VariantCount") %>'
                                             title="Delete Helmet Model">
                                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

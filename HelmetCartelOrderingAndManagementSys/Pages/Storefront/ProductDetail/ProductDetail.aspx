@@ -542,5 +542,5 @@
     <script type="application/json" id="product-detail-data">
         <%= ProductJson %>
     </script>
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/product-detail.js?v=6") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/product-detail.js?v=20261004") %>'></script>
 </asp:Content>

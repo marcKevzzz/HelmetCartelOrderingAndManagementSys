@@ -173,6 +173,8 @@
     <Content Include="Scripts\api.js" />
     <Content Include="Scripts\cart.js" />
     <Content Include="Scripts\favorites.js" />
+    <Content Include="Scripts\shopping-state.js" />
+    <Content Include="Content\images\catalog\*.jpg" />
     <Content Include="Scripts\realtime.js" />
     <Content Include="Scripts\site.js" />
     <Content Include="index.html" />
@@ -324,6 +326,9 @@
     <Compile Include="App_Start\WebApiConfig.cs" />
     <Compile Include="App_Start\Startup.cs" />
     <Compile Include="Constants\AppConstants.cs" />
+    <Compile Include="Controllers\Api\ShoppingController.cs" />
+    <Compile Include="Repositories\ShoppingRepository.cs" />
+    <Compile Include="Models\DTOs\ShoppingDtos.cs" />
     <Compile Include="Controllers\Api\ProductsController.cs" />
     <Compile Include="Controllers\Api\InventoryController.cs" />
     <Compile Include="Controllers\Api\OrdersController.cs" />
@@ -482,6 +487,7 @@
     <Compile Include="Infrastructure\DbConnectionFactory.cs" />
     <Compile Include="Infrastructure\HitPaySignatureValidator.cs" />
     <Compile Include="Infrastructure\ImageUploadHelper.cs" />
+    <Compile Include="Infrastructure\CatalogImageHelper.cs" />
     <Compile Include="Infrastructure\TrendHelper.cs" />
     <Compile Include="Models\DTOs\ApiResponse.cs" />
     <Compile Include="Models\DTOs\AuthDTOs.cs" />

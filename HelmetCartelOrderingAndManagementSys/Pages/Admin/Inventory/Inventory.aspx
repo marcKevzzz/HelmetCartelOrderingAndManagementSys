@@ -87,7 +87,7 @@
                                 <tr class='<%# Convert.ToBoolean(Eval("IsActive")) ? "" : "is-row-inactive" %>'>
                                     <td>
                                         <div class="admin-thumb-container">
-                                            <img src='<%# ResolveImageUrl(Eval("MainImageUrl")) %>' 
+                                            <img src='<%# HelmetCartelOrderingAndManagementSys.Infrastructure.CatalogImageHelper.GetUrl(ResolveImageUrl(Eval("MainImageUrl"))) %>' 
                                                  alt='<%# Server.HtmlEncode(Convert.ToString(Eval("ProductName"))) %>' 
                                                  class="admin-thumb-img" 
                                                  loading="lazy" 
@@ -115,7 +115,7 @@
                                         <span class="admin-size-badge"><%# Server.HtmlEncode(Convert.ToString(Eval("Size"))) %></span>
                                     </td>
                                     <td>
-                                        <span class="admin-cell-stock"><%# FormatStockNumber(Eval("AvailableStock")) %></span>
+                                        <span class='admin-cell-stock <%# Convert.ToInt32(Eval("AvailableStock")) <= 0 ? "admin-cell-stock--critical" : (Convert.ToInt32(Eval("AvailableStock")) <= Convert.ToInt32(Eval("ReorderPoint")) ? "admin-cell-stock--low-stock" : "") %>'><%# FormatStockNumber(Eval("AvailableStock")) %></span>
                                     </td>
                                     <td>
                                         <span class="admin-cell-price">&#8369;<%# Convert.ToDecimal(Eval("EffectivePrice")).ToString("N2") %></span>

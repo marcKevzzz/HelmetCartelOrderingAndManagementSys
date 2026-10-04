@@ -68,5 +68,5 @@
     </div>
 
     <!-- External Storefront Cart Script -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/cart.js?v=1") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/cart.js?v=20261004") %>'></script>
 </asp:Content>

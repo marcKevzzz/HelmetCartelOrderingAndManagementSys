@@ -1,4 +1,4 @@
-<%@ Control Language="C#" AutoEventWireup="true" CodeBehind="ProductFilterControl.ascx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Pages.Shop.ProductFilterControl" %>
+<%@ Control EnableViewState="false" Language="C#" AutoEventWireup="true" CodeBehind="ProductFilterControl.ascx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Pages.Shop.ProductFilterControl" %>
 
 <aside class="shop-filter-card" id="shop-filter-panel">
     <!-- Header with sliders icon -->

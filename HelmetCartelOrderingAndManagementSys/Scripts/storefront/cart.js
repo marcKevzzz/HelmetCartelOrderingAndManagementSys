@@ -4,7 +4,8 @@
  * and seamless redirection to the multi-step checkout workflow.
  */
 
-import { CartManager } from '../cart.js';
+import { CartManager } from '../cart.js?v=20261004';
+import { ShoppingState } from '../shopping-state.js?v=20261004';
 import { RealtimeManager } from '../realtime.js';
 import { ApiClient } from '../api.js';
 import { APP_CONSTANTS } from '../constants.js';
@@ -114,17 +115,17 @@ export function renderCartView() {
 
 // Global click event dispatcher for Cart UI
 function initCartEvents() {
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', (e) => ShoppingState.run(async () => {
         if (e.target.closest('.btn-select-all')) {
             const allSelected = CartManager.getSelectedItems().length === CartManager.getItems().length;
-            CartManager.selectAll(!allSelected);
+            await CartManager.selectAll(!allSelected);
             renderCartView();
             return;
         }
         if (e.target.closest('.btn-clear-selected')) {
             const selected = CartManager.getSelectedItems();
             if (selected.length > 0) {
-                selected.forEach(item => CartManager.removeItem(item.variantId));
+                for (const item of selected) await CartManager.removeItem(item.variantId);
                 renderCartView();
                 RealtimeManager.showToast(`Removed ${selected.length} items from cart.`, 'delete');
             }
@@ -133,7 +134,7 @@ function initCartEvents() {
         const toggleCheckBtn = e.target.closest('.btn-toggle-check');
         if (toggleCheckBtn) {
             const id = toggleCheckBtn.dataset.variantId;
-            CartManager.toggleItemSelection(id);
+            await CartManager.toggleItemSelection(id);
             renderCartView();
             return;
         }
@@ -141,7 +142,7 @@ function initCartEvents() {
             const id = e.target.closest('.btn-remove-item').dataset.variantId;
             const item = CartManager.getItems().find(i => String(i.variantId) === String(id));
             const name = item ? item.name : 'Item';
-            CartManager.removeItem(id);
+            await CartManager.removeItem(id);
             renderCartView();
             RealtimeManager.showToast(`${name} removed from your cart.`, 'delete');
             return;
@@ -150,7 +151,7 @@ function initCartEvents() {
             const id = e.target.closest('.btn-qty-minus').dataset.variantId;
             const item = CartManager.getItems().find(i => String(i.variantId) === String(id));
             if (item) {
-                CartManager.updateQuantity(id, item.quantity - 1);
+                await CartManager.updateQuantity(id, item.quantity - 1);
                 renderCartView();
             }
             return;
@@ -159,7 +160,7 @@ function initCartEvents() {
             const id = e.target.closest('.btn-qty-plus').dataset.variantId;
             const item = CartManager.getItems().find(i => String(i.variantId) === String(id));
             if (item) {
-                CartManager.updateQuantity(id, item.quantity + 1);
+                await CartManager.updateQuantity(id, item.quantity + 1);
                 renderCartView();
             }
             return;
@@ -169,7 +170,7 @@ function initCartEvents() {
         if (cartItem && !e.target.closest('.cart-item__actions, a, .btn-remove-item, .quantity-stepper')) {
             const id = cartItem.dataset.variantId;
             if (id) {
-                CartManager.toggleItemSelection(id);
+                await CartManager.toggleItemSelection(id);
                 renderCartView();
                 return;
             }
@@ -199,11 +200,12 @@ function initCartEvents() {
             window.location.href = APP_CONSTANTS.ROUTES.CHECKOUT;
             return;
         }
-    });
+    }));
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     initCartEvents();
+    window.addEventListener('cartUpdated', renderCartView);
     renderCartView();
     CartManager.refreshItems().then(renderCartView).catch(() => {});
 });

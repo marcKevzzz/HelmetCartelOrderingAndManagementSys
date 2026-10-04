@@ -7,6 +7,8 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
     {
         public string Code { get; set; }
         public List<OrderItemRequestDto> Items { get; set; }
+        public string CustomerEmail { get; set; }
+        public int? UserId { get; set; }
     }
 
     public sealed class VoucherQuoteDto

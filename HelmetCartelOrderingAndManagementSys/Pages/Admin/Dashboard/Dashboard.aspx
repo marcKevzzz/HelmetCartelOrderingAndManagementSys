@@ -1,4 +1,4 @@
-<%@ Page Title="Dashboard" Language="C#" MasterPageFile="~/Pages/Admin/Portal.master" AutoEventWireup="true" CodeBehind="Dashboard.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Admin.DashboardPage" Async="true" %>
+<%@ Page Title="Dashboard" EnableViewState="false" Language="C#" MasterPageFile="~/Pages/Admin/Portal.master" AutoEventWireup="true" CodeBehind="Dashboard.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Admin.DashboardPage" Async="true" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>

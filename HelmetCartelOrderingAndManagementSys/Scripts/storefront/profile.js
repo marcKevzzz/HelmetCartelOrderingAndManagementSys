@@ -14,9 +14,10 @@ import { renderReceipt, printReceipt, focusReceiptDialog } from '../receipt.js?v
  */
 
 import { ApiClient } from "../api.js";
+import { ShoppingState } from "../shopping-state.js?v=20261004";
 import { APP_CONSTANTS } from "../constants.js";
 import { RealtimeManager } from "../realtime.js";
-import { FavoritesManager } from "../favorites.js";
+import { FavoritesManager } from "../favorites.js?v=20261004";
 
 export const ProfileController = {
   currentUser: null,
@@ -703,9 +704,13 @@ export const ProfileController = {
 
                   return `
                   <div class="order-item-detail-row">
-                    <img src="${this.escapeHtml(imgUrl)}" alt="${this.escapeHtml(item.productName)}" class="order-item-detail-img" />
+                    <a href="/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=${item.productId || 1}" class="order-item-detail-img-link" title="View Product Details">
+                      <img src="${this.escapeHtml(imgUrl)}" alt="${this.escapeHtml(item.productName)}" class="order-item-detail-img" />
+                    </a>
                     <div class="order-item-detail-info">
-                      <h4 class="order-item-detail-title" title="${this.escapeHtml(item.productName)}">${this.escapeHtml(item.productName)}</h4>
+                      <h4 class="order-item-detail-title" title="${this.escapeHtml(item.productName)}">
+                        <a href="/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=${item.productId || 1}" class="order-item-title-link">${this.escapeHtml(item.productName)}</a>
+                      </h4>
                       <div class="order-item-detail-specs">
                         ${item.size ? `<span>Size: <strong>${this.escapeHtml(item.size)}</strong></span>` : ""}
                         ${item.color ? `<span>Color: <strong>${this.escapeHtml(item.color)}</strong></span>` : ""}
@@ -718,11 +723,6 @@ export const ProfileController = {
                       ${
                         item.rmaNumber
                           ? `<div class="order-item-action-wrap"><span class="track-rma-chip track-rma-chip--${(item.rmaStatus || 'pending').toLowerCase()}">${this.getRmaDescriptor(item.rmaType, item.rmaStatus)} &bull; #${this.escapeHtml(item.rmaNumber)}</span></div>`
-                          : (orderData.orderStatus === 'Completed' || orderData.status === 'Completed' || orderData.orderStatus === 'Delivered' || orderData.status === 'Delivered')
-                          ? `<div class="order-item-action-wrap">
-                               <button type="button" class="btn btn--outline btn--xs btn-item-return" data-order-id="${orderId}" data-order-number="${this.escapeHtml(orderData.orderNumber)}" data-item-id="${item.orderItemId || item.id}">Return / Exchange</button>
-                               <a href="/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=${item.productId || 1}#reviews-grid" class="btn btn--outline btn--xs">Review Item</a>
-                             </div>`
                           : ''
                       }
                     </div>
@@ -731,16 +731,6 @@ export const ProfileController = {
                 })
                 .join("");
               body.dataset.loaded = "true";
-
-              body.querySelectorAll('.btn-item-return').forEach((itemBtn) => {
-                itemBtn.addEventListener('click', (ev) => {
-                  ev.stopPropagation();
-                  const oId = Number(itemBtn.dataset.orderId);
-                  const oNum = itemBtn.dataset.orderNumber;
-                  const itmId = Number(itemBtn.dataset.itemId);
-                  this.openRmaModal(oId, oNum, itmId);
-                });
-              });
             } else {
               body.innerHTML =
                 '<div class="order-items-empty">No item records found for this order.</div>';
@@ -1159,29 +1149,29 @@ export const ProfileController = {
      ========================================================================== */
   bindWishlistEvents() {
     const clearBtn = document.getElementById("btn-clear-profile-wishlist");
-    clearBtn?.addEventListener("click", () => {
+    clearBtn?.addEventListener("click", () => ShoppingState.run(async () => {
       if (
         confirm("Are you sure you want to clear all items from your wishlist?")
       ) {
-        FavoritesManager.saveItems([]);
+        await FavoritesManager.clear();
         RealtimeManager.showToast("Your wishlist has been cleared.", "info");
       }
-    });
+    }));
 
     const contentEl = document.getElementById("profile-wishlist-content");
-    contentEl?.addEventListener("click", (e) => {
+    contentEl?.addEventListener("click", (e) => ShoppingState.run(async () => {
       const removeBtn = e.target.closest(".fav-card__remove-btn");
       if (removeBtn) {
         const prodId = Number(removeBtn.dataset.removeId);
         if (prodId) {
-          FavoritesManager.toggleFavorite({ productId: prodId });
+          await FavoritesManager.removeFavorite(prodId);
           RealtimeManager.showToast(
             "Helmet removed from your wishlist.",
             "info",
           );
         }
       }
-    });
+    }));
   },
 
   renderWishlist() {

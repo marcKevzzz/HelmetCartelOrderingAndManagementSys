@@ -4,7 +4,8 @@
  * item removal, and catalog price synchronization.
  */
 
-import { FavoritesManager } from '../favorites.js';
+import { FavoritesManager } from '../favorites.js?v=20261004';
+import { ShoppingState } from '../shopping-state.js?v=20261004';
 import { ApiClient } from '../api.js';
 import { RealtimeManager } from '../realtime.js';
 import { APP_CONSTANTS } from '../constants.js';
@@ -112,56 +113,26 @@ export function renderFavorites() {
 
     // Attach remove listeners
     container.querySelectorAll('[data-remove-id]').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', () => ShoppingState.run(async () => {
             const id = parseInt(btn.getAttribute('data-remove-id'), 10);
             const target = items.find(i => parseInt(i.productId, 10) === id);
-            FavoritesManager.removeFavorite(id);
+            await FavoritesManager.removeFavorite(id);
             RealtimeManager.showToast(`${target?.name || 'Item'} removed from your Wishlist.`, 'delete');
             renderFavorites();
-        });
+        }));
     });
-}
-
-async function refreshFavorites() {
-    const saved = FavoritesManager.getItems();
-    if (!saved.length) return;
-    const fetched = await Promise.allSettled(saved.map(item => ApiClient.getProductById(item.productId)));
-    const updated = saved.map((item, index) => {
-        const product = fetched[index].status === 'fulfilled' ? fetched[index].value : null;
-        if (!product) return item;
-        const basePrice = Number(product.basePrice ?? 0);
-        const discount = Number(product.discountPercentage ?? 0);
-        const isOutOfStock = product.variants && product.variants.length > 0
-            ? product.variants.every(v => Number(v.currentStock || 0) <= 0)
-            : false;
-        return {
-            productId: product.id,
-            name: product.name,
-            brand: product.brand,
-            category: product.category,
-            imageUrl: product.mainImageUrl,
-            originalPrice: basePrice,
-            discountPercentage: discount,
-            price: Math.round(basePrice * (1 - discount / 100) * 100) / 100,
-            rating: Number(product.rating ?? 0),
-            reviewCount: Number(product.reviewCount ?? 0),
-            isOutOfStock: isOutOfStock
-        };
-    });
-    const refreshedById = new Map(updated.map(item => [Number(item.productId), item]));
-    FavoritesManager.saveItems(FavoritesManager.getItems().map(item => refreshedById.get(Number(item.productId)) || item));
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('btn-clear-favorites')?.addEventListener('click', () => {
+    document.getElementById('btn-clear-favorites')?.addEventListener('click', () => ShoppingState.run(async () => {
         if (confirm('Are you sure you want to clear your wishlist?')) {
-            FavoritesManager.clear();
+            await FavoritesManager.clear();
             RealtimeManager.showToast('All items cleared from your Wishlist.', 'delete');
             renderFavorites();
         }
-    });
+    }));
 
     window.addEventListener('favoritesUpdated', renderFavorites);
     renderFavorites();
-    refreshFavorites();
+    ShoppingState.run(() => FavoritesManager.refreshItems());
 });

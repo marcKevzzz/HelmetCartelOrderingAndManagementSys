@@ -4,11 +4,12 @@
  * Balanced Sliding Cart Drawer, and Favorites Wishlist.
  */
 
-import { CartManager } from './cart.js';
-import { FavoritesManager } from './favorites.js';
+import { CartManager } from './cart.js?v=20261004';
+import { FavoritesManager } from './favorites.js?v=20261004';
 import { RealtimeManager } from './realtime.js';
 import { ApiClient } from './api.js';
 import { APP_CONSTANTS } from './constants.js';
+import { ShoppingState } from './shopping-state.js?v=20261004';
 
 export const AuthPromptModal = {
   overlay: null,
@@ -737,7 +738,7 @@ export const SiteController = {
     }
 
     bodyEl.querySelectorAll('[data-action]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', (e) => ShoppingState.run(async () => {
         e.stopPropagation();
         const action = btn.getAttribute('data-action');
         const variantId = parseInt(btn.getAttribute('data-id'), 10);
@@ -746,31 +747,31 @@ export const SiteController = {
         if (!item) return;
 
         if (action === 'toggle-check') {
-          CartManager.toggleItemSelection(variantId);
+          await CartManager.toggleItemSelection(variantId);
           this.renderCartDrawer();
         } else if (action === 'increase') {
-          CartManager.updateQuantity(variantId, item.quantity + 1);
+          await CartManager.updateQuantity(variantId, item.quantity + 1);
         } else if (action === 'decrease') {
-          CartManager.updateQuantity(variantId, item.quantity - 1);
+          await CartManager.updateQuantity(variantId, item.quantity - 1);
         } else if (action === 'remove') {
           const itemName = item.name;
-          CartManager.removeItem(variantId);
+          await CartManager.removeItem(variantId);
           RealtimeManager.showToast(`${itemName} removed from your cart.`, 'delete');
         }
-      });
+      }));
     });
 
     // Allow clicking the item body to toggle checkbox like a label
     bodyEl.querySelectorAll('.cart-drawer-item').forEach(itemRow => {
-      itemRow.addEventListener('click', (e) => {
+      itemRow.addEventListener('click', (e) => ShoppingState.run(async () => {
         if (e.target.closest('button, a, input, select')) return;
         const variantId = parseInt(itemRow.getAttribute('data-variant-id'), 10);
         const item = items.find(i => i.variantId === variantId);
         if (item && Number(item.availableStock) > 0) {
-          CartManager.toggleItemSelection(variantId);
+          await CartManager.toggleItemSelection(variantId);
           this.renderCartDrawer();
         }
-      });
+      }));
     });
   },
 

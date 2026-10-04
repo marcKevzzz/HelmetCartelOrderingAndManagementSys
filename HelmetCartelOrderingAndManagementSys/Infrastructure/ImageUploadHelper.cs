@@ -218,6 +218,7 @@ namespace HelmetCartelOrderingAndManagementSys.Infrastructure
                 File.WriteAllBytes(physicalPath, imageBytes);
 
                 string relativeWebPath = BuildRelativeWebPath(destinationFolder, uniqueFileName);
+                CatalogImageHelper.CreateThumbnail(physicalPath, relativeWebPath);
 
                 return ImageUploadResult.Succeeded(
                     virtualPath: relativeWebPath,
@@ -266,6 +267,7 @@ namespace HelmetCartelOrderingAndManagementSys.Infrastructure
                 postedFile.SaveAs(physicalPath);
 
                 string relativeWebPath = BuildRelativeWebPath(targetVirtualFolder, uniqueFileName);
+                CatalogImageHelper.CreateThumbnail(physicalPath, relativeWebPath);
 
                 return ImageUploadResult.Succeeded(
                     virtualPath: relativeWebPath,

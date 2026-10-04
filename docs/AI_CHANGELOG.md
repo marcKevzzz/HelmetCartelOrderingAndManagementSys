@@ -1,5 +1,71 @@
 # AI Change Log & Architectural Evolution: Helmet Cartel
 
+## [2026-10-04] — TrackOrder Page Display Fix, Digital Receipt Direct Download, SqlNullValueException Elimination, and Admin Profile Modal Refinements
+
+- **TrackOrder Display Resolution (`TrackOrder.aspx` & `track-order.js`):**
+  - **Restored Main Content Visibility:** Removed legacy inline `style="display: none;"` from `.track-order-content` which was failing to be cleared by class toggling alone. Updated `setLoading`, `showError`, and `renderOrder` to explicitly reset `style.display = "flex"` alongside removing `.is-hidden`, ensuring the live tracking layout immediately renders when an order is loaded.
+
+- **Digital Receipt Direct File Download (`Scripts/receipt.js`, `Checkout.aspx`, `TrackOrder.aspx`, `Profile.aspx`):**
+  - **Standalone Download Engine:** Implemented `downloadReceipt(element)` in `receipt.js` that compiles the rendered receipt card into a self-contained, beautifully styled `.html` file with embedded modern CSS and initiates a direct browser file download named `Receipt-{orderNumber}.html`.
+  - **Print Redirection:** Routed `printReceipt` directly to `downloadReceipt` so that every receipt button across the platform (Order Confirmation, Live Order Tracking, Customer Profile, POS, and Admin) triggers a direct download.
+  - **Modernized UI Buttons:** Updated buttons in `Checkout.aspx` (`#checkout-print-receipt`), `TrackOrder.aspx` (`#btn-print-receipt`), and `Profile.aspx` (`#btn-print-receipt`) with clean "Download Receipt" labels and tray download SVG icons.
+
+- **SqlNullValueException Elimination in Sales Breakdown Reports (`sp_AdminSalesByBrandAndCategory` & `AdminDataRepository.cs`):**
+  - **SQL Null Protection:** Fixed division by `NULLIF(SUM(Quantity), 0)` in `dbo.sp_AdminSalesByBrandAndCategory` when a brand or category's sold units equal 0 due to approved customer returns/refunds. Wrapped `AverageUnitPrice`, `UnitsSold`, and `Revenue` in `ISNULL(..., 0.00)`.
+  - **C# Safe Reading:** Updated `AdminDataRepository.ReadSalesDimensionReport` with defensive `reader.IsDBNull(...)` checks across all columns, preventing unhandled `SqlNullValueException` during Excel/CSV report exports in `Reports.aspx.cs`.
+
+- **Admin Account Settings Modal & Profile Update Fix (`Portal.master`, `admin.css`, `AuthController.cs`, `sp_UpdateUserProfile`):**
+  - **Removed Footer Actions:** Removed the redundant `.admin-modal-footer` containing Sign Out and Close buttons; modal dismissal is cleanly managed via the top-right close icon or backdrop click, matching the modal screenshot requirements.
+  - **Spacing & Layout:** Refactored `.admin-profile-card` to use flex column layout with consistent `gap: var(--space-5)`, improved input label margins, and wrapped form submit actions in `.admin-profile-btn-row` with pill button styling.
+  - **SQL Stored Procedure Settings (QUOTED_IDENTIFIER ON):** Re-created `dbo.sp_UpdateUserProfile` with `SET ANSI_NULLS ON` and `SET QUOTED_IDENTIFIER ON`, resolving SQL Error `1934` caused by updating `dbo.Users` containing filtered indexes. Admin user updates now save cleanly.
+  - **Cookie Header Fallback:** Added `Request.Headers.GetCookies(...)` inspection to `AuthController.GetAuthenticatedUser()` for robust authentication across all API endpoints.
+
+- **Order Item Detail Row Simplification (`Scripts/storefront/profile.js`):**
+  - **Removed Review Item Button:** Removed the inline `[ Review Item ]` button from inside `.order-item-detail-row` to avoid UI crowding and redundant actions within the customer order history cards.
+  - **Removed Inline Return Button:** Removed the redundant inline `[ Return / Exchange ]` button from inside `.order-item-detail-row`. Return/Exchange capabilities are now cleanly centralized in the order actions.
+  - **Preserved RMA Chips:** Existing and active RMA chips (`.track-rma-chip`) remain prominently displayed for items that already have pending or completed return/exchange requests.
+  - **Clickable Product Previews:** Wrapped the helmet thumbnail image (`.order-item-detail-img-link`) and product name (`.order-item-title-link`) in clickable anchor links navigating directly to `/Pages/Storefront/ProductDetail/ProductDetail.aspx?id={productId}`.
+
+- **Centralized Return / Exchange in Track Order (`TrackOrder.aspx` & `Scripts/storefront/track-order.js`):**
+  - **Action Stack Integration:** Added `#btn-track-return-order` ("Return / Exchange") directly inside `.track-actions-stack` on the Track Order page, visible when the order status is `Delivered` or `Completed`.
+  - **Multi-Item Selector Support:** When clicked for orders with multiple items, the customer RMA modal provides a dedicated item selection dropdown (`#rma-item-selector`) pre-selecting eligible items, or displaying the single purchased item directly.
+  - **Clickable Item Previews:** Wrapped product images (`.track-item-img-link`) and titles (`.track-item-title-link`) in `TrackOrder.aspx` with direct links to the product detail page with subtle hover zoom and underline feedback.
+
+- **Design System & Zero Inline Styles Compliance (`Content/css/storefront/profile.css`):**
+  - Added dedicated styling rules for `.order-item-detail-img-link`, `.track-item-img-link`, `.order-item-title-link`, `.track-item-title-link`, `.rma-radio-group`, `.rma-radio-label`, `.rma-notice-box`, and `.track-summary-discount`.
+  - Removed all `style="display: ..."` inline styles in favor of `.is-hidden` utility class manipulation.
+  - Bumped cache busting versions on `profile.css?v=9`, `track-order.js?v=6`, and `profile.js?v=20261004_2`.
+
+## [2026-10-04] — Profile Update Resiliency, QRPh Cancel Workflow, Single-Use Voucher Limit, Stepper Spacing, and Net Sales Revenue Calculation (Migration 48)
+
+- **Account Details Saving Resiliency (MSSQL & C#):**
+  - **Optional Phone Number:** Updated `dbo.sp_UpdateUserProfile` to allow `@PhoneNumber` to be optional or omitted; if null or empty, it retains the user's existing phone number rather than failing with error `53004`. Phone uniqueness check is now only evaluated if a non-empty, altered phone number is supplied.
+  - **C# Backend Validation:** Updated `AuthService.UpdateProfileAsync` to remove the strict `ArgumentException` requiring phone numbers, making phone optional for both admin profile and storefront member edits.
+  - **Credentials & JWT Headers:** Enhanced `ApiClient.request` in `Scripts/api.js` to automatically include `credentials: 'include'` and inspect fallback local/session storage keys (`hc_auth_token`, `auth_token`).
+  - **Admin Profile Modal:** Updated `admin.js` to ensure `fetchAdminProfile`, `adminEditProfileForm`, and `adminChangePasswordForm` supply `Authorization: Bearer <token>` and `credentials: 'include'` headers.
+
+- **QRPh Payment Simulation Cancel Flow (`checkout.js` & `Checkout.aspx`):**
+  - **Cancellation Handling:** Added dedicated `onCancelCallback` in `showSimulationModal` in `checkout.js`. Dismissing or clicking the cancel button no longer calls `onSuccessCallback()`.
+  - **Order Cancellation:** When the modal is closed or cancelled, `ApiClient.cancelOrder` is invoked immediately to release reserved stock.
+  - **Checkout State:** The user remains on the Checkout page with their active cart preserved, receiving an alert toast ("Payment was cancelled. Your order was not placed"), avoiding unwanted redirection to order confirmation.
+  - **Modal UI:** Added explicit `#btn-cancel-sim` ("Cancel Payment") button within `.sim-actions-grid` in `Checkout.aspx`.
+
+- **Strict One-Time Voucher Limit Per Customer (`sp_PreviewVoucher`, `sp_ApplyOrderVoucher`, `checkout.js`):**
+  - **Database Enforcement:** Updated `dbo.sp_PreviewVoucher` and `dbo.sp_ApplyOrderVoucher` to verify whether a customer (`UserId` or `CustomerEmail`) has already used the voucher code in an existing non-cancelled order (`dbo.VoucherRedemptions` joined with `dbo.Orders`).
+  - **Rejection Exception:** If already used by that user or email, SQL throws error `54017`: `"You have already used this voucher code. Vouchers are limited to one use per customer."`.
+  - **Constants & Controllers:** Updated `AppConstants.Vouchers.LastSqlError` to `54020` so error `54017` is caught as a friendly voucher error. In `VouchersController.Validate`, automatically populated authenticated customer info and passed `customerEmail` from client-side checkout.
+
+- **Order Progress Stepper Spacing & Alignment (`checkout.css`):**
+  - **Proportional Flex Columns:** Refactored `.order-tracker` and `.tracker-node` to utilize proportional flex distributions (`flex: 1 1 0; min-width: 0; padding: 0 var(--space-1); max-width: 580px; margin: var(--space-6) auto;`).
+  - **Eliminated Collision:** Fixed the text label collision where "ORDER PLACED", "QC & PACKING", "IN TRANSIT / DISPATCHED", and "DELIVERED" overlapped on one line. Labels now have dedicated column widths, centered alignment, and proper word-wrapping.
+  - **Perfect Connector Geometry:** Positioned `.tracker-line` from `12.5%` to `87.5%` (`top: 17px`), connecting the exact geometric centers of step 1 to step 4 across all viewports.
+
+- **Merchandise Revenue & Approved Returns Deduction (MSSQL):**
+  - **Excluded Delivery Fee:** Replaced `TotalAmount` / `p.Amount` with merchandise revenue `(Subtotal - DiscountAmount)` across `dbo.sp_AdminDashboard`, `dbo.sp_AdminSalesDaily`, and `dbo.sp_AdminSalesHourly`. Delivery fees paid by customers no longer inflate gross revenue.
+  - **Deducted Approved Returns:** When a return/RMA request is approved or completed (`ReturnRequests.Status IN ('Approved', 'Completed')`), the refunded merchandise value is automatically deducted from sales revenue in `dbo.sp_AdminDashboard`, `dbo.sp_AdminSalesDaily`, and `dbo.sp_AdminSalesHourly`.
+  - **Performance & Breakdown Reports:** Updated `dbo.sp_AdminSalesPerformance` and `dbo.sp_AdminSalesByBrandAndCategory` to subtract returned items from `UnitsSold` and `Revenue`.
+  - **Return Approval Default:** In `dbo.sp_AdminProcessReturnRequest`, when an RMA is approved or completed without an explicit refund amount, `@RefundAmount` automatically defaults to the item's line total (`OrderItems.TotalPrice`).
+
 ## [2026-10-04] — Comprehensive Realistic Product Specifications, Authentic Customer Reviews, and "OUR HAPPY CUSTOMERS" Testimonial Carousel (Migration 47)
 
 - **Comprehensive Realistic Product Details & Specifications (Migration 47, `database/schema/47_realistic_products_specs_and_reviews.sql`):**

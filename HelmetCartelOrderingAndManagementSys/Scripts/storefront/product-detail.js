@@ -5,8 +5,9 @@
  * review reporting & submission modals, and cart/wishlist actions.
  */
 
-import { CartManager } from '../cart.js';
-import { FavoritesManager } from '../favorites.js';
+import { CartManager } from '../cart.js?v=20261004';
+import { ShoppingState } from '../shopping-state.js?v=20261004';
+import { FavoritesManager } from '../favorites.js?v=20261004';
 import { RealtimeManager } from '../realtime.js';
 import { ApiClient } from '../api.js';
 import { APP_CONSTANTS } from '../constants.js';
@@ -791,7 +792,7 @@ function initProductDetailPage() {
     }
 
     // Add to Cart
-    document.getElementById('btn-add-detail')?.addEventListener('click', () => {
+    document.getElementById('btn-add-detail')?.addEventListener('click', () => ShoppingState.run(async () => {
         if (!ApiClient.isAuthenticated()) {
             window.showAuthPromptModal?.({
                 title: 'Sign In to Add to Cart',
@@ -802,13 +803,13 @@ function initProductDetailPage() {
         }
 
         const item = getSelectedProductDetails();
-        if (!item || !CartManager.addItem(item)) {
+        if (!item || !await CartManager.addItem(item)) {
             RealtimeManager.showToast('Select an available size and color before adding to cart.', 'alert');
             return;
         }
         CartManager.updateCartBadge();
         RealtimeManager.showToast(`${item.name} (${item.size} / ${item.color}) x${item.quantity} added to cart.`, 'cart');
-    });
+    }));
 
     // Toggle Favorite Wishlist
     const favBtn = document.getElementById('btn-detail-favorite');
@@ -822,7 +823,7 @@ function initProductDetailPage() {
         if (icon) icon.setAttribute('fill', isFav ? 'currentColor' : 'none');
     };
 
-    favBtn?.addEventListener('click', () => {
+    favBtn?.addEventListener('click', () => ShoppingState.run(async () => {
         if (!ApiClient.isAuthenticated()) {
             window.showAuthPromptModal?.({
                 title: 'Sign In to Save Favorites',
@@ -833,13 +834,14 @@ function initProductDetailPage() {
         }
 
         if (!serverProduct) return;
-        const added = FavoritesManager.toggleFavorite(serverProduct);
+        const added = await FavoritesManager.toggleFavorite(serverProduct);
         updateFavBtnState();
         favBtn.classList.add('heart-pop');
         setTimeout(() => favBtn.classList.remove('heart-pop'), 400);
         RealtimeManager.showToast(added ? `${serverProduct.name} added to your Wishlist!` : `${serverProduct.name} removed from your Wishlist.`, added ? 'wishlist' : 'delete');
-    });
+    }));
 
+    window.addEventListener('favoritesUpdated', updateFavBtnState);
     updateFavBtnState();
     updateSelectedVariantUi();
 

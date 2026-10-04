@@ -159,9 +159,15 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         {
             try
             {
+                var brandTask = _adminRepo.GetInventoryReportAsync();
+                var detailsTask = _adminRepo.GetBrandInventoryDetailsAsync();
+                var trendTask = _adminRepo.GetInventoryTrendAsync(startDate, endDate);
+                var salesTask = _adminRepo.GetDailySalesAsync(startDate.Date, endDate.Date.AddDays(1));
+                var performanceTask = _adminRepo.GetSalesPerformanceAsync(startDate.Date, endDate.Date.AddDays(1));
+                await Task.WhenAll(brandTask, detailsTask, trendTask, salesTask, performanceTask).ConfigureAwait(false);
                 // 1. Load brand inventory health report
-                var brandReport = await _adminRepo.GetInventoryReportAsync().ConfigureAwait(false);
-                var details = await _adminRepo.GetBrandInventoryDetailsAsync().ConfigureAwait(false);
+                var brandReport = await brandTask.ConfigureAwait(false);
+                var details = await detailsTask.ConfigureAwait(false);
                 _brandDetails = details.GroupBy(item => item.Brand, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.OrdinalIgnoreCase);
                 int brandTotalPages = Math.Max(1, (int)System.Math.Ceiling((double)brandReport.Count / PageSize));
@@ -181,7 +187,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     CurrentBrandReportPage,
                     brandTotalPages);
 
-                var inventoryTrend = await _adminRepo.GetInventoryTrendAsync(startDate, endDate).ConfigureAwait(false);
+                var inventoryTrend = await trendTask.ConfigureAwait(false);
                 string inventoryComparisonLabel = $"{startDate:MMM dd, yyyy} to {endDate:MMM dd, yyyy}";
                 litTotalUnits.Text = inventoryTrend.EndTotalUnits.ToString("N0");
                 litTotalUnitsTrend.Text = TrendHelper.RenderTrend(
@@ -196,11 +202,11 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
 
                 // 2. Load daily sales report for requested period
                 // Adding 1 day to endDate because SQL sp_AdminSalesDaily uses: PaidAt < @EndDate
-                var sales = await _adminRepo.GetDailySalesAsync(startDate.Date, endDate.Date.AddDays(1)).ConfigureAwait(false);
+                var sales = await salesTask.ConfigureAwait(false);
 
 
                 // Load item-level sales performance data
-                var performanceItems = await _adminRepo.GetSalesPerformanceAsync(startDate.Date, endDate.Date.AddDays(1)).ConfigureAwait(false);
+                var performanceItems = await performanceTask.ConfigureAwait(false);
                 SalesPerformanceJson = JsonConvert.SerializeObject(performanceItems);
 
 
@@ -479,14 +485,19 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 {
                     var status = item.AvailableStock <= 0 ? "Out of Stock" :
                         item.AvailableStock <= item.ReorderPoint ? "Low Stock" : "In Stock";
+                    var statusClass = item.AvailableStock <= 0 ? "admin-brand-variant-status admin-brand-variant-status--out-of-stock" :
+                        item.AvailableStock <= item.ReorderPoint ? "admin-brand-variant-status admin-brand-variant-status--low-stock" : "admin-brand-variant-status";
+                    var stockClass = item.AvailableStock <= 0 ? "admin-cell-stock--critical" :
+                        item.AvailableStock <= item.ReorderPoint ? "admin-cell-stock--low-stock" : "";
+
                     html.Append("<div class=\"admin-brand-variant\">")
                         .Append("<div><strong>").Append(HttpUtility.HtmlEncode(item.Color)).Append(" / ")
                         .Append(HttpUtility.HtmlEncode(item.Size)).Append("</strong><span>")
                         .Append(HttpUtility.HtmlEncode(item.SKU)).Append("</span></div>")
                         .Append("<span>On hand <strong>").Append(item.OnHandStock.ToString("N0"))
-                        .Append("</strong></span><span>Available <strong>").Append(item.AvailableStock.ToString("N0"))
+                        .Append("</strong></span><span>Available <strong class=\"").Append(stockClass).Append("\">").Append(item.AvailableStock.ToString("N0"))
                         .Append("</strong></span><span>Reorder at <strong>").Append(item.ReorderPoint.ToString("N0"))
-                        .Append("</strong></span><span class=\"admin-brand-variant-status\">")
+                        .Append("</strong></span><span class=\"").Append(statusClass).Append("\">")
                         .Append(status).Append("</span><a href=\"/Admin/Inventory.aspx?productId=")
                         .Append(item.ProductId).Append("&amp;variantId=").Append(item.VariantId)
                         .Append("\" class=\"admin-row-action-btn\">Open item &rarr;</a></div>");
@@ -501,17 +512,53 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         {
             RegisterAsyncTask(new PageAsyncTask(async () =>
             {
-                var brandReport = await _adminRepo.GetInventoryReportAsync().ConfigureAwait(false);
                 TryGetSelectedReportDates(out DateTime startDate, out DateTime endDate);
+                var brandReport = await _adminRepo.GetInventoryReportAsync().ConfigureAwait(false);
+                var details = await _adminRepo.GetBrandInventoryDetailsAsync().ConfigureAwait(false);
+                var sales = await _adminRepo.GetDailySalesAsync(startDate.Date, endDate.Date.AddDays(1)).ConfigureAwait(false);
+                var inventoryTrend = await _adminRepo.GetInventoryTrendAsync(startDate, endDate).ConfigureAwait(false);
+                var dashboardStats = await _adminRepo.GetDashboardStatsAsync().ConfigureAwait(false);
                 var salesBreakdown = await _adminRepo.GetSalesByBrandAndCategoryAsync(
                     startDate.Date, endDate.Date.AddDays(1)).ConfigureAwait(false);
                 var brandSales = PrepareSalesDimensionReport(salesBreakdown.Brands);
                 var categorySales = PrepareSalesDimensionReport(salesBreakdown.Categories);
+
+                decimal periodRevenue = sales.Sum(s => s.Revenue);
+                int periodOrders = sales.Sum(s => s.PaymentCount);
+                decimal aov = periodOrders > 0 ? (periodRevenue / periodOrders) : 0m;
+                int totalWarehouseUnits = inventoryTrend.EndTotalUnits;
+                int activeSkus = inventoryTrend.EndActiveSkus;
+                int totalOnHand = brandReport.Sum(b => b.OnHandStock);
+                int totalAvailable = brandReport.Sum(b => b.AvailableStock);
+                int totalLowStockCount = brandReport.Sum(b => b.LowStockCount);
+                int outOfStockVariants = details.Count(d => d.AvailableStock <= 0);
+
+                decimal todayRevenue = dashboardStats != null && dashboardStats.TryGetValue("todayRevenue", out var tr) && tr != null && tr != DBNull.Value ? Convert.ToDecimal(tr) : 0m;
+                int activeOrders = dashboardStats != null && dashboardStats.TryGetValue("activeOrders", out var ao) && ao != null && ao != DBNull.Value ? Convert.ToInt32(ao) : 0;
+
                 var sb = new StringBuilder();
-                sb.AppendLine("Sales report period");
-                sb.AppendLine($"{startDate:yyyy-MM-dd} to {endDate:yyyy-MM-dd}");
+                sb.AppendLine("================================================================================");
+                sb.AppendLine("HELMET CARTEL - EXECUTIVE & ADMIN ANALYTICS REPORT");
+                sb.AppendLine("================================================================================");
+                sb.AppendLine($"Generated On,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                sb.AppendLine($"Reporting Period,{startDate:yyyy-MM-dd} to {endDate:yyyy-MM-dd}");
+                sb.AppendLine($"Filter Preset,{ActivePreset}");
                 sb.AppendLine();
-                sb.AppendLine("Sales by brand");
+                sb.AppendLine("ADMIN EXECUTIVE KEY PERFORMANCE INDICATORS (KPIS)");
+                sb.AppendLine("KPI Metric,Value,Unit / Description");
+                sb.AppendLine($"Period Gross Revenue,{periodRevenue:F2},PHP (Completed Paid Orders)");
+                sb.AppendLine($"Completed Orders Count,{periodOrders},Total Orders Paid");
+                sb.AppendLine($"Average Order Value (AOV),{aov:F2},PHP per Order");
+                sb.AppendLine($"Total Warehouse Units,{totalWarehouseUnits},Total Physical Units");
+                sb.AppendLine($"Active Product SKUs,{activeSkus},Distinct Helmet Variants");
+                sb.AppendLine($"Total On-Hand Stock,{totalOnHand},Warehouse Stock Units");
+                sb.AppendLine($"Total Available Stock,{totalAvailable},Unreserved Units Ready for Sale");
+                sb.AppendLine($"Low Stock Alerts,{totalLowStockCount},Variants At or Below Reorder Threshold");
+                sb.AppendLine($"Out of Stock Variants,{outOfStockVariants},Critical Zero Available Stock");
+                sb.AppendLine($"Today Live Revenue,{todayRevenue:F2},PHP (Current Day Real-Time)");
+                sb.AppendLine($"Live Active Orders,{activeOrders},Orders In Fulfillment / Processing");
+                sb.AppendLine();
+                sb.AppendLine("SALES PERFORMANCE BY BRAND");
                 sb.AppendLine("Brand,UnitsSold,OrderCount,Revenue,AverageUnitPrice,TopSeller,TopRevenue");
 
                 foreach (var sale in brandSales)
@@ -520,7 +567,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 }
 
                 sb.AppendLine();
-                sb.AppendLine("Sales by category");
+                sb.AppendLine("SALES PERFORMANCE BY CATEGORY");
                 sb.AppendLine("Category,UnitsSold,OrderCount,Revenue,AverageUnitPrice,TopSeller,TopRevenue");
 
                 foreach (var sale in categorySales)
@@ -529,12 +576,24 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 }
 
                 sb.AppendLine();
-                sb.AppendLine("Brand inventory");
-                sb.AppendLine("Brand,VariantCount,OnHandStock,AvailableStock,LowStockCount");
+                sb.AppendLine("BRAND INVENTORY HEALTH BREAKDOWN");
+                sb.AppendLine("Brand,VariantCount,OnHandStock,AvailableStock,LowStockCount,StockStatus");
 
                 foreach (var b in brandReport)
                 {
-                    sb.AppendLine($"{Csv(b.Brand)},{b.VariantCount},{b.OnHandStock},{b.AvailableStock},{b.LowStockCount}");
+                    string status = b.AvailableStock <= 0 ? "CRITICAL: OUT OF STOCK" :
+                        b.LowStockCount > 0 ? "WARNING: LOW STOCK" : "HEALTHY";
+                    sb.AppendLine($"{Csv(b.Brand)},{b.VariantCount},{b.OnHandStock},{b.AvailableStock},{b.LowStockCount},{Csv(status)}");
+                }
+
+                sb.AppendLine();
+                sb.AppendLine("CRITICAL STOCK ALERTS (OUT OF STOCK & LOW STOCK ITEMS)");
+                sb.AppendLine("Brand,Product,Category,Color,Size,SKU,OnHand,Available,ReorderPoint,StockStatus");
+
+                foreach (var item in details.Where(d => d.AvailableStock <= d.ReorderPoint).OrderBy(d => d.AvailableStock).ThenBy(d => d.Brand))
+                {
+                    string stockStatus = item.AvailableStock <= 0 ? "CRITICAL: OUT OF STOCK" : "WARNING: LOW STOCK";
+                    sb.AppendLine($"{Csv(item.Brand)},{Csv(item.ProductName)},{Csv(item.CategoryName)},{Csv(item.Color)},{Csv(item.Size)},{Csv(item.SKU)},{item.OnHandStock},{item.AvailableStock},{item.ReorderPoint},{Csv(stockStatus)}");
                 }
 
                 Response.Clear();

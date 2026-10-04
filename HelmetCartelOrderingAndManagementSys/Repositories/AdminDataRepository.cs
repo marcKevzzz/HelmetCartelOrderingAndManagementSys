@@ -515,13 +515,19 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
 
         private static AdminSalesDimensionReportDto ReadSalesDimensionReport(SqlDataReader reader)
         {
+            var dimOrdinal = reader.GetOrdinal("DimensionName");
+            var unitsOrdinal = reader.GetOrdinal("UnitsSold");
+            var orderCountOrdinal = reader.GetOrdinal("OrderCount");
+            var revOrdinal = reader.GetOrdinal("Revenue");
+            var avgOrdinal = reader.GetOrdinal("AverageUnitPrice");
+
             return new AdminSalesDimensionReportDto
             {
-                DimensionName = reader.GetString(reader.GetOrdinal("DimensionName")),
-                UnitsSold = reader.GetInt32(reader.GetOrdinal("UnitsSold")),
-                OrderCount = reader.GetInt32(reader.GetOrdinal("OrderCount")),
-                Revenue = reader.GetDecimal(reader.GetOrdinal("Revenue")),
-                AverageUnitPrice = reader.GetDecimal(reader.GetOrdinal("AverageUnitPrice"))
+                DimensionName = reader.IsDBNull(dimOrdinal) ? string.Empty : reader.GetString(dimOrdinal),
+                UnitsSold = reader.IsDBNull(unitsOrdinal) ? 0 : reader.GetInt32(unitsOrdinal),
+                OrderCount = reader.IsDBNull(orderCountOrdinal) ? 0 : reader.GetInt32(orderCountOrdinal),
+                Revenue = reader.IsDBNull(revOrdinal) ? 0m : reader.GetDecimal(revOrdinal),
+                AverageUnitPrice = reader.IsDBNull(avgOrdinal) ? 0m : reader.GetDecimal(avgOrdinal)
             };
         }
 

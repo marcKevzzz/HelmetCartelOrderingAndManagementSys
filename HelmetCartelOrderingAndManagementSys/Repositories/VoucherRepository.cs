@@ -25,6 +25,8 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                 command.CommandType = CommandType.StoredProcedure;
                 command.Parameters.Add(new SqlParameter("@Code", SqlDbType.NVarChar, 30) { Value = request.Code });
                 command.Parameters.Add(new SqlParameter("@Items", SqlDbType.Structured) { TypeName = "dbo.SaleLineInput", Value = items });
+                command.Parameters.Add(new SqlParameter("@CustomerEmail", SqlDbType.NVarChar, 255) { Value = (object)request.CustomerEmail ?? DBNull.Value });
+                command.Parameters.Add(new SqlParameter("@CustomerId", SqlDbType.Int) { Value = (object)request.UserId ?? DBNull.Value });
                 await connection.OpenAsync().ConfigureAwait(false);
                 return await ReadQuoteAsync(command).ConfigureAwait(false);
             }

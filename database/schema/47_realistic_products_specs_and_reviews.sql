@@ -362,73 +362,73 @@ INSERT INTO dbo.ProductReviews (
 )
 VALUES
 (
-    1, 6, 1, N'Mark Kevin Del Mundo', 5,
+    1, 6, 13, N'Mark Kevin Del Mundo', 5,
     N'Exceptional aerodynamics & dead quiet on expressway',
     N'Upgraded from an entry-level lid to this Shoei RF-1400 and the difference is night and day. Traveling along NLEX at 100+ km/h has virtually zero wind buffeting. The CWR-F2 visor seal with the center lock completely blocks whistle noise. Pinlock keeps it crystal clear on rainy Marilaque morning rides.',
     1, 0, DATEADD(DAY, -3, SYSUTCDATETIME())
 ),
 (
-    2, 6, 25, N'Angelo Reyes', 5,
+    2, 6, 1, N'Angelo Reyes', 5,
     N'Pure carbon masterpiece — lighter than anything I''ve worn',
     N'The AGV Pista GP RR is true race-spec jewelry. You can genuinely feel how light the 100% carbon shell is; virtually zero neck strain even after 3 hours of continuous riding. The 190-degree panoramic field of vision lets you see apexes without craning your neck. Worth every single peso!',
     1, 0, DATEADD(DAY, -5, SYSUTCDATETIME())
 ),
 (
-    11, 7, 23, N'Paolo Mendoza', 5,
+    11, 3, 8, N'Paolo Mendoza', 5,
     N'Track-ready performance and supreme ventilation',
     N'Bought the Shoei X-Fifteen for Clark International Speedway track days. The aerodynamic stabilization fins completely eliminate lift when tucked in on the main straight. The cheek pad angle adjustment is genius for sportbike aggressive riding postures.',
     1, 0, DATEADD(DAY, -7, SYSUTCDATETIME())
 ),
 (
-    5, 7, 22, N'Katrina Santos', 5,
+    5, NULL, 3, N'Katrina Santos', 5,
     N'Best modular touring helmet for Philippine weather',
     N'The Shoei Neotec II flip-up mechanism operates with satisfying precision even with thick riding gloves on. The drop-down QSV-1 sun visor drops low enough without hitting the bridge of my nose. Padding is plush and washes easily after hot weekend rides to Tagaytay.',
     1, 0, DATEADD(DAY, -9, SYSUTCDATETIME())
 ),
 (
-    17, 6, 24, N'Christian Tan', 5,
+    17, 6, 7, N'Christian Tan', 5,
     N'Crazy lightweight and looks stunning in matte stealth',
     N'Weighs only around 1.25kg! Coming from a heavy 1.7kg lid, my neck feels so relaxed. The matte finish doesn''t show fingerprint smudges easily, and the visor detents click firmly into place. Perfect all-rounder for both city commutes and long province rides.',
     1, 0, DATEADD(DAY, -12, SYSUTCDATETIME())
 ),
 (
-    9, 6, 25, N'Miguel Dizon', 5,
+    9, 6, 15, N'Miguel Dizon', 5,
     N'Unbeatable value for daily commuting',
     N'The Gille 135 GTS V1 is probably the best bang-for-buck helmet you can buy in the Philippines. Build quality is solid, vents actually channel air through the EPS channels, and the quick-release buckle is very convenient for daily stop-and-go rides.',
     1, 0, DATEADD(DAY, -15, SYSUTCDATETIME())
 ),
 (
-    31, 7, 23, N'Rico Salazar', 5,
+    31, NULL, 1, N'Rico Salazar', 5,
     N'Eye-catching Red Bull race graphics & super snug fit',
     N'The Red Bull racing graphic turns heads at every stoplight! High-speed stability is rock solid thanks to the extended rear aero spoiler. Visor mechanism snaps tight with zero air leaks. Make sure to follow the size chart as AGV fits nice and snug.',
     1, 0, DATEADD(DAY, -18, SYSUTCDATETIME())
 ),
 (
-    10, 6, 25, N'Dave Villanueva', 5,
+    10, 3, 16, N'Dave Villanueva', 5,
     N'The peak doesn''t catch wind at all on the highway',
     N'Rode my adventure bike through Sierra Madre and Sagada with the Shoei Hornet ADV. Most peaked helmets pull your head back at 90km/h, but Shoei''s louvers allow air to pass straight through. Extremely comfortable and dust-sealed visor.',
     1, 0, DATEADD(DAY, -21, SYSUTCDATETIME())
 ),
 (
-    23, 7, 22, N'Jericho Ramos', 5,
+    23, NULL, 14, N'Jericho Ramos', 5,
     N'Sena SRL3 integration is completely seamless',
     N'Upgraded to the Neotec 3 specifically for the built-in comms slot. The sound deadening is remarkable — I can take crystal-clear phone calls at 80km/h and the caller can''t even tell I''m on a big bike. Premium build in every detail.',
     1, 0, DATEADD(DAY, -24, SYSUTCDATETIME())
 ),
 (
-    34, 6, 24, N'Francis Alcantara', 4,
+    34, 6, 5, N'Francis Alcantara', 4,
     N'Solid dual-sport helmet for weekend trail rides',
     N'The Gille GTS 920 handles dual-sport duties effortlessly. The inner tinted sun visor is a lifesaver when riding into direct late afternoon glare. Cheek pads were slightly snug on day one but broke in perfectly after two rides.',
     1, 0, DATEADD(DAY, -28, SYSUTCDATETIME())
 ),
 (
-    21, 6, 25, N'Joshua Cruz', 5,
+    21, 6, 2, N'Joshua Cruz', 5,
     N'Reliable daily driver for delivery & errands',
     N'Using this Zebra FF-855 for daily city rides. Clear shield offers great peripheral vision for checking blind spots in bumper-to-bumper traffic. Padding is easily removable for weekly washes. Certified safe with genuine BPS sticker.',
     1, 0, DATEADD(DAY, -30, SYSUTCDATETIME())
 ),
 (
-    18, 7, 23, N'Bea Navarro', 5,
+    18, NULL, 6, N'Bea Navarro', 5,
     N'Aggressive look with very practical drop-down sun visor',
     N'The Monster Energy livery on this AGV K3 SV is crisp and vivid. I love the internal sun shield lever on the left side — very easy to flip up and down while keeping eyes on the road. Fits my Cardo Freecom speakers with plenty of ear room.',
     1, 0, DATEADD(DAY, -35, SYSUTCDATETIME())

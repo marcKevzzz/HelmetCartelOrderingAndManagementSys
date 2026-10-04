@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Web.Http;
@@ -337,6 +338,15 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
             }
 
             var cookieToken = System.Web.HttpContext.Current?.Request?.Cookies?[AppConstants.JwtConfiguration.AuthCookieName]?.Value;
+            if (string.IsNullOrEmpty(cookieToken))
+            {
+                var cookieHeader = System.Linq.Enumerable.FirstOrDefault(Request.Headers.GetCookies(AppConstants.JwtConfiguration.AuthCookieName));
+                if (cookieHeader != null)
+                {
+                    cookieToken = cookieHeader[AppConstants.JwtConfiguration.AuthCookieName]?.Value;
+                }
+            }
+
             if (!string.IsNullOrEmpty(cookieToken))
             {
                 return _jwtTokenProvider.ValidateToken(cookieToken);

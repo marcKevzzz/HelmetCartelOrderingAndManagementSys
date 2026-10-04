@@ -13,15 +13,6 @@
             </div>
             <div class="admin-header-actions">
                 <asp:Button ID="btnExportReport" runat="server" Text="Export CSV" CssClass="btn-pill btn-pill--outline" OnClick="btnExportReport_Click" />
-                <a href="/Admin/Dashboard.aspx" class="btn-pill btn-pill--primary">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="14" width="7" height="7"></rect>
-                        <rect x="3" y="14" width="7" height="7"></rect>
-                    </svg>
-                    <span>View Dashboard</span>
-                </a>
             </div>
         </div>
 
@@ -250,10 +241,10 @@
                                         <span class="admin-cell-stock"><%# Convert.ToInt32(Eval("OnHandStock")).ToString("N0") %></span>
                                     </td>
                                     <td>
-                                        <span class="admin-cell-stock admin-cell-bold"><%# Convert.ToInt32(Eval("AvailableStock")).ToString("N0") %></span>
+                                        <span class='admin-cell-stock admin-cell-bold <%# Convert.ToInt32(Eval("AvailableStock")) <= 0 ? "admin-cell-stock--critical" : "" %>'><%# Convert.ToInt32(Eval("AvailableStock")).ToString("N0") %></span>
                                     </td>
                                     <td>
-                                        <%# Convert.ToInt32(Eval("LowStockCount")) > 0 ? "<span class=\"admin-badge admin-badge--low-stock\">" + Eval("LowStockCount") + " Low</span>" : "<span class=\"admin-badge admin-badge--in-stock\">Healthy</span>" %>
+                                        <%# Convert.ToInt32(Eval("LowStockCount")) > 0 ? "<span class=\"admin-badge admin-badge--critical-alert\">" + Eval("LowStockCount") + " Low</span>" : "<span class=\"admin-badge admin-badge--in-stock\">Healthy</span>" %>
                                     </td>
                                     <td class="admin-table-align-right">
                                         <asp:PlaceHolder runat="server" Visible='<%# Convert.ToInt32(Eval("LowStockCount")) > 0 %>'>

@@ -128,8 +128,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
 
         private async Task InitializeFiltersAndDataAsync()
         {
-            await PopulateBrandsAsync().ConfigureAwait(false);
-            await PopulateCategoriesAsync().ConfigureAwait(false);
+            await Task.WhenAll(PopulateBrandsAsync(), PopulateCategoriesAsync()).ConfigureAwait(false);
             await LoadInventoryDataAsync().ConfigureAwait(false);
         }
 

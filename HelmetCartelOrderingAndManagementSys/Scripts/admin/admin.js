@@ -441,9 +441,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const getAdminAuthHeaders = () => {
+    const token = localStorage.getItem('hc_auth_token') ||
+                  localStorage.getItem('auth_token') ||
+                  sessionStorage.getItem('hc_auth_token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
+  };
+
   const fetchAdminProfile = async () => {
     try {
-      const res = await fetch('/api/v1/auth/me');
+      const res = await fetch('/api/v1/auth/me', {
+        credentials: 'include',
+        headers: getAdminAuthHeaders()
+      });
       if (res.ok) {
         const json = await res.json();
         const user = json?.data || json?.Data;
@@ -532,7 +544,8 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await fetch('/api/v1/auth/profile', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          headers: getAdminAuthHeaders(),
           body: JSON.stringify({ firstName, lastName, phoneNumber: phone })
         });
         const json = await res.json();
@@ -604,7 +617,8 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await fetch('/api/v1/auth/change-password', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          headers: getAdminAuthHeaders(),
           body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword })
         });
         const json = await res.json();

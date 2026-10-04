@@ -160,7 +160,10 @@ export const ApiClient = {
   },
 
   async request(url, options = {}) {
-    const token = localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.AUTH_TOKEN);
+    const token = localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.AUTH_TOKEN) ||
+                  localStorage.getItem('hc_auth_token') ||
+                  localStorage.getItem('auth_token') ||
+                  sessionStorage.getItem('hc_auth_token');
     const headers = {
       Accept: 'application/json',
       ...options.headers
@@ -171,7 +174,7 @@ export const ApiClient = {
     }
 
     try {
-      const response = await fetch(url, { ...options, headers });
+      const response = await fetch(url, { ...options, credentials: 'include', headers });
       const json = await response.json();
 
       if (!response.ok || json.success === false) {

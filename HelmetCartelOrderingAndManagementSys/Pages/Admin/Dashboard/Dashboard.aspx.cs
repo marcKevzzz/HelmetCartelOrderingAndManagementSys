@@ -41,8 +41,14 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         {
             try
             {
-                // 1. Core KPIs
-                var stats = await _adminRepo.GetDashboardStatsAsync().ConfigureAwait(false);
+                DateTime now = DateTime.UtcNow;
+                var statsTask = _adminRepo.GetDashboardStatsAsync();
+                var hourlyTask = _adminRepo.GetHourlySalesAsync(now.Date);
+                var dailyTask = _adminRepo.GetDailySalesAsync(now.AddDays(-30), now.AddDays(1));
+                var brandsTask = _adminRepo.GetInventoryReportAsync();
+                var activityTask = _adminRepo.GetRecentActivityAsync(8);
+                await Task.WhenAll(statsTask, hourlyTask, dailyTask, brandsTask, activityTask).ConfigureAwait(false);
+                var stats = await statsTask.ConfigureAwait(false);
                 int onHandQty = GetInt32(stats, "onHandStock");
                 litOnHandStock.Text = onHandQty.ToString("N0");
                 litOnHandStockTrend.Text = TrendHelper.RenderTrend(onHandQty, GetNullableInt32(stats, "yesterdayOnHandStock"), "previous day");
@@ -52,7 +58,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 litAvailableStockTrend.Text = TrendHelper.RenderTrend(availQty, GetNullableInt32(stats, "yesterdayAvailableStock"), "previous day");
 
                 int lowStockCount = GetInt32(stats, "lowStockCount");
-                litLowStock.Text = lowStockCount.ToString("N0");
+                litLowStock.Text = lowStockCount > 0 ? $"<span class=\"admin-kpi-value--critical\">{lowStockCount:N0}</span>" : "0";
                 litLowStockTrend.Text = TrendHelper.RenderTrend(
                     lowStockCount,
                     GetNullableInt32(stats, "yesterdayLowStockCount"),
@@ -68,10 +74,8 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 litTodayRevenueTrend.Text = TrendHelper.RenderTrend(todayRev, GetNullableDecimal(stats, "yesterdayRevenue"), "yesterday", isCurrency: true);
 
                 // 2. Sales Trend (Day, Week, Month)
-                DateTime now = DateTime.UtcNow;
-
                 // 2A. Day (Hourly breakdown for today)
-                var hourlySales = await _adminRepo.GetHourlySalesAsync(now.Date).ConfigureAwait(false);
+                var hourlySales = await hourlyTask.ConfigureAwait(false);
                 var hourlyMap = hourlySales.ToDictionary(h => h.SaleHour, h => h.Revenue);
                 var dayLabels = new List<string>();
                 var dayValues = new List<decimal>();
@@ -85,7 +89,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 DaySalesChartDataJson = "[" + string.Join(", ", dayValues) + "]";
 
                 // 2B. Week (Past 7 Days)
-                var weekSales = await _adminRepo.GetDailySalesAsync(now.AddDays(-7), now.AddDays(1)).ConfigureAwait(false);
+                var weekSales = await dailyTask.ConfigureAwait(false);
                 var weekSalesMap = weekSales.ToDictionary(s => s.SalesDate.ToString("yyyy-MM-dd"), s => s.Revenue);
                 var weekLabels = new List<string>();
                 var weekValues = new List<decimal>();
@@ -102,7 +106,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 WeekSalesChartDataJson = SalesChartDataJson;
 
                 // 2C. Month (Past 30 Days)
-                var monthSales = await _adminRepo.GetDailySalesAsync(now.AddDays(-30), now.AddDays(1)).ConfigureAwait(false);
+                var monthSales = await dailyTask.ConfigureAwait(false);
                 var monthSalesMap = monthSales.ToDictionary(s => s.SalesDate.ToString("yyyy-MM-dd"), s => s.Revenue);
                 var monthLabels = new List<string>();
                 var monthValues = new List<decimal>();
@@ -117,7 +121,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 MonthSalesChartDataJson = "[" + string.Join(", ", monthValues) + "]";
 
                 // 3. Brand Distribution
-                var brands = await _adminRepo.GetInventoryReportAsync().ConfigureAwait(false);
+                var brands = await brandsTask.ConfigureAwait(false);
                 var brandLabels = brands.Select(b => $"\"{b.Brand}\"").ToList();
                 var brandStock = brands.Select(b => b.AvailableStock).ToList();
 
@@ -125,7 +129,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 BrandChartDataJson = "[" + string.Join(", ", brandStock) + "]";
 
                 // 4. Recent Operations Activity
-                var activity = await _adminRepo.GetRecentActivityAsync(8).ConfigureAwait(false);
+                var activity = await activityTask.ConfigureAwait(false);
                 rptRecentActivity.DataSource = activity;
                 rptRecentActivity.DataBind();
             }

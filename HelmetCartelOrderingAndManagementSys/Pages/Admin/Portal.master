@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="/Content/css/variables.css" />
     <link rel="stylesheet" href="/Content/css/reset.css" />
     <link rel="stylesheet" href="/Content/css/components.css?v=2" />
-    <link rel="stylesheet" href="/Content/css/admin/admin.css?v=15" />
+    <link rel="stylesheet" href="/Content/css/admin/admin.css?v=16" />
     <asp:ContentPlaceHolder ID="HeadContent" runat="server" />
 </head>
 <body class="admin-body">
@@ -201,7 +201,7 @@
                                 <circle cx="11" cy="11" r="8"></circle>
                                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                             </svg>
-                            <input type="text" id="adminGlobalSearch" class="admin-topbar-search-input" placeholder="Search brand, helmet model, SKU, order, or staff..." autocomplete="off" />
+                            <input type="text" id="adminGlobalSearch" class="admin-topbar-search-input" placeholder="Search brand, helmet model, SKU, order, or staff..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" />
                             <span class="admin-topbar-shortcut-pill" id="adminSearchShortcut">&#8984;+K</span>
                             <button type="button" class="admin-topbar-search-clear" id="adminSearchClear" aria-label="Clear search and filters" title="Clear search &amp; filters" style="display: none;">
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -275,7 +275,7 @@
                                 <input type="tel" id="adminEditPhone" class="admin-form-input" placeholder="e.g. +63 917 123 4567" />
                                 <span class="inline-error-msg" id="errAdminPhone"></span>
                             </div>
-                            <div>
+                            <div class="admin-profile-btn-row">
                                 <button type="submit" class="admin-btn admin-btn--primary admin-profile-btn" id="btnAdminSaveProfile">
                                     Save Profile Changes
                                 </button>
@@ -305,24 +305,13 @@
                                 <input type="password" id="adminPwdConfirm" class="admin-form-input" placeholder="Re-type new password" autocomplete="new-password" required />
                                 <span class="inline-error-msg" id="errAdminPwdConfirm"></span>
                             </div>
-                            <div>
+                            <div class="admin-profile-btn-row">
                                 <button type="submit" class="admin-btn admin-btn--primary admin-profile-btn" id="btnAdminSavePassword">
                                     Update Password
                                 </button>
                             </div>
                         </form>
                     </div>
-                </div>
-                <div class="admin-modal-footer">
-                    <button type="button" class="btn-pill btn-pill--outline" id="btnAdminProfileSignOut" title="Sign out of administration">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="admin-mr-1">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                            <polyline points="16 17 21 12 16 7"></polyline>
-                            <line x1="21" y1="12" x2="9" y2="12"></line>
-                        </svg>
-                        <span>Sign Out</span>
-                    </button>
-                    <button type="button" class="btn-pill btn-pill--secondary" id="btnCloseAdminProfile">Close</button>
                 </div>
             </div>
         </div>
@@ -367,7 +356,7 @@
             </div>
         </div>
     </form>
-    <script src="/Scripts/admin/admin.js?v=18"></script>
+    <script src="/Scripts/admin/admin.js?v=19"></script>
     <script src="/Scripts/admin/search-history.js?v=1"></script>
     <asp:ContentPlaceHolder ID="ScriptsContent" runat="server" />
 </body>

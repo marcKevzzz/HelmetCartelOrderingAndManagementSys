@@ -1,7 +1,7 @@
 <%@ Page Title="My Account & Order Tracking" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Profile.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Pages.ProfilePage" ResponseEncoding="utf-8" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
-    <link rel="stylesheet" href='<%= ResolveUrl("~/Content/css/storefront/profile.css?v=8") %>' />
+    <link rel="stylesheet" href='<%= ResolveUrl("~/Content/css/storefront/profile.css?v=9") %>' />
     <link rel="stylesheet" href="/Content/css/receipts.css?v=1" />
 </asp:Content>
 
@@ -383,11 +383,11 @@
             <div class="receipt-modal-footer">
                 <button type="button" class="btn btn--outline btn--sm" id="btn-print-receipt">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                        <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                        <rect x="6" y="14" width="12" height="8"></rect>
+                        <path d="M21 15v4a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    <span>Print / Save Receipt</span>
+                    <span>Download Receipt</span>
                 </button>
             </div>
         </div>
@@ -602,5 +602,5 @@
     </div>
 
     <!-- Page Specific Script -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/profile.js?v=vouchers-14") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/profile.js?v=20261004_2") %>'></script>
 </asp:Content>

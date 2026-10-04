@@ -99,10 +99,19 @@ export const TrackOrderController = {
     const contentEl = document.getElementById("track-order-content");
     const errorEl = document.getElementById("track-error-state");
 
-    if (loadingEl) loadingEl.style.display = isLoading ? "flex" : "none";
+    if (loadingEl) {
+      loadingEl.classList.toggle("is-hidden", !isLoading);
+      loadingEl.style.display = isLoading ? "flex" : "none";
+    }
     if (isLoading) {
-      if (contentEl) contentEl.style.display = "none";
-      if (errorEl) errorEl.style.display = "none";
+      if (contentEl) {
+        contentEl.classList.add("is-hidden");
+        contentEl.style.display = "none";
+      }
+      if (errorEl) {
+        errorEl.classList.add("is-hidden");
+        errorEl.style.display = "none";
+      }
     }
   },
 
@@ -113,18 +122,38 @@ export const TrackOrderController = {
     const titleEl = document.getElementById("track-error-title");
     const msgEl = document.getElementById("track-error-msg");
 
-    if (loadingEl) loadingEl.style.display = "none";
-    if (contentEl) contentEl.style.display = "none";
-    if (errorEl) errorEl.style.display = "flex";
+    if (loadingEl) {
+      loadingEl.classList.add("is-hidden");
+      loadingEl.style.display = "none";
+    }
+    if (contentEl) {
+      contentEl.classList.add("is-hidden");
+      contentEl.style.display = "none";
+    }
+    if (errorEl) {
+      errorEl.classList.remove("is-hidden");
+      errorEl.style.display = "flex";
+    }
     if (titleEl) titleEl.textContent = title;
     if (msgEl) msgEl.textContent = message;
   },
 
   renderOrder(order) {
+    const loadingEl = document.getElementById("track-loading-state");
     const contentEl = document.getElementById("track-order-content");
     const errorEl = document.getElementById("track-error-state");
-    if (errorEl) errorEl.style.display = "none";
-    if (contentEl) contentEl.style.display = "flex";
+    if (loadingEl) {
+      loadingEl.classList.add("is-hidden");
+      loadingEl.style.display = "none";
+    }
+    if (errorEl) {
+      errorEl.classList.add("is-hidden");
+      errorEl.style.display = "none";
+    }
+    if (contentEl) {
+      contentEl.classList.remove("is-hidden");
+      contentEl.style.display = "flex";
+    }
 
     // Breadcrumb
     const breadcrumbEl = document.getElementById("track-breadcrumb-number");
@@ -226,11 +255,20 @@ export const TrackOrderController = {
       ].includes(normStatus);
     if (btnCancelOrder) {
       if (canCancel) {
-        btnCancelOrder.style.display = "block";
         btnCancelOrder.classList.remove("is-hidden");
       } else {
-        btnCancelOrder.style.display = "none";
         btnCancelOrder.classList.add("is-hidden");
+      }
+    }
+
+    // Toggle Return / Exchange Button in track-actions-stack
+    const btnTrackReturn = document.getElementById("btn-track-return-order");
+    const canReturn = (normStatus === "completed" || normStatus === "delivered");
+    if (btnTrackReturn) {
+      if (canReturn) {
+        btnTrackReturn.classList.remove("is-hidden");
+      } else {
+        btnTrackReturn.classList.add("is-hidden");
       }
     }
 
@@ -333,18 +371,18 @@ export const TrackOrderController = {
           addressParts.join(", ") || "Address on file";
       if (order.deliveryNotes || order.deliveryLandmark) {
         if (landmarkEl) {
-          landmarkEl.style.display = "block";
+          landmarkEl.classList.remove("is-hidden");
           landmarkEl.textContent = `Landmark: ${order.deliveryNotes || order.deliveryLandmark}`;
         }
       } else {
-        if (landmarkEl) landmarkEl.style.display = "none";
+        if (landmarkEl) landmarkEl.classList.add("is-hidden");
       }
     } else {
       if (destinationEl)
         destinationEl.textContent =
           "Helmet Cartel Hub & Flagship: Katipunan Ave, Quezon City, Metro Manila";
       if (landmarkEl) {
-        landmarkEl.style.display = "block";
+        landmarkEl.classList.remove("is-hidden");
         landmarkEl.textContent = "Pickup Schedule: Mon-Sat, 9:00 AM - 7:00 PM";
       }
     }
@@ -426,9 +464,15 @@ export const TrackOrderController = {
             return `
             <div class="track-item-row">
               <div class="track-item-main">
-                <img src="${this.escapeHtml(imgUrl)}" alt="${this.escapeHtml(item.productName)}" class="track-item-img" />
+                <a href="/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=${item.productId || 1}" class="track-item-img-link" title="View Product Details">
+                  <img src="${this.escapeHtml(imgUrl)}" alt="${this.escapeHtml(item.productName)}" class="track-item-img" />
+                </a>
                 <div class="track-item-meta">
-                  <h3 class="track-item-name">${this.escapeHtml(item.productName)}</h3>
+                  <h3 class="track-item-name">
+                    <a href="/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=${item.productId || 1}" class="track-item-title-link">
+                      ${this.escapeHtml(item.productName)}
+                    </a>
+                  </h3>
                   <div class="track-item-specs">
                     ${item.color ? `<span>Color: <strong>${this.escapeHtml(item.color)}</strong></span>` : ""}
                     ${item.size ? `<span>Size: <strong>${this.escapeHtml(item.size)}</strong></span>` : ""}
@@ -466,10 +510,10 @@ export const TrackOrderController = {
       shippingEl.innerHTML = `&#8369;${shipping.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
 
     if (discount > 0 && discountRow && discountEl) {
-      discountRow.style.display = "flex";
+      discountRow.classList.remove("is-hidden");
       discountEl.innerHTML = `-&#8369;${discount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
     } else if (discountRow) {
-      discountRow.style.display = "none";
+      discountRow.classList.add("is-hidden");
     }
 
     if (totalEl)
@@ -681,12 +725,61 @@ export const TrackOrderController = {
         rmaErrorEl.textContent = "";
         rmaErrorEl.classList.add("is-hidden");
       }
+
+      const itemSelectorWrap = document.getElementById("rma-item-selector-wrap");
+      const itemSingleWrap = document.getElementById("rma-target-item-single-wrap");
+      const itemSelector = document.getElementById("rma-item-selector");
+
+      if (itemSelectorWrap && itemSelector && this.currentOrder && this.currentOrder.items && this.currentOrder.items.length > 1) {
+        itemSelector.innerHTML = this.currentOrder.items.map((it) => {
+          const spec = [it.color, it.size].filter(Boolean).join(" / ");
+          const selected = String(it.id) === String(itemId) ? "selected" : "";
+          return `<option value="${it.id}" data-name="${this.escapeHtml(it.productName)}" data-spec="${this.escapeHtml(spec)}" ${selected}>${this.escapeHtml(it.productName)} (${this.escapeHtml(spec)})</option>`;
+        }).join("");
+        itemSelectorWrap.classList.remove("is-hidden");
+        if (itemSingleWrap) itemSingleWrap.classList.add("is-hidden");
+      } else {
+        if (itemSelectorWrap) itemSelectorWrap.classList.add("is-hidden");
+        if (itemSingleWrap) itemSingleWrap.classList.remove("is-hidden");
+      }
+
       rmaModal?.classList.remove("is-hidden");
     };
 
     const closeRmaModal = () => {
       rmaModal?.classList.add("is-hidden");
     };
+
+    document.getElementById("rma-item-selector")?.addEventListener("change", (e) => {
+      const selectedOpt = e.target.selectedOptions?.[0];
+      if (selectedOpt) {
+        if (rmaItemIdInput) rmaItemIdInput.value = e.target.value;
+        if (rmaItemNameEl) rmaItemNameEl.textContent = selectedOpt.dataset.name;
+        if (rmaItemSpecEl) rmaItemSpecEl.textContent = selectedOpt.dataset.spec;
+      }
+    });
+
+    const btnTrackReturnAction = document.getElementById("btn-track-return-order");
+    btnTrackReturnAction?.addEventListener("click", () => {
+      if (!this.currentOrder || !this.currentOrder.items || !this.currentOrder.items.length) {
+        RealtimeManager.showToast("No items found in this order for return or exchange.", "alert");
+        return;
+      }
+      const eligibleItem = this.currentOrder.items.find((item) => {
+        const itemRma = this.existingRmas.find((r) => r.orderItemId === item.id) || (item.rmaNumber ? { rmaNumber: item.rmaNumber } : null);
+        return !itemRma;
+      }) || this.currentOrder.items[0];
+
+      if (eligibleItem) {
+        openRmaModal(
+          eligibleItem.id,
+          eligibleItem.productName,
+          `${eligibleItem.color || ""} / ${eligibleItem.size || ""}`
+        );
+      } else {
+        RealtimeManager.showToast("All items in this order already have active return or exchange requests.", "info");
+      }
+    });
 
     document.addEventListener("click", (e) => {
       const btnRma = e.target.closest(".btn-open-rma");

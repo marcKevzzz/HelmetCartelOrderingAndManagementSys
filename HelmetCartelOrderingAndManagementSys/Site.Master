@@ -563,7 +563,7 @@
         <!-- Global Site Script (Mega Menu, Drawer, Badges) -->
         <script src='<%= ResolveUrl("~/Scripts/vendor/jquery-3.7.1.min.js") %>'></script>
         <script src='<%= ResolveUrl("~/Scripts/vendor/jquery.signalR-2.4.3.min.js") %>'></script>
-        <script type="module" src='<%= ResolveUrl("~/Scripts/site.js?v=7") %>'></script>
+        <script type="module" src='<%= ResolveUrl("~/Scripts/site.js?v=20261004") %>'></script>
     </form>
 </body>
 </html>

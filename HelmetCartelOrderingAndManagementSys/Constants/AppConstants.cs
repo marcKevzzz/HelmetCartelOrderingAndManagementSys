@@ -8,6 +8,18 @@ namespace HelmetCartelOrderingAndManagementSys.Constants
     /// </summary>
     public static class AppConstants
     {
+        public static class Shopping
+        {
+            public const string AddCart = "AddCart";
+            public const string SetCart = "SetCart";
+            public const string RemoveCart = "RemoveCart";
+            public const string ClearCart = "ClearCart";
+            public const string SelectCart = "SelectCart";
+            public const string SaveFavorite = "SaveFavorite";
+            public const string RemoveFavorite = "RemoveFavorite";
+            public const string ClearFavorites = "ClearFavorites";
+        }
+
         public static class Roles
         {
             public const string Admin = "Admin";
@@ -173,7 +185,7 @@ namespace HelmetCartelOrderingAndManagementSys.Constants
             public const string FixedAmount = "FIXED_AMOUNT";
             public const string FreeShipping = "FREE_SHIPPING";
             public const int FirstSqlError = 54001;
-            public const int LastSqlError = 54016;
+            public const int LastSqlError = 54020;
         }
 
         public static class ErrorCodes

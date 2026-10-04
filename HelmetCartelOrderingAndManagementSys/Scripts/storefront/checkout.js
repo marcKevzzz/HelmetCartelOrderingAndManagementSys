@@ -5,7 +5,7 @@
  */
 
 import { ApiClient } from '../api.js';
-import { CartManager } from '../cart.js';
+import { CartManager } from '../cart.js?v=20261004';
 import { RealtimeManager } from '../realtime.js';
 import { renderReceipt, printReceipt } from '../receipt.js?v=20261003-4';
 import { APP_CONSTANTS } from '../constants.js';
@@ -13,6 +13,8 @@ import { APP_CONSTANTS } from '../constants.js';
 const CHECKOUT_STATE_KEY = 'hc_checkout_state';
 const urlParams = new URLSearchParams(window.location.search);
 const isBuyNowMode = urlParams.get('mode') === 'buynow';
+let shoppingReady = isBuyNowMode;
+let emptyCartTimer;
 
 function getBuyNowItem() {
     try {
@@ -88,8 +90,12 @@ async function validateVoucher() {
     document.getElementById('checkout-voucher-status').textContent = 'Checking voucher...';
     renderSidebar();
     try {
+        const customerEmail = document.getElementById('checkout-email')?.value?.trim() || 
+                              document.getElementById('profile-email')?.value?.trim() || null;
         const quote = await ApiClient.post(APP_CONSTANTS.ENDPOINTS.VOUCHER_VALIDATE, {
-            code, items: getCheckoutItems().map(item => ({variantId: Number(item.variantId), quantity: Number(item.quantity)}))
+            code, 
+            items: getCheckoutItems().map(item => ({variantId: Number(item.variantId), quantity: Number(item.quantity)})),
+            customerEmail
         });
         if (sequence !== voucherSequence) return false;
         if (voucherSignature !== voucherItemsSignature()) return validateVoucher();
@@ -218,7 +224,7 @@ function calculateTotals() {
 }
 
 function renderSidebar() {
-    if (checkoutComplete) return;
+    if (checkoutComplete || !shoppingReady) return;
     if (appliedVoucher && voucherSignature !== voucherItemsSignature()) {
         appliedVoucher = null;
         validateVoucher();
@@ -229,11 +235,17 @@ function renderSidebar() {
         const emptyMsg = isBuyNowMode
             ? 'Buy Now item is missing. Redirecting to Shop...'
             : 'Your cart is empty. Redirecting to Shop...';
-        RealtimeManager.showToast(emptyMsg, 'alert');
-        setTimeout(() => window.location.href = APP_CONSTANTS.ROUTES.SHOP, 1500);
+        if (!emptyCartTimer) {
+            RealtimeManager.showToast(emptyMsg, 'alert');
+            emptyCartTimer = setTimeout(() => {
+                if (shoppingReady && !getCheckoutItems().length && !checkoutComplete) window.location.href = APP_CONSTANTS.ROUTES.SHOP;
+            }, 1500);
+        }
         return;
     }
 
+    clearTimeout(emptyCartTimer);
+    emptyCartTimer = null;
     const { subtotal, discount, total, isFreeShipping } = calculateTotals();
     const discountRow = document.getElementById('sidebar-voucher-row');
     if (discountRow) discountRow.hidden = !appliedVoucher;
@@ -688,7 +700,8 @@ function bindCheckoutEvents() {
                     // Clear selected checked-out items from cart
                     const allItems = CartManager.getItems();
                     const remaining = allItems.filter(item => !checkoutItems.some(c => Number(c.variantId) === Number(item.variantId)));
-                    CartManager.saveItems(remaining);
+                    try { await CartManager.saveItems(remaining); }
+                    catch (error) { RealtimeManager.showToast(`Order saved, but cart cleanup failed: ${error.message}`, 'alert'); }
                     CartManager.updateCartBadge();
                 }
 
@@ -732,6 +745,19 @@ function bindCheckoutEvents() {
                 showSimulationModal(orderNo, totalPaid, async payment => {
                     if (payment) { orderData.paymentStatus = payment.paymentStatus; orderData.status = payment.status; orderData.gatewayReference = payment.paymentId; }
                     await completeOrderDisplay();
+                }, async () => {
+                    try {
+                        await ApiClient.cancelOrder(orderData.id || orderNo, 'Customer cancelled QRPh payment during checkout.');
+                    } catch (_) {}
+                    RealtimeManager.showToast('Payment was cancelled. Your order was not placed.', 'alert');
+                    btn?.classList.remove('btn--loading');
+                    btn?.classList.remove('btn--disabled');
+                    if (btn) btn.disabled = false;
+                    if (textSpan) textSpan.textContent = "Place Order & Pay";
+                    placingOrder = false;
+                    document.getElementById('checkout-voucher').disabled = false;
+                    document.getElementById('checkout-voucher-remove').disabled = false;
+                    renderSidebar();
                 });
                 return;
             }
@@ -757,7 +783,7 @@ function bindCheckoutEvents() {
 /**
  * Handles Interactive QR Ph HitPay Simulation Modal (Minimal Design)
  */
-function showSimulationModal(orderNo, totalAmount, onSuccessCallback) {
+function showSimulationModal(orderNo, totalAmount, onSuccessCallback, onCancelCallback) {
     const modal = document.getElementById('payment-simulation-modal');
     if (!modal) { onSuccessCallback(); return; }
     const amountEl = document.getElementById('sim-order-amount');
@@ -766,6 +792,7 @@ function showSimulationModal(orderNo, totalAmount, onSuccessCallback) {
     const alertEl = document.getElementById('sim-status-alert');
     const alertMsg = document.getElementById('sim-status-message');
     const closeBtn = document.getElementById('btn-close-sim-modal');
+    const cancelBtn = document.getElementById('btn-cancel-sim');
     const successBtn = document.getElementById('btn-success-sim');
     let confirming = false;
 
@@ -776,14 +803,19 @@ function showSimulationModal(orderNo, totalAmount, onSuccessCallback) {
     successBtn.disabled = false;
     successBtn.classList.remove('btn--loading');
     closeBtn.disabled = false;
+    if (cancelBtn) cancelBtn.disabled = false;
     modal.classList.remove('is-hidden');
 
-    closeBtn.onclick = async () => {
+    const handleCancel = async () => {
         if (confirming) return;
         modal.classList.add('is-hidden');
-        await onSuccessCallback();
-        RealtimeManager.showToast(`Order ${orderNo} saved as Pending Payment. Complete payment from Order History.`, 'info');
+        if (typeof onCancelCallback === 'function') {
+            await onCancelCallback();
+        }
     };
+
+    closeBtn.onclick = handleCancel;
+    if (cancelBtn) cancelBtn.onclick = handleCancel;
 
     successBtn.onclick = async () => {
         if (confirming) return;
@@ -918,8 +950,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     } else {
         CartManager.refreshItems().then(() => {
+            shoppingReady = true;
             renderSidebar();
             renderReviewItems();
-        }).catch(() => {});
+        }).catch(error => { RealtimeManager.showToast(`Could not load cart: ${error.message}`, 'alert'); });
     }
 });
