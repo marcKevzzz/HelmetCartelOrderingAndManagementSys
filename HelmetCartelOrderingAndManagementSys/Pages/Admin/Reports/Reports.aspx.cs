@@ -32,6 +32,29 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         public string ChartRevenueJson { get; set; } = "[]";
         public string ChartOrdersJson { get; set; } = "[]";
         public string SalesPerformanceJson { get; set; } = "[]";
+        public string BrandInventoryDetailsJson { get; set; } = "[]";
+        public string DailySalesDetailsJson { get; set; } = "[]";
+        public string BrandHealthReportJson { get; set; } = "[]";
+
+        public static double GetHealthyPercent(int onHand, int available, int lowStock)
+        {
+            if (onHand <= 0) return 0.0;
+            int healthy = Math.Max(0, available - lowStock);
+            return Math.Min(100.0, Math.Max(0.0, ((double)healthy / onHand) * 100.0));
+        }
+
+        public static double GetLowStockPercent(int onHand, int lowStock)
+        {
+            if (onHand <= 0) return 0.0;
+            return Math.Min(100.0, Math.Max(0.0, ((double)lowStock / onHand) * 100.0));
+        }
+
+        public static double GetReservedPercent(int onHand, int available)
+        {
+            if (onHand <= 0) return 0.0;
+            int reserved = Math.Max(0, onHand - available);
+            return Math.Min(100.0, Math.Max(0.0, ((double)reserved / onHand) * 100.0));
+        }
 
         public int CurrentDailySalesPage
         {
@@ -170,6 +193,8 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 var details = await detailsTask.ConfigureAwait(false);
                 _brandDetails = details.GroupBy(item => item.Brand, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.OrdinalIgnoreCase);
+                BrandHealthReportJson = JsonConvert.SerializeObject(brandReport);
+                BrandInventoryDetailsJson = JsonConvert.SerializeObject(details);
                 int brandTotalPages = Math.Max(1, (int)System.Math.Ceiling((double)brandReport.Count / PageSize));
                 CurrentBrandReportPage = ClampPage(CurrentBrandReportPage, brandTotalPages);
                 var pagedBrandReport = brandReport
@@ -286,6 +311,14 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
 
                 // 4. Bind Daily Sales table (ordered descending)
                 var descSales = sales.OrderByDescending(s => s.SalesDate).ToList();
+                DailySalesDetailsJson = JsonConvert.SerializeObject(descSales.Select(s => new {
+                    salesDate = s.SalesDate.ToString("yyyy-MM-dd"),
+                    displayDate = s.SalesDate.ToString("MMMM dd, yyyy (dddd)"),
+                    shortDate = s.SalesDate.ToString("MMM dd, yyyy"),
+                    paymentCount = s.PaymentCount,
+                    revenue = s.Revenue,
+                    averageOrderValue = s.PaymentCount > 0 ? (s.Revenue / s.PaymentCount) : 0m
+                }));
                 int dailySalesTotalPages = Math.Max(1, (int)System.Math.Ceiling((double)descSales.Count / PageSize));
                 CurrentDailySalesPage = ClampPage(CurrentDailySalesPage, dailySalesTotalPages);
                 var pagedDailySales = descSales
@@ -324,6 +357,9 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 ChartRevenueJson = "[]";
                 ChartOrdersJson = "[]";
                 SalesPerformanceJson = "[]";
+                BrandInventoryDetailsJson = "[]";
+                BrandHealthReportJson = "[]";
+                DailySalesDetailsJson = "[]";
             }
         }
 
@@ -508,18 +544,29 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             target.Text = html.ToString();
         }
 
-        protected void btnExportReport_Click(object sender, EventArgs e)
+        protected void btnExportExcel_Click(object sender, EventArgs e)
         {
             RegisterAsyncTask(new PageAsyncTask(async () =>
             {
                 TryGetSelectedReportDates(out DateTime startDate, out DateTime endDate);
-                var brandReport = await _adminRepo.GetInventoryReportAsync().ConfigureAwait(false);
-                var details = await _adminRepo.GetBrandInventoryDetailsAsync().ConfigureAwait(false);
-                var sales = await _adminRepo.GetDailySalesAsync(startDate.Date, endDate.Date.AddDays(1)).ConfigureAwait(false);
-                var inventoryTrend = await _adminRepo.GetInventoryTrendAsync(startDate, endDate).ConfigureAwait(false);
-                var dashboardStats = await _adminRepo.GetDashboardStatsAsync().ConfigureAwait(false);
-                var salesBreakdown = await _adminRepo.GetSalesByBrandAndCategoryAsync(
-                    startDate.Date, endDate.Date.AddDays(1)).ConfigureAwait(false);
+                var brandTask = _adminRepo.GetInventoryReportAsync();
+                var detailsTask = _adminRepo.GetBrandInventoryDetailsAsync();
+                var salesTask = _adminRepo.GetDailySalesAsync(startDate.Date, endDate.Date.AddDays(1));
+                var trendTask = _adminRepo.GetInventoryTrendAsync(startDate, endDate);
+                var dashboardStatsTask = _adminRepo.GetDashboardStatsAsync();
+                var salesBreakdownTask = _adminRepo.GetSalesByBrandAndCategoryAsync(startDate.Date, endDate.Date.AddDays(1));
+                var performanceTask = _adminRepo.GetSalesPerformanceAsync(startDate.Date, endDate.Date.AddDays(1));
+
+                await Task.WhenAll(brandTask, detailsTask, salesTask, trendTask, dashboardStatsTask, salesBreakdownTask, performanceTask).ConfigureAwait(false);
+
+                var brandReport = await brandTask.ConfigureAwait(false);
+                var details = await detailsTask.ConfigureAwait(false);
+                var sales = await salesTask.ConfigureAwait(false);
+                var inventoryTrend = await trendTask.ConfigureAwait(false);
+                var dashboardStats = await dashboardStatsTask.ConfigureAwait(false);
+                var salesBreakdown = await salesBreakdownTask.ConfigureAwait(false);
+                var performanceItems = await performanceTask.ConfigureAwait(false);
+
                 var brandSales = PrepareSalesDimensionReport(salesBreakdown.Brands);
                 var categorySales = PrepareSalesDimensionReport(salesBreakdown.Categories);
 
@@ -537,79 +584,294 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 int activeOrders = dashboardStats != null && dashboardStats.TryGetValue("activeOrders", out var ao) && ao != null && ao != DBNull.Value ? Convert.ToInt32(ao) : 0;
 
                 var sb = new StringBuilder();
-                sb.AppendLine("================================================================================");
-                sb.AppendLine("HELMET CARTEL - EXECUTIVE & ADMIN ANALYTICS REPORT");
-                sb.AppendLine("================================================================================");
-                sb.AppendLine($"Generated On,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                sb.AppendLine($"Reporting Period,{startDate:yyyy-MM-dd} to {endDate:yyyy-MM-dd}");
-                sb.AppendLine($"Filter Preset,{ActivePreset}");
-                sb.AppendLine();
-                sb.AppendLine("ADMIN EXECUTIVE KEY PERFORMANCE INDICATORS (KPIS)");
-                sb.AppendLine("KPI Metric,Value,Unit / Description");
-                sb.AppendLine($"Period Gross Revenue,{periodRevenue:F2},PHP (Completed Paid Orders)");
-                sb.AppendLine($"Completed Orders Count,{periodOrders},Total Orders Paid");
-                sb.AppendLine($"Average Order Value (AOV),{aov:F2},PHP per Order");
-                sb.AppendLine($"Total Warehouse Units,{totalWarehouseUnits},Total Physical Units");
-                sb.AppendLine($"Active Product SKUs,{activeSkus},Distinct Helmet Variants");
-                sb.AppendLine($"Total On-Hand Stock,{totalOnHand},Warehouse Stock Units");
-                sb.AppendLine($"Total Available Stock,{totalAvailable},Unreserved Units Ready for Sale");
-                sb.AppendLine($"Low Stock Alerts,{totalLowStockCount},Variants At or Below Reorder Threshold");
-                sb.AppendLine($"Out of Stock Variants,{outOfStockVariants},Critical Zero Available Stock");
-                sb.AppendLine($"Today Live Revenue,{todayRevenue:F2},PHP (Current Day Real-Time)");
-                sb.AppendLine($"Live Active Orders,{activeOrders},Orders In Fulfillment / Processing");
-                sb.AppendLine();
-                sb.AppendLine("SALES PERFORMANCE BY BRAND");
-                sb.AppendLine("Brand,UnitsSold,OrderCount,Revenue,AverageUnitPrice,TopSeller,TopRevenue");
+                sb.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+                sb.AppendLine("<?mso-application progid=\"Excel.Sheet\"?>");
+                sb.AppendLine("<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\"");
+                sb.AppendLine(" xmlns:o=\"urn:schemas-microsoft-com:office:office\"");
+                sb.AppendLine(" xmlns:x=\"urn:schemas-microsoft-com:office:excel\"");
+                sb.AppendLine(" xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\"");
+                sb.AppendLine(" xmlns:html=\"http://www.w3.org/TR/REC-html40\">");
 
-                foreach (var sale in brandSales)
+                // Styles
+                sb.AppendLine(" <Styles>");
+                sb.AppendLine("  <Style ss:ID=\"Default\" ss:Name=\"Normal\"><Alignment ss:Vertical=\"Center\"/><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Color=\"#18181B\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"Header\"><Alignment ss:Horizontal=\"Left\" ss:Vertical=\"Center\"/><Borders><Border ss:Position=\"Bottom\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#D4D4D8\"/></Borders><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#18181B\"/><Interior ss:Color=\"#F4F4F5\" ss:Pattern=\"Solid\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"HeaderRight\"><Alignment ss:Horizontal=\"Right\" ss:Vertical=\"Center\"/><Borders><Border ss:Position=\"Bottom\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#D4D4D8\"/></Borders><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#18181B\"/><Interior ss:Color=\"#F4F4F5\" ss:Pattern=\"Solid\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"HeaderCenter\"><Alignment ss:Horizontal=\"Center\" ss:Vertical=\"Center\"/><Borders><Border ss:Position=\"Bottom\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#D4D4D8\"/></Borders><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#18181B\"/><Interior ss:Color=\"#F4F4F5\" ss:Pattern=\"Solid\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"Title\"><Font ss:FontName=\"Segoe UI\" ss:Size=\"14\" ss:Bold=\"1\" ss:Color=\"#09090B\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"Subtitle\"><Font ss:FontName=\"Segoe UI\" ss:Size=\"9\" ss:Italic=\"1\" ss:Color=\"#71717A\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"SectionHeader\"><Font ss:FontName=\"Segoe UI\" ss:Size=\"11\" ss:Bold=\"1\" ss:Color=\"#18181B\"/><Interior ss:Color=\"#E4E4E7\" ss:Pattern=\"Solid\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"Bold\"><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#18181B\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"BoldCenter\"><Alignment ss:Horizontal=\"Center\"/><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#18181B\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"Center\"><Alignment ss:Horizontal=\"Center\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"Currency\"><Alignment ss:Horizontal=\"Right\"/><NumberFormat ss:Format=\"&quot;PHP &quot;#,##0.00\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"CurrencyBold\"><Alignment ss:Horizontal=\"Right\"/><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#18181B\"/><NumberFormat ss:Format=\"&quot;PHP &quot;#,##0.00\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"Integer\"><Alignment ss:Horizontal=\"Right\"/><NumberFormat ss:Format=\"#,##0\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"IntegerBold\"><Alignment ss:Horizontal=\"Right\"/><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#18181B\"/><NumberFormat ss:Format=\"#,##0\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"Percent\"><Alignment ss:Horizontal=\"Right\"/><NumberFormat ss:Format=\"0.0%\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"PercentBold\"><Alignment ss:Horizontal=\"Right\"/><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#18181B\"/><NumberFormat ss:Format=\"0.0%\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"DateStyle\"><Alignment ss:Horizontal=\"Center\"/><NumberFormat ss:Format=\"yyyy-mm-dd\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"AlertRed\"><Alignment ss:Horizontal=\"Center\"/><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#DC2626\"/><Interior ss:Color=\"#FEE2E2\" ss:Pattern=\"Solid\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"AlertAmber\"><Alignment ss:Horizontal=\"Center\"/><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#D97706\"/><Interior ss:Color=\"#FEF3C7\" ss:Pattern=\"Solid\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"AlertGreen\"><Alignment ss:Horizontal=\"Center\"/><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#16A34A\"/><Interior ss:Color=\"#DCFCE7\" ss:Pattern=\"Solid\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"BadgeTop\"><Alignment ss:Horizontal=\"Center\"/><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#15803D\"/><Interior ss:Color=\"#DCFCE7\" ss:Pattern=\"Solid\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"TotalRow\"><Borders><Border ss:Position=\"Top\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#A1A1AA\"/><Border ss:Position=\"Bottom\" ss:LineStyle=\"Double\" ss:Weight=\"3\" ss:Color=\"#18181B\"/></Borders><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#18181B\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"TotalRowCurrency\"><Alignment ss:Horizontal=\"Right\"/><Borders><Border ss:Position=\"Top\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#A1A1AA\"/><Border ss:Position=\"Bottom\" ss:LineStyle=\"Double\" ss:Weight=\"3\" ss:Color=\"#18181B\"/></Borders><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#18181B\"/><NumberFormat ss:Format=\"&quot;PHP &quot;#,##0.00\"/></Style>");
+                sb.AppendLine("  <Style ss:ID=\"TotalRowInteger\"><Alignment ss:Horizontal=\"Right\"/><Borders><Border ss:Position=\"Top\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#A1A1AA\"/><Border ss:Position=\"Bottom\" ss:LineStyle=\"Double\" ss:Weight=\"3\" ss:Color=\"#18181B\"/></Borders><Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#18181B\"/><NumberFormat ss:Format=\"#,##0\"/></Style>");
+                sb.AppendLine(" </Styles>");
+
+                // Worksheet 1: Executive Summary & Dashboard KPIs
+                sb.AppendLine(" <Worksheet ss:Name=\"Executive &amp; KPIs\">");
+                sb.AppendLine("  <Table ss:DefaultRowHeight=\"20\">");
+                sb.AppendLine("   <Column ss:Width=\"220\"/>");
+                sb.AppendLine("   <Column ss:Width=\"150\"/>");
+                sb.AppendLine("   <Column ss:Width=\"280\"/>");
+                sb.AppendLine("   <Row ss:Height=\"24\"><Cell ss:StyleID=\"Title\"><Data ss:Type=\"String\">HELMET CARTEL OPERATIONS REPORT</Data></Cell></Row>");
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"Subtitle\"><Data ss:Type=\"String\">Reporting Period: {startDate:yyyy-MM-dd} to {endDate:yyyy-MM-dd} (Preset: {XmlVal(ActivePreset)}) | Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}</Data></Cell></Row>");
+                sb.AppendLine("   <Row></Row>");
+                sb.AppendLine("   <Row><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Key Performance Indicator</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Value</Data></Cell><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Metric Scope / Description</Data></Cell></Row>");
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">Period Gross Revenue</Data></Cell><Cell ss:StyleID=\"CurrencyBold\"><Data ss:Type=\"Number\">{periodRevenue:F2}</Data></Cell><Cell><Data ss:Type=\"String\">Aggregated completed sales during reporting window</Data></Cell></Row>");
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">Completed Paid Orders</Data></Cell><Cell ss:StyleID=\"IntegerBold\"><Data ss:Type=\"Number\">{periodOrders}</Data></Cell><Cell><Data ss:Type=\"String\">Total customer transactions fulfilled</Data></Cell></Row>");
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">Average Order Value (AOV)</Data></Cell><Cell ss:StyleID=\"Currency\"><Data ss:Type=\"Number\">{aov:F2}</Data></Cell><Cell><Data ss:Type=\"String\">Mean revenue generated per order</Data></Cell></Row>");
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">Today Live Revenue (POS + Online)</Data></Cell><Cell ss:StyleID=\"Currency\"><Data ss:Type=\"Number\">{todayRevenue:F2}</Data></Cell><Cell><Data ss:Type=\"String\">Current day real-time revenue intake</Data></Cell></Row>");
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">Live Active Orders</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{activeOrders}</Data></Cell><Cell><Data ss:Type=\"String\">Orders currently being packed or in transit</Data></Cell></Row>");
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">Total Warehouse Stock</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{totalWarehouseUnits}</Data></Cell><Cell><Data ss:Type=\"String\">Physical helmet units across all brands</Data></Cell></Row>");
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">Active Product SKUs</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{activeSkus}</Data></Cell><Cell><Data ss:Type=\"String\">Distinct brand/color/size variant combinations</Data></Cell></Row>");
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">Total Available Stock</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{totalAvailable}</Data></Cell><Cell><Data ss:Type=\"String\">Unreserved units ready for immediate sale</Data></Cell></Row>");
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">Low Stock Alerts</Data></Cell><Cell ss:StyleID=\"{(totalLowStockCount > 0 ? "AlertAmber" : "Integer")}\"><Data ss:Type=\"Number\">{totalLowStockCount}</Data></Cell><Cell><Data ss:Type=\"String\">Variants at or below configured reorder threshold</Data></Cell></Row>");
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">Out of Stock Variants</Data></Cell><Cell ss:StyleID=\"{(outOfStockVariants > 0 ? "AlertRed" : "Integer")}\"><Data ss:Type=\"Number\">{outOfStockVariants}</Data></Cell><Cell><Data ss:Type=\"String\">Variants with zero available inventory units</Data></Cell></Row>");
+                sb.AppendLine("  </Table>");
+                sb.AppendLine(" </Worksheet>");
+
+                // Worksheet 2: Item Sales Performance (Complete list of products and items included in analytics)
+                sb.AppendLine(" <Worksheet ss:Name=\"Item Sales Performance\">");
+                sb.AppendLine("  <Table ss:DefaultRowHeight=\"19\">");
+                sb.AppendLine("   <Column ss:Width=\"50\"/>");
+                sb.AppendLine("   <Column ss:Width=\"240\"/>");
+                sb.AppendLine("   <Column ss:Width=\"120\"/>");
+                sb.AppendLine("   <Column ss:Width=\"120\"/>");
+                sb.AppendLine("   <Column ss:Width=\"90\"/>");
+                sb.AppendLine("   <Column ss:Width=\"110\"/>");
+                sb.AppendLine("   <Column ss:Width=\"130\"/>");
+                sb.AppendLine("   <Column ss:Width=\"130\"/>");
+                sb.AppendLine("   <Column ss:Width=\"110\"/>");
+                sb.AppendLine("   <Column ss:Width=\"130\"/>");
+                sb.AppendLine("   <Row ss:Height=\"24\"><Cell ss:StyleID=\"Title\"><Data ss:Type=\"String\">HELMET PRODUCT SALES PERFORMANCE (ITEM-LEVEL BREAKDOWN)</Data></Cell></Row>");
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"Subtitle\"><Data ss:Type=\"String\">Individual helmet models and items sold during the reporting period ({startDate:yyyy-MM-dd} to {endDate:yyyy-MM-dd})</Data></Cell></Row>");
+                sb.AppendLine("   <Row></Row>");
+                sb.AppendLine("   <Row><Cell ss:StyleID=\"HeaderCenter\"><Data ss:Type=\"String\">Rank</Data></Cell><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Product / Model Name</Data></Cell><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Manufacturer / Brand</Data></Cell><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Category</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Units Sold</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Completed Orders</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Gross Revenue</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Average Selling Price</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Revenue Share</Data></Cell><Cell ss:StyleID=\"HeaderCenter\"><Data ss:Type=\"String\">Top Performer</Data></Cell></Row>");
+
+                var rankedItems = (performanceItems ?? new List<AdminSalesPerformanceItemDto>())
+                    .OrderByDescending(p => p.Revenue)
+                    .ThenByDescending(p => p.UnitsSold)
+                    .ToList();
+
+                decimal totalPerfRevenue = rankedItems.Sum(p => p.Revenue);
+                int totalPerfUnits = rankedItems.Sum(p => p.UnitsSold);
+                int totalPerfOrders = rankedItems.Sum(p => p.OrderCount);
+                int maxUnitsSold = rankedItems.Count > 0 ? rankedItems.Max(p => p.UnitsSold) : 0;
+                decimal maxRevSold = rankedItems.Count > 0 ? rankedItems.Max(p => p.Revenue) : 0m;
+
+                int rankNum = 1;
+                foreach (var item in rankedItems)
                 {
-                    sb.AppendLine($"{Csv(sale.DimensionName)},{sale.UnitsSold},{sale.OrderCount},{sale.Revenue:N2},{sale.AverageUnitPrice:N2},{sale.IsTopSeller},{sale.IsTopRevenue}");
+                    double revShare = totalPerfRevenue > 0 ? (double)(item.Revenue / totalPerfRevenue) : 0.0;
+                    string topBadge = "";
+                    if (maxUnitsSold > 0 && item.UnitsSold == maxUnitsSold && maxRevSold > 0 && item.Revenue == maxRevSold) topBadge = "TOP SELLER &amp; REVENUE";
+                    else if (maxUnitsSold > 0 && item.UnitsSold == maxUnitsSold) topBadge = "TOP SELLER";
+                    else if (maxRevSold > 0 && item.Revenue == maxRevSold) topBadge = "TOP REVENUE";
+
+                    string badgeStyle = !string.IsNullOrEmpty(topBadge) ? "BadgeTop" : "Center";
+
+                    sb.AppendLine($"   <Row><Cell ss:StyleID=\"Center\"><Data ss:Type=\"String\">#{rankNum++}</Data></Cell><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">{XmlVal(item.ProductName)}</Data></Cell><Cell><Data ss:Type=\"String\">{XmlVal(item.BrandName)}</Data></Cell><Cell><Data ss:Type=\"String\">{XmlVal(item.CategoryName)}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{item.UnitsSold}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{item.OrderCount}</Data></Cell><Cell ss:StyleID=\"Currency\"><Data ss:Type=\"Number\">{item.Revenue:F2}</Data></Cell><Cell ss:StyleID=\"Currency\"><Data ss:Type=\"Number\">{item.AverageSellingPrice:F2}</Data></Cell><Cell ss:StyleID=\"Percent\"><Data ss:Type=\"Number\">{revShare:F4}</Data></Cell><Cell ss:StyleID=\"{badgeStyle}\"><Data ss:Type=\"String\">{topBadge}</Data></Cell></Row>");
                 }
 
-                sb.AppendLine();
-                sb.AppendLine("SALES PERFORMANCE BY CATEGORY");
-                sb.AppendLine("Category,UnitsSold,OrderCount,Revenue,AverageUnitPrice,TopSeller,TopRevenue");
-
-                foreach (var sale in categorySales)
+                if (rankedItems.Count == 0)
                 {
-                    sb.AppendLine($"{Csv(sale.DimensionName)},{sale.UnitsSold},{sale.OrderCount},{sale.Revenue:N2},{sale.AverageUnitPrice:N2},{sale.IsTopSeller},{sale.IsTopRevenue}");
+                    sb.AppendLine("   <Row><Cell ss:StyleID=\"Center\"><Data ss:Type=\"String\">-</Data></Cell><Cell><Data ss:Type=\"String\">No items sold in the selected reporting period.</Data></Cell><Cell><Data ss:Type=\"String\">-</Data></Cell><Cell><Data ss:Type=\"String\">-</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">0</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">0</Data></Cell><Cell ss:StyleID=\"Currency\"><Data ss:Type=\"Number\">0.00</Data></Cell><Cell ss:StyleID=\"Currency\"><Data ss:Type=\"Number\">0.00</Data></Cell><Cell ss:StyleID=\"Percent\"><Data ss:Type=\"Number\">0.0</Data></Cell><Cell><Data ss:Type=\"String\"></Data></Cell></Row>");
                 }
 
-                sb.AppendLine();
-                sb.AppendLine("BRAND INVENTORY HEALTH BREAKDOWN");
-                sb.AppendLine("Brand,VariantCount,OnHandStock,AvailableStock,LowStockCount,StockStatus");
+                // Summary Total Row
+                decimal overallAov = totalPerfUnits > 0 ? (totalPerfRevenue / totalPerfUnits) : 0m;
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\">TOTAL</Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\">{rankedItems.Count} Distinct Models</Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\"></Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\"></Data></Cell><Cell ss:StyleID=\"TotalRowInteger\"><Data ss:Type=\"Number\">{totalPerfUnits}</Data></Cell><Cell ss:StyleID=\"TotalRowInteger\"><Data ss:Type=\"Number\">{totalPerfOrders}</Data></Cell><Cell ss:StyleID=\"TotalRowCurrency\"><Data ss:Type=\"Number\">{totalPerfRevenue:F2}</Data></Cell><Cell ss:StyleID=\"TotalRowCurrency\"><Data ss:Type=\"Number\">{overallAov:F2}</Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\">100.0%</Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\"></Data></Cell></Row>");
+                sb.AppendLine("  </Table>");
+                sb.AppendLine(" </Worksheet>");
+
+                // Worksheet 3: Complete Inventory Master Catalog (All variants and items tracked in analytics)
+                sb.AppendLine(" <Worksheet ss:Name=\"Complete Inventory Catalog\">");
+                sb.AppendLine("  <Table ss:DefaultRowHeight=\"19\">");
+                sb.AppendLine("   <Column ss:Width=\"120\"/>");
+                sb.AppendLine("   <Column ss:Width=\"240\"/>");
+                sb.AppendLine("   <Column ss:Width=\"120\"/>");
+                sb.AppendLine("   <Column ss:Width=\"110\"/>");
+                sb.AppendLine("   <Column ss:Width=\"60\"/>");
+                sb.AppendLine("   <Column ss:Width=\"130\"/>");
+                sb.AppendLine("   <Column ss:Width=\"100\"/>");
+                sb.AppendLine("   <Column ss:Width=\"100\"/>");
+                sb.AppendLine("   <Column ss:Width=\"100\"/>");
+                sb.AppendLine("   <Column ss:Width=\"110\"/>");
+                sb.AppendLine("   <Column ss:Width=\"110\"/>");
+                sb.AppendLine("   <Column ss:Width=\"130\"/>");
+                sb.AppendLine("   <Row ss:Height=\"24\"><Cell ss:StyleID=\"Title\"><Data ss:Type=\"String\">COMPLETE HELMET INVENTORY &amp; VARIANT CATALOG</Data></Cell></Row>");
+                sb.AppendLine("   <Row><Cell ss:StyleID=\"Subtitle\"><Data ss:Type=\"String\">All active helmet SKUs, colorways, and sizes across certified manufacturers</Data></Cell></Row>");
+                sb.AppendLine("   <Row></Row>");
+                sb.AppendLine("   <Row><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Manufacturer / Brand</Data></Cell><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Product Model Name</Data></Cell><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Category</Data></Cell><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Colorway</Data></Cell><Cell ss:StyleID=\"HeaderCenter\"><Data ss:Type=\"String\">Size</Data></Cell><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">SKU Code</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">On-Hand Units</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Available Units</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Reserved Units</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Reorder Point</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Availability Rate</Data></Cell><Cell ss:StyleID=\"HeaderCenter\"><Data ss:Type=\"String\">Health Status</Data></Cell></Row>");
+
+                var sortedDetails = (details ?? new List<AdminBrandInventoryDetailDto>())
+                    .OrderBy(d => d.Brand)
+                    .ThenBy(d => d.ProductName)
+                    .ThenBy(d => d.Size)
+                    .ToList();
+
+                int catOnHand = sortedDetails.Sum(d => d.OnHandStock);
+                int catAvail = sortedDetails.Sum(d => d.AvailableStock);
+                int catReserved = sortedDetails.Sum(d => Math.Max(0, d.OnHandStock - d.AvailableStock));
+
+                foreach (var item in sortedDetails)
+                {
+                    int reserved = Math.Max(0, item.OnHandStock - item.AvailableStock);
+                    double availRate = item.OnHandStock > 0 ? ((double)item.AvailableStock / item.OnHandStock) : 0.0;
+                    string statusStyle = item.AvailableStock <= 0 ? "AlertRed" : (item.AvailableStock <= item.ReorderPoint ? "AlertAmber" : "AlertGreen");
+                    string statusText = item.AvailableStock <= 0 ? "OUT OF STOCK" : (item.AvailableStock <= item.ReorderPoint ? "LOW STOCK" : "IN STOCK");
+
+                    sb.AppendLine($"   <Row><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">{XmlVal(item.Brand)}</Data></Cell><Cell><Data ss:Type=\"String\">{XmlVal(item.ProductName)}</Data></Cell><Cell><Data ss:Type=\"String\">{XmlVal(item.CategoryName)}</Data></Cell><Cell><Data ss:Type=\"String\">{XmlVal(item.Color)}</Data></Cell><Cell ss:StyleID=\"Center\"><Data ss:Type=\"String\">{XmlVal(item.Size)}</Data></Cell><Cell><Data ss:Type=\"String\">{XmlVal(item.SKU)}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{item.OnHandStock}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{item.AvailableStock}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{reserved}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{item.ReorderPoint}</Data></Cell><Cell ss:StyleID=\"Percent\"><Data ss:Type=\"Number\">{availRate:F4}</Data></Cell><Cell ss:StyleID=\"{statusStyle}\"><Data ss:Type=\"String\">{statusText}</Data></Cell></Row>");
+                }
+
+                // Summary Total Row
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\">TOTAL</Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\">{sortedDetails.Count} Active Variants</Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\"></Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\"></Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\"></Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\"></Data></Cell><Cell ss:StyleID=\"TotalRowInteger\"><Data ss:Type=\"Number\">{catOnHand}</Data></Cell><Cell ss:StyleID=\"TotalRowInteger\"><Data ss:Type=\"Number\">{catAvail}</Data></Cell><Cell ss:StyleID=\"TotalRowInteger\"><Data ss:Type=\"Number\">{catReserved}</Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\"></Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\"></Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\"></Data></Cell></Row>");
+                sb.AppendLine("  </Table>");
+                sb.AppendLine(" </Worksheet>");
+
+                // Worksheet 4: Daily Sales Performance Log
+                sb.AppendLine(" <Worksheet ss:Name=\"Daily Sales Log\">");
+                sb.AppendLine("  <Table ss:DefaultRowHeight=\"19\">");
+                sb.AppendLine("   <Column ss:Width=\"120\"/>");
+                sb.AppendLine("   <Column ss:Width=\"160\"/>");
+                sb.AppendLine("   <Column ss:Width=\"130\"/>");
+                sb.AppendLine("   <Column ss:Width=\"140\"/>");
+                sb.AppendLine("   <Column ss:Width=\"140\"/>");
+                sb.AppendLine("   <Row ss:Height=\"24\"><Cell ss:StyleID=\"Title\"><Data ss:Type=\"String\">DAILY SALES PERFORMANCE LOG</Data></Cell></Row>");
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"Subtitle\"><Data ss:Type=\"String\">Itemized daily transaction and revenue records ({startDate:yyyy-MM-dd} to {endDate:yyyy-MM-dd})</Data></Cell></Row>");
+                sb.AppendLine("   <Row></Row>");
+                sb.AppendLine("   <Row><Cell ss:StyleID=\"HeaderCenter\"><Data ss:Type=\"String\">Sales Date</Data></Cell><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Day of Week</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Completed Orders</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Gross Revenue</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Average Order Value</Data></Cell></Row>");
+
+                foreach (var day in sales.OrderByDescending(s => s.SalesDate))
+                {
+                    decimal dayAov = day.PaymentCount > 0 ? (day.Revenue / day.PaymentCount) : 0m;
+                    sb.AppendLine($"   <Row><Cell ss:StyleID=\"DateStyle\"><Data ss:Type=\"String\">{day.SalesDate:yyyy-MM-dd}</Data></Cell><Cell><Data ss:Type=\"String\">{XmlVal(day.SalesDate.ToString("dddd, MMMM dd, yyyy"))}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{day.PaymentCount}</Data></Cell><Cell ss:StyleID=\"Currency\"><Data ss:Type=\"Number\">{day.Revenue:F2}</Data></Cell><Cell ss:StyleID=\"Currency\"><Data ss:Type=\"Number\">{dayAov:F2}</Data></Cell></Row>");
+                }
+
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\">TOTAL</Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\">{sales.Count} Days Logged</Data></Cell><Cell ss:StyleID=\"TotalRowInteger\"><Data ss:Type=\"Number\">{periodOrders}</Data></Cell><Cell ss:StyleID=\"TotalRowCurrency\"><Data ss:Type=\"Number\">{periodRevenue:F2}</Data></Cell><Cell ss:StyleID=\"TotalRowCurrency\"><Data ss:Type=\"Number\">{aov:F2}</Data></Cell></Row>");
+                sb.AppendLine("  </Table>");
+                sb.AppendLine(" </Worksheet>");
+
+                // Worksheet 5: Brand Inventory Health Breakdown
+                sb.AppendLine(" <Worksheet ss:Name=\"Brand Inventory Health\">");
+                sb.AppendLine("  <Table ss:DefaultRowHeight=\"19\">");
+                sb.AppendLine("   <Column ss:Width=\"140\"/>");
+                sb.AppendLine("   <Column ss:Width=\"110\"/>");
+                sb.AppendLine("   <Column ss:Width=\"110\"/>");
+                sb.AppendLine("   <Column ss:Width=\"110\"/>");
+                sb.AppendLine("   <Column ss:Width=\"110\"/>");
+                sb.AppendLine("   <Column ss:Width=\"120\"/>");
+                sb.AppendLine("   <Column ss:Width=\"110\"/>");
+                sb.AppendLine("   <Column ss:Width=\"140\"/>");
+                sb.AppendLine("   <Row ss:Height=\"24\"><Cell ss:StyleID=\"Title\"><Data ss:Type=\"String\">BRAND INVENTORY HEALTH BREAKDOWN</Data></Cell></Row>");
+                sb.AppendLine("   <Row><Cell ss:StyleID=\"Subtitle\"><Data ss:Type=\"String\">Stock depth, variant coverage, and stockout risk by manufacturer</Data></Cell></Row>");
+                sb.AppendLine("   <Row></Row>");
+                sb.AppendLine("   <Row><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Brand / Manufacturer</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Variants (SKUs)</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">On-Hand Units</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Available Units</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Reserved Units</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Low Stock Alerts</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Availability Rate</Data></Cell><Cell ss:StyleID=\"HeaderCenter\"><Data ss:Type=\"String\">Health Status</Data></Cell></Row>");
+
+                int totalBOnHand = brandReport.Sum(b => b.OnHandStock);
+                int totalBAvail = brandReport.Sum(b => b.AvailableStock);
+                int totalBReserved = brandReport.Sum(b => Math.Max(0, b.OnHandStock - b.AvailableStock));
+                int totalBLow = brandReport.Sum(b => b.LowStockCount);
+                int totalBSkus = brandReport.Sum(b => b.VariantCount);
 
                 foreach (var b in brandReport)
                 {
-                    string status = b.AvailableStock <= 0 ? "CRITICAL: OUT OF STOCK" :
-                        b.LowStockCount > 0 ? "WARNING: LOW STOCK" : "HEALTHY";
-                    sb.AppendLine($"{Csv(b.Brand)},{b.VariantCount},{b.OnHandStock},{b.AvailableStock},{b.LowStockCount},{Csv(status)}");
+                    int reserved = Math.Max(0, b.OnHandStock - b.AvailableStock);
+                    double availRate = b.OnHandStock > 0 ? ((double)b.AvailableStock / b.OnHandStock) : 0.0;
+                    string statusStyle = b.AvailableStock <= 0 ? "AlertRed" : (b.LowStockCount > 0 ? "AlertAmber" : "AlertGreen");
+                    string statusText = b.AvailableStock <= 0 ? "OUT OF STOCK" : (b.LowStockCount > 0 ? "LOW STOCK" : "HEALTHY");
+                    sb.AppendLine($"   <Row><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">{XmlVal(b.Brand)}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{b.VariantCount}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{b.OnHandStock}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{b.AvailableStock}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{reserved}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{b.LowStockCount}</Data></Cell><Cell ss:StyleID=\"Percent\"><Data ss:Type=\"Number\">{availRate:F4}</Data></Cell><Cell ss:StyleID=\"{statusStyle}\"><Data ss:Type=\"String\">{statusText}</Data></Cell></Row>");
                 }
 
-                sb.AppendLine();
-                sb.AppendLine("CRITICAL STOCK ALERTS (OUT OF STOCK & LOW STOCK ITEMS)");
-                sb.AppendLine("Brand,Product,Category,Color,Size,SKU,OnHand,Available,ReorderPoint,StockStatus");
+                sb.AppendLine($"   <Row><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\">TOTAL</Data></Cell><Cell ss:StyleID=\"TotalRowInteger\"><Data ss:Type=\"Number\">{totalBSkus}</Data></Cell><Cell ss:StyleID=\"TotalRowInteger\"><Data ss:Type=\"Number\">{totalBOnHand}</Data></Cell><Cell ss:StyleID=\"TotalRowInteger\"><Data ss:Type=\"Number\">{totalBAvail}</Data></Cell><Cell ss:StyleID=\"TotalRowInteger\"><Data ss:Type=\"Number\">{totalBReserved}</Data></Cell><Cell ss:StyleID=\"TotalRowInteger\"><Data ss:Type=\"Number\">{totalBLow}</Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\"></Data></Cell><Cell ss:StyleID=\"TotalRow\"><Data ss:Type=\"String\"></Data></Cell></Row>");
+                sb.AppendLine("  </Table>");
+                sb.AppendLine(" </Worksheet>");
+
+                // Worksheet 6: Sales Performance by Dimension
+                sb.AppendLine(" <Worksheet ss:Name=\"Sales by Dimension\">");
+                sb.AppendLine("  <Table ss:DefaultRowHeight=\"19\">");
+                sb.AppendLine("   <Column ss:Width=\"150\"/>");
+                sb.AppendLine("   <Column ss:Width=\"100\"/>");
+                sb.AppendLine("   <Column ss:Width=\"100\"/>");
+                sb.AppendLine("   <Column ss:Width=\"130\"/>");
+                sb.AppendLine("   <Column ss:Width=\"130\"/>");
+                sb.AppendLine("   <Column ss:Width=\"100\"/>");
+                sb.AppendLine("   <Column ss:Width=\"100\"/>");
+                sb.AppendLine("   <Row ss:Height=\"22\"><Cell ss:StyleID=\"SectionHeader\"><Data ss:Type=\"String\">SALES BY BRAND</Data></Cell></Row>");
+                sb.AppendLine("   <Row><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Brand</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Units Sold</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Order Count</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Gross Revenue</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Average Unit Price</Data></Cell><Cell ss:StyleID=\"HeaderCenter\"><Data ss:Type=\"String\">Top Seller?</Data></Cell><Cell ss:StyleID=\"HeaderCenter\"><Data ss:Type=\"String\">Top Revenue?</Data></Cell></Row>");
+                foreach (var sale in brandSales)
+                {
+                    sb.AppendLine($"   <Row><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">{XmlVal(sale.DimensionName)}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{sale.UnitsSold}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{sale.OrderCount}</Data></Cell><Cell ss:StyleID=\"Currency\"><Data ss:Type=\"Number\">{sale.Revenue:F2}</Data></Cell><Cell ss:StyleID=\"Currency\"><Data ss:Type=\"Number\">{sale.AverageUnitPrice:F2}</Data></Cell><Cell ss:StyleID=\"Center\"><Data ss:Type=\"String\">{(sale.IsTopSeller ? "YES" : "No")}</Data></Cell><Cell ss:StyleID=\"Center\"><Data ss:Type=\"String\">{(sale.IsTopRevenue ? "YES" : "No")}</Data></Cell></Row>");
+                }
+                sb.AppendLine("   <Row></Row>");
+                sb.AppendLine("   <Row ss:Height=\"22\"><Cell ss:StyleID=\"SectionHeader\"><Data ss:Type=\"String\">SALES BY CATEGORY</Data></Cell></Row>");
+                sb.AppendLine("   <Row><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Category</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Units Sold</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Order Count</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Gross Revenue</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Average Unit Price</Data></Cell><Cell ss:StyleID=\"HeaderCenter\"><Data ss:Type=\"String\">Top Seller?</Data></Cell><Cell ss:StyleID=\"HeaderCenter\"><Data ss:Type=\"String\">Top Revenue?</Data></Cell></Row>");
+                foreach (var sale in categorySales)
+                {
+                    sb.AppendLine($"   <Row><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">{XmlVal(sale.DimensionName)}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{sale.UnitsSold}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{sale.OrderCount}</Data></Cell><Cell ss:StyleID=\"Currency\"><Data ss:Type=\"Number\">{sale.Revenue:F2}</Data></Cell><Cell ss:StyleID=\"Currency\"><Data ss:Type=\"Number\">{sale.AverageUnitPrice:F2}</Data></Cell><Cell ss:StyleID=\"Center\"><Data ss:Type=\"String\">{(sale.IsTopSeller ? "YES" : "No")}</Data></Cell><Cell ss:StyleID=\"Center\"><Data ss:Type=\"String\">{(sale.IsTopRevenue ? "YES" : "No")}</Data></Cell></Row>");
+                }
+                sb.AppendLine("  </Table>");
+                sb.AppendLine(" </Worksheet>");
+
+                // Worksheet 7: Critical Restock Audit
+                sb.AppendLine(" <Worksheet ss:Name=\"Critical Restock Audit\">");
+                sb.AppendLine("  <Table ss:DefaultRowHeight=\"19\">");
+                sb.AppendLine("   <Column ss:Width=\"120\"/>");
+                sb.AppendLine("   <Column ss:Width=\"220\"/>");
+                sb.AppendLine("   <Column ss:Width=\"120\"/>");
+                sb.AppendLine("   <Column ss:Width=\"100\"/>");
+                sb.AppendLine("   <Column ss:Width=\"70\"/>");
+                sb.AppendLine("   <Column ss:Width=\"130\"/>");
+                sb.AppendLine("   <Column ss:Width=\"90\"/>");
+                sb.AppendLine("   <Column ss:Width=\"90\"/>");
+                sb.AppendLine("   <Column ss:Width=\"90\"/>");
+                sb.AppendLine("   <Column ss:Width=\"90\"/>");
+                sb.AppendLine("   <Column ss:Width=\"130\"/>");
+                sb.AppendLine("   <Row ss:Height=\"24\"><Cell ss:StyleID=\"Title\"><Data ss:Type=\"String\">CRITICAL INVENTORY RESTOCK AUDIT</Data></Cell></Row>");
+                sb.AppendLine("   <Row><Cell ss:StyleID=\"Subtitle\"><Data ss:Type=\"String\">Helmet variants requiring immediate replenishment (Available Stock &lt;= Reorder Threshold)</Data></Cell></Row>");
+                sb.AppendLine("   <Row></Row>");
+                sb.AppendLine("   <Row><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Brand</Data></Cell><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Product Name</Data></Cell><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Category</Data></Cell><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">Color</Data></Cell><Cell ss:StyleID=\"HeaderCenter\"><Data ss:Type=\"String\">Size</Data></Cell><Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">SKU</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">On Hand</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Available</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Reorder Point</Data></Cell><Cell ss:StyleID=\"HeaderRight\"><Data ss:Type=\"String\">Units Deficit</Data></Cell><Cell ss:StyleID=\"HeaderCenter\"><Data ss:Type=\"String\">Status</Data></Cell></Row>");
 
                 foreach (var item in details.Where(d => d.AvailableStock <= d.ReorderPoint).OrderBy(d => d.AvailableStock).ThenBy(d => d.Brand))
                 {
-                    string stockStatus = item.AvailableStock <= 0 ? "CRITICAL: OUT OF STOCK" : "WARNING: LOW STOCK";
-                    sb.AppendLine($"{Csv(item.Brand)},{Csv(item.ProductName)},{Csv(item.CategoryName)},{Csv(item.Color)},{Csv(item.Size)},{Csv(item.SKU)},{item.OnHandStock},{item.AvailableStock},{item.ReorderPoint},{Csv(stockStatus)}");
+                    int deficit = Math.Max(0, item.ReorderPoint - item.AvailableStock);
+                    string statusStyle = item.AvailableStock <= 0 ? "AlertRed" : "AlertAmber";
+                    string statusText = item.AvailableStock <= 0 ? "OUT OF STOCK" : "LOW STOCK";
+                    sb.AppendLine($"   <Row><Cell ss:StyleID=\"Bold\"><Data ss:Type=\"String\">{XmlVal(item.Brand)}</Data></Cell><Cell><Data ss:Type=\"String\">{XmlVal(item.ProductName)}</Data></Cell><Cell><Data ss:Type=\"String\">{XmlVal(item.CategoryName)}</Data></Cell><Cell><Data ss:Type=\"String\">{XmlVal(item.Color)}</Data></Cell><Cell ss:StyleID=\"Center\"><Data ss:Type=\"String\">{XmlVal(item.Size)}</Data></Cell><Cell><Data ss:Type=\"String\">{XmlVal(item.SKU)}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{item.OnHandStock}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{item.AvailableStock}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{item.ReorderPoint}</Data></Cell><Cell ss:StyleID=\"Integer\"><Data ss:Type=\"Number\">{deficit}</Data></Cell><Cell ss:StyleID=\"{statusStyle}\"><Data ss:Type=\"String\">{statusText}</Data></Cell></Row>");
                 }
+                sb.AppendLine("  </Table>");
+                sb.AppendLine(" </Worksheet>");
+
+                sb.AppendLine("</Workbook>");
 
                 Response.Clear();
                 Response.Buffer = true;
-                Response.AddHeader("content-disposition", "attachment;filename=HelmetCartel_Sales_and_Inventory_Report.csv");
+                Response.AddHeader("content-disposition", $"attachment;filename=HelmetCartel_Analytics_Report_{startDate:yyyyMMdd}_{endDate:yyyyMMdd}.xls");
                 Response.Charset = "utf-8";
-                Response.ContentType = "text/csv";
+                Response.ContentType = "application/vnd.ms-excel";
                 Response.Output.Write(sb.ToString());
                 Response.Flush();
                 Response.End();
             }));
         }
 
-        private static string Csv(string value)
+        private static string XmlVal(string s)
         {
-            return $"\"{(value ?? string.Empty).Replace("\"", "\"\"")}\"";
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+            return s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;").Replace("'", "&apos;");
         }
     }
 }

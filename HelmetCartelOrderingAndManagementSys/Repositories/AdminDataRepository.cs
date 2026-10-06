@@ -228,6 +228,52 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             return list;
         }
 
+        public async Task<List<AdminOrderListItemDto>> GetDailySettledOrdersAsync(DateTime targetDate)
+        {
+            var list = new List<AdminOrderListItemDto>();
+            using (var connection = (SqlConnection)_factory.CreateConnection())
+            using (var command = new SqlCommand("dbo.sp_AdminDailySettledOrders", connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add(new SqlParameter("@TargetDate", SqlDbType.Date) { Value = targetDate.Date });
+
+                await connection.OpenAsync().ConfigureAwait(false);
+                using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync().ConfigureAwait(false))
+                    {
+                        list.Add(new AdminOrderListItemDto
+                        {
+                            Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                            OrderNumber = reader.GetString(reader.GetOrdinal("OrderNumber")),
+                            CustomerName = reader.GetString(reader.GetOrdinal("CustomerName")),
+                            CustomerEmail = reader.GetString(reader.GetOrdinal("CustomerEmail")),
+                            CustomerPhone = reader.GetString(reader.GetOrdinal("CustomerPhone")),
+                            OrderSource = reader.GetString(reader.GetOrdinal("OrderSource")),
+                            Status = reader.GetString(reader.GetOrdinal("Status")),
+                            TotalAmount = reader.GetDecimal(reader.GetOrdinal("TotalAmount")),
+                            CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+                            ItemCount = reader.GetInt32(reader.GetOrdinal("ItemCount")),
+                            PaymentStatus = reader.IsDBNull(reader.GetOrdinal("PaymentStatus")) ? "Pending" : reader.GetString(reader.GetOrdinal("PaymentStatus")),
+                            PaymentMethod = reader.IsDBNull(reader.GetOrdinal("PaymentMethod")) ? null : reader.GetString(reader.GetOrdinal("PaymentMethod")),
+                            ShippingMethod = reader.IsDBNull(reader.GetOrdinal("ShippingMethod")) ? "Pickup" : reader.GetString(reader.GetOrdinal("ShippingMethod")),
+                            ShippingFee = reader.IsDBNull(reader.GetOrdinal("ShippingFee")) ? 0.00m : reader.GetDecimal(reader.GetOrdinal("ShippingFee")),
+                            ShippingRegion = reader.IsDBNull(reader.GetOrdinal("ShippingRegion")) ? null : reader.GetString(reader.GetOrdinal("ShippingRegion")),
+                            ShippingAddress = reader.IsDBNull(reader.GetOrdinal("ShippingAddress")) ? null : reader.GetString(reader.GetOrdinal("ShippingAddress")),
+                            ShippingBarangay = reader.IsDBNull(reader.GetOrdinal("ShippingBarangay")) ? null : reader.GetString(reader.GetOrdinal("ShippingBarangay")),
+                            ShippingCity = reader.IsDBNull(reader.GetOrdinal("ShippingCity")) ? null : reader.GetString(reader.GetOrdinal("ShippingCity")),
+                            ShippingProvince = reader.IsDBNull(reader.GetOrdinal("ShippingProvince")) ? null : reader.GetString(reader.GetOrdinal("ShippingProvince")),
+                            ShippingPostalCode = reader.IsDBNull(reader.GetOrdinal("ShippingPostalCode")) ? null : reader.GetString(reader.GetOrdinal("ShippingPostalCode")),
+                            Courier = reader.IsDBNull(reader.GetOrdinal("Courier")) ? null : reader.GetString(reader.GetOrdinal("Courier")),
+                            TrackingNumber = reader.IsDBNull(reader.GetOrdinal("TrackingNumber")) ? null : reader.GetString(reader.GetOrdinal("TrackingNumber")),
+                            DeliveryNotes = reader.IsDBNull(reader.GetOrdinal("DeliveryNotes")) ? null : reader.GetString(reader.GetOrdinal("DeliveryNotes"))
+                        });
+                    }
+                }
+            }
+            return list;
+        }
+
         public async Task<bool> UpdateOrderStatusAsync(int orderId, string newStatus, string notes = null, string courier = null, string trackingNumber = null)
         {
             using (var connection = (SqlConnection)_factory.CreateConnection())

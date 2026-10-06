@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.UI;
 using HelmetCartelOrderingAndManagementSys.Infrastructure;
 using HelmetCartelOrderingAndManagementSys.Models.DTOs;
@@ -274,6 +275,39 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 return $"{relative} &middot; {utcDt.ToLocalTime():MMM d, yyyy, h:mm tt}";
             }
             return "";
+        }
+
+        protected string GetActivityInspectUrl(object activityType, object reference)
+        {
+            string type = Convert.ToString(activityType) ?? string.Empty;
+            string refVal = Convert.ToString(reference) ?? string.Empty;
+
+            if (type.IndexOf("stock", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                type.IndexOf("inventory", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return string.IsNullOrWhiteSpace(refVal) ? "/Admin/Inventory.aspx" : $"/Admin/Inventory.aspx?search={HttpUtility.UrlEncode(refVal)}";
+            }
+
+            if (type.IndexOf("order", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                type.IndexOf("payment", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return string.IsNullOrWhiteSpace(refVal) ? "/Admin/Orders.aspx" : $"/Admin/Orders.aspx?search={HttpUtility.UrlEncode(refVal)}";
+            }
+
+            if (type.IndexOf("rma", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                type.IndexOf("return", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                type.IndexOf("exchange", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return string.IsNullOrWhiteSpace(refVal) ? "/Admin/Returns.aspx" : $"/Admin/Returns.aspx?search={HttpUtility.UrlEncode(refVal)}";
+            }
+
+            if (type.IndexOf("review", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                type.IndexOf("rating", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "/Admin/Reviews.aspx";
+            }
+
+            return string.IsNullOrWhiteSpace(refVal) ? "/Admin/Orders.aspx" : $"/Admin/Orders.aspx?search={HttpUtility.UrlEncode(refVal)}";
         }
     }
 }

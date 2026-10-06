@@ -72,6 +72,29 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
         public Task<IHttpActionResult> Orders(string search = null, string status = null, string source = null) =>
             Rows("dbo.sp_AdminOrders", P("@Search", search), P("@Status", status), P("@Source", source), P("@Limit", 100));
 
+        [HttpGet, Route("reports/daily-orders")]
+        public async Task<IHttpActionResult> GetDailyOrders(string date = null)
+        {
+            if (string.IsNullOrWhiteSpace(date) || !DateTime.TryParse(date, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
+            {
+                return Ok(ApiResponse<List<AdminOrderListItemDto>>.Ok(new List<AdminOrderListItemDto>()));
+            }
+
+            var orders = await _data.GetDailySettledOrdersAsync(dt.Date).ConfigureAwait(false);
+            return Ok(ApiResponse<List<AdminOrderListItemDto>>.Ok(orders));
+        }
+
+        [HttpGet, Route("reports/brand-inventory")]
+        public async Task<IHttpActionResult> GetBrandInventory(string brand = null)
+        {
+            var details = await _data.GetBrandInventoryDetailsAsync().ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(brand))
+            {
+                details = details.FindAll(d => string.Equals(d.Brand, brand, StringComparison.OrdinalIgnoreCase));
+            }
+            return Ok(ApiResponse<List<AdminBrandInventoryDetailDto>>.Ok(details));
+        }
+
         [HttpPut, Route("orders/{id:int}/status")]
         public async Task<IHttpActionResult> SetOrderStatus(int id, UpdateOrderStatusDto request)
         {

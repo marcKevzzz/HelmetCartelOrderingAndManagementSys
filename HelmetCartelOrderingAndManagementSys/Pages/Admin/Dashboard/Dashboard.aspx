@@ -146,8 +146,14 @@
                                     <span class="admin-activity-time"><%# FormatActivityTime(GetActivityValue(Container.DataItem, "createdAt")) %></span>
                                 </div>
                                 <div class="admin-activity-detail-card">
-                                    <span class="admin-activity-ref"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "reference"))) %></span>
-                                    <span class="admin-activity-detail"><%# FormatActivityDetail(GetActivityValue(Container.DataItem, "detail")) %></span>
+                                    <div class="admin-activity-detail-body">
+                                        <span class="admin-activity-ref"><%# Server.HtmlEncode(Convert.ToString(GetActivityValue(Container.DataItem, "reference"))) %></span>
+                                        <span class="admin-activity-detail"><%# FormatActivityDetail(GetActivityValue(Container.DataItem, "detail")) %></span>
+                                    </div>
+                                    <a href="<%# GetActivityInspectUrl(GetActivityValue(Container.DataItem, "activityType"), GetActivityValue(Container.DataItem, "reference")) %>" class="admin-activity-inspect-btn" title="Inspect details in management console">
+                                        <span>Inspect</span>
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                    </a>
                                 </div>
                             </div>
                         </li>
@@ -169,5 +175,5 @@
     </div>
 
     <!-- External Dashboard Scripts (Zero Inline JavaScript) -->
-    <script src="/Scripts/admin/dashboard.js?v=2"></script>
+    <script src="/Scripts/admin/dashboard.js?v=4"></script>
 </asp:Content>

@@ -1,6 +1,51 @@
 # AI Change Log & Architectural Evolution: Helmet Cartel
 
-## [2026-10-06] — Profile Account Details Save Fix, Security Password Same Password Check, and Confirmation Modals
+## [2026-10-06] — Modern Analytics Visualizations (Dual-Axis Spline/Column Velocity & Brand Stacked Bullet Charts), Click-to-Drawer Drilldown, and Multi-Sheet Excel SpreadsheetML Export
+
+- **Daily Sales Performance Log Modern Visualization (`Reports.aspx`, `reports.js`, `Reports.aspx.cs`):**
+  - **Dual-Axis "Spline Area + Column" Velocity Chart:** Implemented an interactive dual-axis Chart.js visualization displaying settled gross revenue as a smooth spline curve with monochrome dark gradient fill on the left Y-axis (formatted with PHP currency `₱#,##0.00` and metric abbreviations `k`/`M`) alongside transaction order volume as sleek columnar bars on the right Y-axis.
+  - **Interactive View Switcher Tabs:** Added a segmented control (`Velocity Chart`, `Split View`, `Table Log`) allowing administrators to dynamically switch between full chart view, synchronized side-by-side split view, or raw historical table view.
+  - **Full Click-to-Drawer Integration:** Clicking any date point or columnar bar on the chart, or clicking any row or "Inspect" button in the table, immediately opens an in-page drilldown drawer itemizing all orders settled on that date.
+
+- **Brand Inventory Health Breakdown Modern Visualization (`Reports.aspx`, `reports.js`, `Reports.aspx.cs`, `admin.css`):**
+  - **Horizontal "Stock Health Stacked Progress Bar" (Bullet Chart per Brand):** Replaced static tabular displays with a stacked progress bullet bar displaying available healthy stock (Green `#16A34A`), low stock alerts (Amber `#F59E0B`), and committed/reserved orders (Blue `#3B82F6`), computed dynamically on both backend helpers (`GetHealthyPercent`, `GetLowStockPercent`, `GetReservedPercent`) and client cache.
+  - **Health Legend & Stat Highlights:** Integrated top-level status indicator dots and numerical stat pills directly under each brand's bullet chart for instant stock inspection.
+  - **Click-to-Drawer Drilldown:** Clicking any brand row or "Inspect" button opens the in-page Brand Inventory Inspection Drawer.
+
+- **Brand Inventory Health Breakdown Table Layout & Balance Refinement (`reports.js`, `admin.css`):**
+  - **Eliminated Redundant Columns & Sizing Squish:** Replaced the previous 6-column layout (which had separate redundant columns for SKU, On-hand / Reorder, Available, and Status causing horizontal overflow and clipping) with a clean, perfectly balanced **4-column layout** (`48% / 22% / 16% / 14%`).
+  - **Unified Product & Specification Cell:** Consolidates product thumbnail, bold model name, variant color/size, monospace SKU pill, and category tag in one readable card.
+  - **Unified Stock Availability Metric:** Replaced confusing duplicate columns with a clear primary quantity (`X units available`) accompanied by non-redundant threshold context (`Min: X` and on-hand if reserved units exist).
+  - **Full-Width Fixed Table Discipline:** Applied `table-layout: fixed` and widened `.admin-drawer--lg` to `860px` with zero horizontal scrollbars.
+
+- **Dashboard Chart Slider Removal & Activity Feed Direct Inspect Actions (`Dashboard.aspx`, `Dashboard.aspx.cs`, `dashboard.js`, `admin.css`):**
+  - **Removed Chart Drawers/Sliders from Dashboard:** Eliminated modal sliders from the dashboard sales velocity line chart and brand doughnut chart as requested, keeping dashboard graphs focused and uncluttered.
+  - **Direct Redirect / Inspect Action on Activity Feed Items:** Added responsive `Inspect →` buttons to every recent activity feed item (both server-rendered via ASP.NET Repeater and dynamically loaded via `dashboard.js`).
+  - **Context-Aware Routing Helper (`GetActivityInspectUrl`):** Automatically routes administrators directly to the relevant management console:
+    - Order & Payment events &rarr; `/Admin/Orders.aspx?search={Reference}`
+    - Inventory movements &rarr; `/Admin/Inventory.aspx?search={Reference}`
+    - RMA / Returns &rarr; `/Admin/Returns.aspx?search={Reference}`
+    - Customer Reviews &rarr; `/Admin/Reviews.aspx`
+
+- **Daily Settlement Drilldown Accuracy & Stored Procedure Alignment (`49_settled_daily_orders.sql`, `AdminDataRepository.cs`, `AdminController.cs`):**
+  - **Created `dbo.sp_AdminDailySettledOrders`:** Encapsulated daily settlement querying into a dedicated stored procedure strictly matching `dbo.sp_AdminSalesDaily` logic (`p.Status = 'Completed' AND o.Status IN ('Completed', 'Delivered') AND CONVERT(DATE, p.PaidAt) = @TargetDate`).
+  - **Resolved Order Count Discrepancy:** The daily settlement drilldown for dates like October 03, 2026 now displays the exact 4 settled transactions (Orders #18, #19, #20, #21 totaling ₱180,090.00) matching the KPI cards and sales log, rather than returning all 14 created/unsettled orders.
+
+- **Multi-Sheet Excel Export via SpreadsheetML & Removal of CSV Export (`Reports.aspx.cs`, `Reports.aspx`, `Reports.aspx.designer.cs`):**
+  - **Removed Legacy CSV Export:** Removed the obsolete "Export CSV" button (`btnExportReport`) and its associated CSV formatting methods, streamlining the analytics toolbar to a single primary action: `Export Excel Report (.xls)`.
+  - **Native Multi-Worksheet Architecture (`btnExportExcel_Click`):** Generates a true XML Spreadsheet 2003 (`.xls` via SpreadsheetML) workbook served as `application/vnd.ms-excel; charset=utf-8` without requiring external third-party dependencies, featuring styled headers, numeric formatting, currency formatting (`"PHP " #,##0.00`), percentage formatting (`0.0%`), and color-coded alert cells (`#FEE2E2` red, `#FEF3C7` amber, `#DCFCE7` green, and `#DCFCE7` badges).
+  - **7 Dedicated Worksheets Included:**
+    1. *Executive & KPIs:* Period Gross Revenue, Completed Orders, AOV, Today's Live Revenue, Live Active Orders, Total Warehouse Stock, Active SKUs, Total Available Stock, Low Stock Alerts, and Out of Stock count.
+    2. *Item Sales Performance:* Granular item-level breakdown of all individual helmet models sold during the reporting window, sorted by revenue and units (Rank, Product / Model Name, Manufacturer / Brand, Category, Units Sold, Completed Orders, Gross Revenue, Average Selling Price, Revenue Share %, and Top Performer Badge) with summary total row.
+    3. *Complete Inventory Catalog:* Comprehensive master inventory list of all active helmet models, colorways, and sizes across certified manufacturers (Brand, Model Name, Category, Color, Size, SKU, On-Hand Units, Available Units, Reserved Units, Reorder Point, Availability Rate %, and Health Status badge) with summary total row.
+    4. *Daily Sales Log:* Complete daily chronological log of sales dates, formatted days of the week, transaction counts, gross revenues, and daily AOV with summary total row.
+    5. *Brand Inventory Health:* Brand name, SKU count, on-hand units, available units, reserved units, low stock alerts, availability rate percentage, and status with summary total row.
+    6. *Sales by Dimension:* Itemized sales breakdowns for both Brands and Categories (Units sold, order count, revenue, average selling price, top seller and top revenue flags).
+    7. *Critical Restock Audit:* Granular audit table of all variants at or below reorder threshold (Brand, product name, category, color, size, SKU, on-hand, available, reorder point, unit deficit, and stock status).
+
+- **Dedicated Web API Endpoints (`AdminController.cs`):**
+  - `GET /api/v1/admin/reports/daily-orders?date={date}`: Retrieves orders filtered by settlement date for the daily orders drawer.
+  - `GET /api/v1/admin/reports/brand-inventory?brand={brand}`: Retrieves granular product variant stock information filtered by brand.
 
 - **Profile Account Details Form Fix (`Profile.aspx`, `profile.js`):**
   - **Eliminated Nested `<form>` Element:** Replaced nested `<form id="form-edit-profile">` and `<form id="form-change-password">` with container `<div id="form-edit-profile">` and `<div id="form-change-password">` with `<button type="button">`. In ASP.NET WebForms (`Site.Master`), inner `<form>` tags are dropped by the browser HTML parser, which previously prevented submit listeners from executing and caused buttons to trigger full page WebForms postbacks.

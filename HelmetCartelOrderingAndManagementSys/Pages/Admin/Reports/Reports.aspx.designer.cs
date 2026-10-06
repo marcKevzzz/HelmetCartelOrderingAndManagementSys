@@ -8,7 +8,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin {
     
     public partial class ReportsPage {
         
-        protected global::System.Web.UI.WebControls.Button btnExportReport;
+        protected global::System.Web.UI.WebControls.Button btnExportExcel;
         protected global::System.Web.UI.WebControls.LinkButton btnPresetToday;
         protected global::System.Web.UI.WebControls.LinkButton btnPresetWeek;
         protected global::System.Web.UI.WebControls.LinkButton btnPresetMonth;

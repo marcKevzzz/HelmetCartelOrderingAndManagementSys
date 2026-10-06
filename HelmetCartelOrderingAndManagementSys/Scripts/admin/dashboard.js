@@ -249,6 +249,24 @@ document.addEventListener('DOMContentLoaded', function () {
              '<polyline points="2 12 12 17 22 12"></polyline>';
     };
 
+    const getActivityInspectUrl = (type, ref) => {
+      type = (type || '').toLowerCase();
+      const refEnc = encodeURIComponent(ref || '');
+      if (type.includes('stock') || type.includes('inventory')) {
+        return ref ? `/Admin/Inventory.aspx?search=${refEnc}` : '/Admin/Inventory.aspx';
+      }
+      if (type.includes('order') || type.includes('payment')) {
+        return ref ? `/Admin/Orders.aspx?search=${refEnc}` : '/Admin/Orders.aspx';
+      }
+      if (type.includes('rma') || type.includes('return') || type.includes('exchange')) {
+        return ref ? `/Admin/Returns.aspx?search=${refEnc}` : '/Admin/Returns.aspx';
+      }
+      if (type.includes('review') || type.includes('rating')) {
+        return '/Admin/Reviews.aspx';
+      }
+      return ref ? `/Admin/Orders.aspx?search=${refEnc}` : '/Admin/Orders.aspx';
+    };
+
     btnLoadMore.addEventListener('click', async function () {
       if (btnLoadMore.disabled) return;
       btnLoadMore.disabled = true;
@@ -306,8 +324,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 <span class="admin-activity-time">${formatTime(item.createdAt)}</span>
               </div>
               <div class="admin-activity-detail-card">
-                <span class="admin-activity-ref">${escapeHtml(item.reference)}</span>
-                <span class="admin-activity-detail">${formatDetail(item.detail)}</span>
+                <div class="admin-activity-detail-body">
+                  <span class="admin-activity-ref">${escapeHtml(item.reference)}</span>
+                  <span class="admin-activity-detail">${formatDetail(item.detail)}</span>
+                </div>
+                <a href="${getActivityInspectUrl(item.activityType, item.reference)}" class="admin-activity-inspect-btn" title="Inspect details in management console">
+                  <span>Inspect</span>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </a>
               </div>
             </div>
           `;
@@ -335,4 +359,3 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 });
-
