@@ -1389,6 +1389,16 @@ export const ProfileController = {
     });
 
     form?.addEventListener("submit", (e) => this.handleAddressFormSubmit(e));
+    const btnSaveAddress = document.getElementById("btn-save-address-modal");
+    btnSaveAddress?.addEventListener("click", (e) => this.handleAddressFormSubmit(e));
+    form?.querySelectorAll("input")?.forEach((input) => {
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          this.handleAddressFormSubmit(e);
+        }
+      });
+    });
 
     container?.addEventListener("click", async (e) => {
       const btn = e.target.closest("button[data-action]");
@@ -1787,173 +1797,307 @@ export const ProfileController = {
   },
 
   /* ==========================================================================
-     8. PROFILE & SECURITY FORMS WITH INLINE VALIDATION
+     8. PROFILE & SECURITY FORMS WITH INLINE VALIDATION & CONFIRMATION MODALS
      ========================================================================== */
   bindFormEvents() {
-    // 1. Edit Profile Form
-    const profileForm = document.getElementById("form-edit-profile");
-    if (profileForm) {
-      const fName = document.getElementById("edit-first-name");
-      const lName = document.getElementById("edit-last-name");
-      const phone = document.getElementById("edit-phone");
+    // 1. Edit Profile Details
+    const fName = document.getElementById("edit-first-name");
+    const lName = document.getElementById("edit-last-name");
+    const phone = document.getElementById("edit-phone");
+    const btnSaveProfile = document.getElementById("btn-save-profile");
 
-      fName?.addEventListener("input", () =>
-        this.clearFieldError("edit-first-name", "err-first-name"),
-      );
-      lName?.addEventListener("input", () =>
-        this.clearFieldError("edit-last-name", "err-last-name"),
-      );
+    const saveDetailsModal = document.getElementById("profileSaveDetailsModal");
+    const btnCancelSaveProfile = document.getElementById("btnCancelSaveProfile");
+    const btnConfirmSaveProfile = document.getElementById("btnConfirmSaveProfile");
 
-      profileForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        let valid = true;
+    const openSaveDetailsModal = () => {
+      if (saveDetailsModal) {
+        saveDetailsModal.classList.remove("is-hidden");
+        saveDetailsModal.removeAttribute("hidden");
+      }
+    };
 
-        if (!fName?.value.trim()) {
-          this.setFieldError(
-            "edit-first-name",
-            "err-first-name",
-            "First name is required.",
-          );
-          valid = false;
-        }
-        if (!lName?.value.trim()) {
-          this.setFieldError(
-            "edit-last-name",
-            "err-last-name",
-            "Last name is required.",
-          );
-          valid = false;
-        }
+    const closeSaveDetailsModal = () => {
+      if (saveDetailsModal) {
+        saveDetailsModal.classList.add("is-hidden");
+        saveDetailsModal.setAttribute("hidden", "");
+      }
+    };
 
-        if (!valid) return;
+    fName?.addEventListener("input", () =>
+      this.clearFieldError("edit-first-name", "err-first-name"),
+    );
+    lName?.addEventListener("input", () =>
+      this.clearFieldError("edit-last-name", "err-last-name"),
+    );
+    phone?.addEventListener("input", () =>
+      this.clearFieldError("edit-phone", "err-phone"),
+    );
 
-        const btn = document.getElementById("btn-save-profile");
-        const originalText = btn ? btn.textContent : "Save Profile Changes";
-        if (btn) {
-          btn.disabled = true;
-          btn.textContent = "Saving...";
-        }
+    const validateProfileForm = () => {
+      let valid = true;
 
-        try {
-          const res = await ApiClient.updateProfile({
-            firstName: fName.value.trim(),
-            lastName: lName.value.trim(),
-            phoneNumber: phone?.value.trim() || null,
-          });
+      if (!fName?.value.trim()) {
+        this.setFieldError(
+          "edit-first-name",
+          "err-first-name",
+          "First name is required.",
+        );
+        valid = false;
+      }
+      if (!lName?.value.trim()) {
+        this.setFieldError(
+          "edit-last-name",
+          "err-last-name",
+          "Last name is required.",
+        );
+        valid = false;
+      }
 
-          const updated = res && res.data ? res.data : res;
-          if (updated && (updated.id || updated.email)) {
-            this.currentUser = updated;
-            localStorage.setItem(
-              APP_CONSTANTS.STORAGE_KEYS.USER_PROFILE,
-              JSON.stringify(this.currentUser),
-            );
-            this.renderUserProfileSidebar();
-            RealtimeManager.showToast(
-              "Profile information updated successfully.",
-              "info",
-            );
-          } else {
-            throw new Error(res?.message || "Update failed.");
-          }
-        } catch (err) {
-          RealtimeManager.showToast(
-            err.message || "Error updating profile.",
-            "alert",
-          );
-        } finally {
-          if (btn) {
-            btn.disabled = false;
-            btn.textContent = originalText;
-          }
+      return valid;
+    };
+
+    const handleProfileSubmitRequest = (e) => {
+      e?.preventDefault();
+      if (validateProfileForm()) {
+        openSaveDetailsModal();
+      }
+    };
+
+    btnSaveProfile?.addEventListener("click", handleProfileSubmitRequest);
+
+    [fName, lName, phone].forEach((input) => {
+      input?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleProfileSubmitRequest(e);
         }
       });
-    }
+    });
 
-    // 2. Change Password Form
-    const pwdForm = document.getElementById("form-change-password");
-    if (pwdForm) {
-      const currentPwd = document.getElementById("pwd-current");
-      const newPwd = document.getElementById("pwd-new");
-      const confirmPwd = document.getElementById("pwd-confirm");
+    btnCancelSaveProfile?.addEventListener("click", (e) => {
+      e.preventDefault();
+      closeSaveDetailsModal();
+    });
 
-      currentPwd?.addEventListener("input", () =>
-        this.clearFieldError("pwd-current", "err-pwd-current"),
-      );
-      newPwd?.addEventListener("input", () =>
-        this.clearFieldError("pwd-new", "err-pwd-new"),
-      );
-      confirmPwd?.addEventListener("input", () =>
-        this.clearFieldError("pwd-confirm", "err-pwd-confirm"),
-      );
+    saveDetailsModal?.addEventListener("click", (e) => {
+      if (e.target === saveDetailsModal) {
+        closeSaveDetailsModal();
+      }
+    });
 
-      pwdForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        let valid = true;
+    btnConfirmSaveProfile?.addEventListener("click", async () => {
+      if (!validateProfileForm()) {
+        closeSaveDetailsModal();
+        return;
+      }
 
-        if (!currentPwd?.value) {
-          this.setFieldError(
-            "pwd-current",
-            "err-pwd-current",
-            "Enter your current password.",
+      btnConfirmSaveProfile.disabled = true;
+      btnConfirmSaveProfile.textContent = "Saving...";
+
+      try {
+        const res = await ApiClient.updateProfile({
+          firstName: fName.value.trim(),
+          lastName: lName.value.trim(),
+          phoneNumber: phone?.value.trim() || null,
+        });
+
+        const updated = res && res.data ? res.data : res;
+        if (updated && (updated.id || updated.email)) {
+          this.currentUser = updated;
+          localStorage.setItem(
+            APP_CONSTANTS.STORAGE_KEYS.USER_PROFILE,
+            JSON.stringify(this.currentUser),
           );
-          valid = false;
-        }
-        if (!newPwd?.value || newPwd.value.length < 6) {
-          this.setFieldError(
-            "pwd-new",
-            "err-pwd-new",
-            "New password must be at least 6 characters.",
-          );
-          valid = false;
-        }
-        if (newPwd?.value !== confirmPwd?.value) {
-          this.setFieldError(
-            "pwd-confirm",
-            "err-pwd-confirm",
-            "Passwords do not match.",
-          );
-          valid = false;
-        }
-
-        if (!valid) return;
-
-        const btn = document.getElementById("btn-save-password");
-        const originalText = btn ? btn.textContent : "Update Password";
-        if (btn) {
-          btn.disabled = true;
-          btn.textContent = "Updating...";
-        }
-
-        try {
-          const res = await ApiClient.changePassword({
-            currentPassword: currentPwd.value,
-            newPassword: newPwd.value,
-            confirmNewPassword: confirmPwd.value,
-          });
-
-          if (res === true || res?.success || res?.data === true) {
-            pwdForm.reset();
-            RealtimeManager.showToast("Password changed successfully.", "info");
-          } else {
-            throw new Error(res?.message || "Password update failed.");
-          }
-        } catch (err) {
+          this.renderUserProfileSidebar();
+          closeSaveDetailsModal();
           RealtimeManager.showToast(
-            err.message || "Error updating password.",
-            "alert",
+            "Profile information updated successfully.",
+            "info",
           );
-          if (err.message && err.message.toLowerCase().includes("current")) {
-            this.setFieldError("pwd-current", "err-pwd-current", err.message);
-          }
-        } finally {
-          if (btn) {
-            btn.disabled = false;
-            btn.textContent = originalText;
-          }
+        } else {
+          throw new Error(res?.message || "Update failed.");
+        }
+      } catch (err) {
+        closeSaveDetailsModal();
+        RealtimeManager.showToast(
+          err.message || "Error updating profile.",
+          "alert",
+        );
+      } finally {
+        btnConfirmSaveProfile.disabled = false;
+        btnConfirmSaveProfile.textContent = "Confirm Save";
+      }
+    });
+
+    // 2. Change Security Password Form
+    const currentPwd = document.getElementById("pwd-current");
+    const newPwd = document.getElementById("pwd-new");
+    const confirmPwd = document.getElementById("pwd-confirm");
+    const btnSavePassword = document.getElementById("btn-save-password");
+
+    const changePwdModal = document.getElementById("profileChangePasswordModal");
+    const btnCancelChangePassword = document.getElementById("btnCancelChangePassword");
+    const btnConfirmChangePassword = document.getElementById("btnConfirmChangePassword");
+
+    const openChangePwdModal = () => {
+      if (changePwdModal) {
+        changePwdModal.classList.remove("is-hidden");
+        changePwdModal.removeAttribute("hidden");
+      }
+    };
+
+    const closeChangePwdModal = () => {
+      if (changePwdModal) {
+        changePwdModal.classList.add("is-hidden");
+        changePwdModal.setAttribute("hidden", "");
+      }
+    };
+
+    currentPwd?.addEventListener("input", () =>
+      this.clearFieldError("pwd-current", "err-pwd-current"),
+    );
+    newPwd?.addEventListener("input", () =>
+      this.clearFieldError("pwd-new", "err-pwd-new"),
+    );
+    confirmPwd?.addEventListener("input", () =>
+      this.clearFieldError("pwd-confirm", "err-pwd-confirm"),
+    );
+
+    const validatePasswordForm = () => {
+      let valid = true;
+
+      if (!currentPwd?.value) {
+        this.setFieldError(
+          "pwd-current",
+          "err-pwd-current",
+          "Enter your current password.",
+        );
+        valid = false;
+      }
+      if (!newPwd?.value || newPwd.value.length < 6) {
+        this.setFieldError(
+          "pwd-new",
+          "err-pwd-new",
+          "New password must be at least 6 characters.",
+        );
+        valid = false;
+      }
+      if (!confirmPwd?.value) {
+        this.setFieldError(
+          "pwd-confirm",
+          "err-pwd-confirm",
+          "Please confirm your new password.",
+        );
+        valid = false;
+      } else if (newPwd?.value !== confirmPwd?.value) {
+        this.setFieldError(
+          "pwd-confirm",
+          "err-pwd-confirm",
+          "Passwords do not match.",
+        );
+        valid = false;
+      }
+
+      // Check: You can't change a password same as your old password
+      if (
+        currentPwd?.value &&
+        newPwd?.value &&
+        newPwd.value.trim() === currentPwd.value.trim()
+      ) {
+        this.setFieldError(
+          "pwd-new",
+          "err-pwd-new",
+          "New password cannot be the same as your old password.",
+        );
+        valid = false;
+      }
+
+      return valid;
+    };
+
+    const handlePasswordSubmitRequest = (e) => {
+      e?.preventDefault();
+      if (validatePasswordForm()) {
+        openChangePwdModal();
+      }
+    };
+
+    btnSavePassword?.addEventListener("click", handlePasswordSubmitRequest);
+
+    [currentPwd, newPwd, confirmPwd].forEach((input) => {
+      input?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handlePasswordSubmitRequest(e);
         }
       });
-    }
+    });
+
+    btnCancelChangePassword?.addEventListener("click", (e) => {
+      e.preventDefault();
+      closeChangePwdModal();
+    });
+
+    changePwdModal?.addEventListener("click", (e) => {
+      if (e.target === changePwdModal) {
+        closeChangePwdModal();
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        if (saveDetailsModal && !saveDetailsModal.classList.contains("is-hidden")) {
+          closeSaveDetailsModal();
+        }
+        if (changePwdModal && !changePwdModal.classList.contains("is-hidden")) {
+          closeChangePwdModal();
+        }
+      }
+    });
+
+    btnConfirmChangePassword?.addEventListener("click", async () => {
+      if (!validatePasswordForm()) {
+        closeChangePwdModal();
+        return;
+      }
+
+      btnConfirmChangePassword.disabled = true;
+      btnConfirmChangePassword.textContent = "Updating...";
+
+      try {
+        const res = await ApiClient.changePassword({
+          currentPassword: currentPwd.value,
+          newPassword: newPwd.value,
+          confirmNewPassword: confirmPwd.value,
+        });
+
+        if (res === true || res?.success || res?.data === true) {
+          if (currentPwd) currentPwd.value = "";
+          if (newPwd) newPwd.value = "";
+          if (confirmPwd) confirmPwd.value = "";
+          closeChangePwdModal();
+          RealtimeManager.showToast("Password changed successfully.", "info");
+        } else {
+          throw new Error(res?.message || "Password update failed.");
+        }
+      } catch (err) {
+        closeChangePwdModal();
+        RealtimeManager.showToast(
+          err.message || "Error updating password.",
+          "alert",
+        );
+        const errMsg = err.message || "";
+        if (errMsg.toLowerCase().includes("current") || errMsg.toLowerCase().includes("incorrect")) {
+          this.setFieldError("pwd-current", "err-pwd-current", errMsg);
+        } else if (errMsg.toLowerCase().includes("same") || errMsg.toLowerCase().includes("old")) {
+          this.setFieldError("pwd-new", "err-pwd-new", errMsg);
+        }
+      } finally {
+        btnConfirmChangePassword.disabled = false;
+        btnConfirmChangePassword.textContent = "Confirm Update";
+      }
+    });
   },
 
   setFieldError(inputId, errorId, message) {

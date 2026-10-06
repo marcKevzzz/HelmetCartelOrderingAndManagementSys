@@ -218,10 +218,10 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             Role = reader.GetString(reader.GetOrdinal("RoleName")),
                             FirstName = reader.GetString(reader.GetOrdinal("FirstName")),
                             LastName = reader.GetString(reader.GetOrdinal("LastName")),
-                            FullName = reader.GetString(reader.GetOrdinal("FullName")),
+                            FullName = reader.IsDBNull(reader.GetOrdinal("FullName")) ? $"{firstName} {lastName}".Trim() : reader.GetString(reader.GetOrdinal("FullName")),
                             Email = reader.GetString(reader.GetOrdinal("Email")),
                             PhoneNumber = reader.IsDBNull(reader.GetOrdinal("PhoneNumber")) ? null : reader.GetString(reader.GetOrdinal("PhoneNumber")),
-                            CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"))
+                            CreatedAt = reader.IsDBNull(reader.GetOrdinal("CreatedAt")) ? (DateTime?)null : reader.GetDateTime(reader.GetOrdinal("CreatedAt"))
                         };
                     }
                 }

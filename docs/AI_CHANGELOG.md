@@ -1,6 +1,25 @@
 # AI Change Log & Architectural Evolution: Helmet Cartel
 
-## [2026-10-04] — TrackOrder Page Display Fix, Digital Receipt Direct Download, SqlNullValueException Elimination, and Admin Profile Modal Refinements
+## [2026-10-06] — Profile Account Details Save Fix, Security Password Same Password Check, and Confirmation Modals
+
+- **Profile Account Details Form Fix (`Profile.aspx`, `profile.js`):**
+  - **Eliminated Nested `<form>` Element:** Replaced nested `<form id="form-edit-profile">` and `<form id="form-change-password">` with container `<div id="form-edit-profile">` and `<div id="form-change-password">` with `<button type="button">`. In ASP.NET WebForms (`Site.Master`), inner `<form>` tags are dropped by the browser HTML parser, which previously prevented submit listeners from executing and caused buttons to trigger full page WebForms postbacks.
+  - **Input Enter Key Support:** Added keydown listeners on form inputs to allow Enter-key submissions seamlessly while preventing unwanted form postbacks.
+
+- **Account Details Confirmation Modal (`Profile.aspx`, `profile.js`):**
+  - **Dedicated Modal UI (`#profileSaveDetailsModal`):** Added a confirmation modal matching the platform design system (`.admin-modal-backdrop`, `.admin-modal--confirm`, `.admin-modal-icon-circle`) prompting customers to confirm personal details updates before saving.
+  - **Responsive Inline Validation:** Enforced inline input validation for First Name and Last Name prior to displaying the confirmation modal.
+  - **Atomic Save & Real-Time Sync:** Upon modal confirmation, saves changes via `ApiClient.updateProfile`, syncs `currentUser` in `localStorage`, updates the sidebar avatar/name in real time, and shows confirmation toast notifications.
+
+- **Security Password Modal & Same-as-Old-Password Enforcement (`Profile.aspx`, `profile.js`, `AuthService.cs`):**
+  - **Old Password Comparison Validation:** Added strict front-end and back-end validation preventing users from changing their password to their current password. Inline error is highlighted under `#err-pwd-new` ("New password cannot be the same as your old password.").
+  - **Backend Dual Layer Security (`AuthService.ChangePasswordAsync`):** Validates that `request.NewPassword != request.CurrentPassword`, and verifies against the existing database password hash and salt using `VerifyPassword(request.NewPassword, userRecord.PasswordHash, userRecord.Salt)`.
+  - **Dedicated Password Confirmation Modal (`#profileChangePasswordModal`):** Added a confirmation modal prompting customers to confirm updating their credentials before submitting the request.
+
+- **Defensive Null Protection (`UserRepository.cs`):**
+  - Added safe null-checking for `FullName` and `CreatedAt` in `UserRepository.UpdateProfileAsync` to defend against any unhandled `SqlNullValueException`.
+
+
 
 - **TrackOrder Display Resolution (`TrackOrder.aspx` & `track-order.js`):**
   - **Restored Main Content Visibility:** Removed legacy inline `style="display: none;"` from `.track-order-content` which was failing to be cleared by class toggling alone. Updated `setLoading`, `showError`, and `renderOrder` to explicitly reset `style.display = "flex"` alongside removing `.is-hidden`, ensuring the live tracking layout immediately renders when an order is loaded.

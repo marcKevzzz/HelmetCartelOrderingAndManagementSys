@@ -177,7 +177,7 @@
                             <p class="profile-section-card__desc">Update your name and contact details for deliveries and order receipts.</p>
                         </div>
 
-                        <form id="form-edit-profile" class="settings-form" novalidate>
+                        <div id="form-edit-profile" class="settings-form">
                             <div class="form-row-2col">
                                 <div class="form-group">
                                     <label for="edit-first-name" class="form-label">First Name *</label>
@@ -204,11 +204,11 @@
                             </div>
 
                             <div>
-                                <button type="submit" class="btn btn--primary" id="btn-save-profile">
+                                <button type="button" class="btn btn--primary" id="btn-save-profile">
                                     Save Profile Changes
                                 </button>
                             </div>
-                        </form>
+                        </div>
                     </div>
                 </section>
 
@@ -329,7 +329,7 @@
                             <p class="profile-section-card__desc">Ensure your account uses a secure password with at least 6 characters.</p>
                         </div>
 
-                        <form id="form-change-password" class="settings-form" novalidate>
+                        <div id="form-change-password" class="settings-form">
                             <div class="form-group">
                                 <label for="pwd-current" class="form-label">Current Password *</label>
                                 <input type="password" id="pwd-current" class="form-input" placeholder="Enter current password" autocomplete="current-password" required />
@@ -349,11 +349,11 @@
                             </div>
 
                             <div>
-                                <button type="submit" class="btn btn--primary" id="btn-save-password">
+                                <button type="button" class="btn btn--primary" id="btn-save-password">
                                     Update Password
                                 </button>
                             </div>
-                        </form>
+                        </div>
                     </div>
                 </section>
             </main>
@@ -383,7 +383,6 @@
             <div class="receipt-modal-footer">
                 <button type="button" class="btn btn--outline btn--sm" id="btn-print-receipt">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                        <path d="M21 15v4a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
@@ -406,7 +405,7 @@
                 </button>
             </div>
 
-            <form id="form-address-modal" class="address-modal-form" novalidate>
+            <div id="form-address-modal" class="address-modal-form">
                 <div class="receipt-modal-body address-modal-body">
                     <input type="hidden" id="addr-id" value="0" />
                     <div class="form-row-2col">
@@ -473,9 +472,9 @@
 
                 <div class="receipt-modal-footer">
                     <button type="button" class="btn btn--outline btn--sm" id="btn-cancel-address-modal">Cancel</button>
-                    <button type="submit" class="btn btn--primary btn--sm" id="btn-save-address-modal">Save Address</button>
+                    <button type="button" class="btn btn--primary btn--sm" id="btn-save-address-modal">Save Address</button>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 
@@ -601,6 +600,46 @@
         </div>
     </div>
 
+    <!-- 8. Account Details Confirmation Modal -->
+    <div id="profileSaveDetailsModal" class="admin-modal-backdrop is-hidden" hidden role="dialog" aria-modal="true" aria-labelledby="profileSaveDetailsTitle">
+        <div class="admin-modal admin-modal--confirm">
+            <div class="admin-modal-icon-circle">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </div>
+            <h3 class="admin-modal-title" id="profileSaveDetailsTitle">Save Account Changes</h3>
+            <p class="admin-modal-desc-subtle">
+                Are you sure you want to update your profile details? Your updated contact information will be used for deliveries and order receipts.
+            </p>
+            <div class="admin-modal-footer">
+                <button type="button" class="btn btn--outline btn--sm" id="btnCancelSaveProfile">Cancel</button>
+                <button type="button" class="btn btn--primary btn--sm" id="btnConfirmSaveProfile">Confirm Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9. Security Password Change Confirmation Modal -->
+    <div id="profileChangePasswordModal" class="admin-modal-backdrop is-hidden" hidden role="dialog" aria-modal="true" aria-labelledby="profileChangePasswordTitle">
+        <div class="admin-modal admin-modal--confirm">
+            <div class="admin-modal-icon-circle">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+            </div>
+            <h3 class="admin-modal-title" id="profileChangePasswordTitle">Confirm Password Change</h3>
+            <p class="admin-modal-desc-subtle">
+                Are you sure you want to change your account password? You will need to use your new password the next time you sign in.
+            </p>
+            <div class="admin-modal-footer">
+                <button type="button" class="btn btn--outline btn--sm" id="btnCancelChangePassword">Cancel</button>
+                <button type="button" class="btn btn--primary btn--sm" id="btnConfirmChangePassword">Confirm Update</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Page Specific Script -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/profile.js?v=20261004_2") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/profile.js?v=20261006_1") %>'></script>
 </asp:Content>

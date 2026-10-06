@@ -222,7 +222,7 @@
                             <th>On-Hand Units</th>
                             <th>Available Units</th>
                             <th>Low Stock Alerts</th>
-                            <th class="admin-table-align-right">Status</th>
+                            <th class="admin-table-align-right"></th>
                         </tr>
                     </thead>
                     <tbody>

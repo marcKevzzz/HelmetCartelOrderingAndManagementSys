@@ -174,6 +174,8 @@ namespace HelmetCartelOrderingAndManagementSys.Services
                 throw new ArgumentException("New password must be at least 6 characters.");
             if (!string.Equals(request.NewPassword, request.ConfirmNewPassword, StringComparison.Ordinal))
                 throw new ArgumentException("New password and confirmation do not match.");
+            if (string.Equals(request.NewPassword, request.CurrentPassword, StringComparison.Ordinal))
+                throw new ArgumentException("New password cannot be the same as your old password.");
 
             var profile = await _userRepository.GetUserProfileAsync(userId).ConfigureAwait(false);
             if (profile == null) throw new InvalidOperationException("User account not found.");
@@ -184,6 +186,11 @@ namespace HelmetCartelOrderingAndManagementSys.Services
             if (!VerifyPassword(request.CurrentPassword, userRecord.PasswordHash, userRecord.Salt))
             {
                 throw new ArgumentException("Current password is incorrect.");
+            }
+
+            if (VerifyPassword(request.NewPassword, userRecord.PasswordHash, userRecord.Salt))
+            {
+                throw new ArgumentException("New password cannot be the same as your old password.");
             }
 
             var newSalt = GenerateSalt();
