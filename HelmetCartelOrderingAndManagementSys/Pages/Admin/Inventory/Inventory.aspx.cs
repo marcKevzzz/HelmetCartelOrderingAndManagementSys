@@ -45,6 +45,12 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             set => ViewState["CurrentBrand"] = value;
         }
 
+        public string CurrentCategory
+        {
+            get => (ViewState["CurrentCategory"] as string) ?? "";
+            set => ViewState["CurrentCategory"] = value;
+        }
+
         public int? CurrentProductId
         {
             get => ViewState["CurrentProductId"] as int?;
@@ -113,6 +119,10 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 {
                     CurrentBrand = Request.QueryString["brand"];
                 }
+                if (!string.IsNullOrEmpty(Request.QueryString["category"]))
+                {
+                    CurrentCategory = Request.QueryString["category"];
+                }
                 if (int.TryParse(Request.QueryString["productId"], out int productId) && productId > 0)
                     CurrentProductId = productId;
                 if (int.TryParse(Request.QueryString["variantId"], out int variantId) && variantId > 0)
@@ -174,10 +184,9 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     ddlCategoryFilter.Items.Add(new ListItem(cat.Name, cat.Name));
                 }
 
-                string requestedCat = Request.QueryString["category"];
-                if (!string.IsNullOrEmpty(requestedCat))
+                if (!string.IsNullOrWhiteSpace(CurrentCategory))
                 {
-                    var match = ddlCategoryFilter.Items.FindByValue(requestedCat) ?? ddlCategoryFilter.Items.FindByText(requestedCat);
+                    var match = ddlCategoryFilter.Items.FindByValue(CurrentCategory) ?? ddlCategoryFilter.Items.FindByText(CurrentCategory);
                     if (match != null)
                     {
                         ddlCategoryFilter.SelectedValue = match.Value;
@@ -256,9 +265,18 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             btnViewAuditHistory.CssClass = "admin-tab-btn";
 
             string querySearch = string.IsNullOrWhiteSpace(CurrentSearch) ? null : CurrentSearch;
-            string category = ddlCategoryFilter.SelectedValue == "all" ? null : ddlCategoryFilter.SelectedValue;
             CurrentBrand = ddlBrandFilter.SelectedValue;
-            string brand = string.IsNullOrWhiteSpace(CurrentBrand) || CurrentBrand == "all" ? null : CurrentBrand;
+            string brand = (string.IsNullOrWhiteSpace(CurrentBrand) || CurrentBrand == "all") ? null : CurrentBrand;
+            CurrentCategory = ddlCategoryFilter.SelectedValue;
+            string category = (string.IsNullOrWhiteSpace(CurrentCategory) || CurrentCategory == "all") ? null : CurrentCategory;
+
+            bool hasActiveFilter = !string.IsNullOrWhiteSpace(querySearch)
+                || (brand != null)
+                || (category != null)
+                || CurrentProductId.HasValue
+                || CurrentVariantId.HasValue
+                || (CurrentStatus != "active" && CurrentStatus != "all");
+            lnkClearFilter.Visible = hasActiveFilter;
 
             var allItems = await _adminRepo.GetInventoryVariantsAsync(querySearch, brand, category, CurrentStatus,
                 CurrentProductId, CurrentVariantId).ConfigureAwait(false);
@@ -358,6 +376,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             CurrentProductId = null;
             CurrentVariantId = null;
             CurrentBrand = ddlBrandFilter.SelectedValue;
+            CurrentCategory = ddlCategoryFilter.SelectedValue;
             CurrentPageNumber = 1;
             RegisterAsyncTask(new PageAsyncTask(LoadInventoryDataAsync));
         }

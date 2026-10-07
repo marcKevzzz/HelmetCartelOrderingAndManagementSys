@@ -15,3 +15,6 @@
 HelmetCartelOrderingAndManagementSys/App_Data/*.key
 HelmetCartelOrderingAndManagementSys/App_Data/[Jj][Ww][Tt]_[Ss][Ee][Cc][Rr][Ee][Tt]
 
+# Antigravity IDE & Temporary scratch folders
+.gemini/
+scratch/

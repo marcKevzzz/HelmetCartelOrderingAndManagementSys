@@ -125,7 +125,7 @@
                                         <div class="shipping-card__desc">Simulated door-to-door courier dispatch via J&amp;T Express, Lalamove, or Grab Express</div>
                                     </div>
                                 </div>
-                                <div class="shipping-card__price" id="card-delivery-price-text">&#8369;150</div>
+                                <div class="shipping-card__price" id="card-delivery-price-text"><span class="status-badge status--pending">Add Address</span></div>
                             </div>
                         </div>
                     </div>

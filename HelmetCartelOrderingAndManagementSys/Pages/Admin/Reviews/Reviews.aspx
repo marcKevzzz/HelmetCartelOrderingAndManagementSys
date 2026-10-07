@@ -213,17 +213,6 @@
                 </div>
 
             </div>
-
-            <div class="modal-footer">
-
-                <button type="button" class="btn btn--danger is-hidden" id="btn-delete-review-modal">Delete Review</button>
-
-                <button type="button" class="btn btn--outline" id="btn-cancel-review-modal">Close</button>
-
-                <button type="button" class="btn btn--primary" id="btn-toggle-visibility-action">Toggle Visibility</button>
-
-            </div>
-
         </div>
 
     </div>

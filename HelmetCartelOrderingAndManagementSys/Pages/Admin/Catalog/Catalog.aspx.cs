@@ -28,6 +28,18 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             set => ViewState["CurrentSearch"] = value;
         }
 
+        public string CurrentBrand
+        {
+            get => (ViewState["CurrentBrand"] as string) ?? "all";
+            set => ViewState["CurrentBrand"] = value;
+        }
+
+        public string CurrentCategory
+        {
+            get => (ViewState["CurrentCategory"] as string) ?? "all";
+            set => ViewState["CurrentCategory"] = value;
+        }
+
         public int? TargetProductId
         {
             get => ViewState["TargetProductId"] as int?;
@@ -45,10 +57,19 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         {
             if (!IsPostBack)
             {
-                string q =
-                    Request.QueryString["q"]
-                    ?? Request.QueryString["search"]
-                    ?? Request.QueryString["brand"];
+                string brand = Request.QueryString["brand"];
+                if (!string.IsNullOrWhiteSpace(brand))
+                {
+                    CurrentBrand = brand.Trim();
+                }
+
+                string category = Request.QueryString["category"];
+                if (!string.IsNullOrWhiteSpace(category))
+                {
+                    CurrentCategory = category.Trim();
+                }
+
+                string q = Request.QueryString["q"] ?? Request.QueryString["search"];
                 if (!string.IsNullOrWhiteSpace(q))
                 {
                     CurrentSearch = q.Trim();
@@ -90,8 +111,53 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     }
                 }
 
-                RegisterAsyncTask(new PageAsyncTask(LoadCatalogDataAsync));
+                RegisterAsyncTask(new PageAsyncTask(InitializeFiltersAndDataAsync));
             }
+        }
+
+        private async Task InitializeFiltersAndDataAsync()
+        {
+            await PopulateFiltersAsync().ConfigureAwait(false);
+            await LoadCatalogDataAsync().ConfigureAwait(false);
+        }
+
+        private async Task PopulateFiltersAsync()
+        {
+            try
+            {
+                var brands = await _productRepo.GetBrandsAsync().ConfigureAwait(false);
+                ddlBrandFilter.Items.Clear();
+                ddlBrandFilter.Items.Add(new ListItem("All Brands", "all"));
+                foreach (var b in brands)
+                {
+                    ddlBrandFilter.Items.Add(new ListItem(b.Name, b.Name));
+                }
+                var selectedB = ddlBrandFilter.Items.FindByValue(CurrentBrand);
+                if (selectedB != null) ddlBrandFilter.SelectedValue = selectedB.Value;
+
+                var categories = await _productRepo.GetCategoriesAsync().ConfigureAwait(false);
+                ddlCategoryFilter.Items.Clear();
+                ddlCategoryFilter.Items.Add(new ListItem("All Categories", "all"));
+                foreach (var c in categories)
+                {
+                    ddlCategoryFilter.Items.Add(new ListItem(c.Name, c.Name));
+                }
+                var selectedC = ddlCategoryFilter.Items.FindByValue(CurrentCategory);
+                if (selectedC != null) ddlCategoryFilter.SelectedValue = selectedC.Value;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceWarning("Catalog filters failed to load: " + ex.Message);
+            }
+        }
+
+        protected void FilterDropdown_Changed(object sender, EventArgs e)
+        {
+            CurrentBrand = ddlBrandFilter.SelectedValue;
+            CurrentCategory = ddlCategoryFilter.SelectedValue;
+            TargetProductId = null;
+            CurrentPage = 1;
+            RegisterAsyncTask(new PageAsyncTask(LoadCatalogDataAsync));
         }
 
         public int CurrentPage
@@ -105,13 +171,22 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
         private async Task LoadCatalogDataAsync()
         {
             string search = string.IsNullOrWhiteSpace(CurrentSearch) ? null : CurrentSearch;
-            var products = await _adminRepo.GetCatalogProductsAsync(search).ConfigureAwait(false);
+            string brand = (CurrentBrand == "all" || string.IsNullOrWhiteSpace(CurrentBrand)) ? null : CurrentBrand;
+            string category = (CurrentCategory == "all" || string.IsNullOrWhiteSpace(CurrentCategory)) ? null : CurrentCategory;
+
+            var products = await _adminRepo.GetCatalogProductsAsync(search, brand, category, TargetProductId).ConfigureAwait(false);
 
             if (TargetProductId.HasValue)
             {
-                // Bring target product directly to the top if arriving from inventory
-                products = products.OrderByDescending(p => p.Id == TargetProductId.Value).ToList();
+                products = products.Where(p => p.Id == TargetProductId.Value).ToList();
             }
+
+            bool hasFilter = TargetProductId.HasValue 
+                || !string.IsNullOrWhiteSpace(search) 
+                || (brand != null) 
+                || (category != null);
+
+            lnkClearFilter.Visible = hasFilter;
 
             if (CurrentTab == "published_active" || CurrentTab == "active")
             {
@@ -126,6 +201,11 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 products = products.Where(p => string.Equals(p.PublicationStatus, "Unpublished", StringComparison.OrdinalIgnoreCase) ||
                                                string.Equals(p.PublicationStatus, "Draft", StringComparison.OrdinalIgnoreCase)).ToList();
             }
+
+            products = products
+                .OrderByDescending(p => p.UpdatedAt ?? p.CreatedAt)
+                .ThenByDescending(p => p.Id)
+                .ToList();
 
             int totalCount = products.Count;
             int totalPages = Math.Max(1, (int)Math.Ceiling((double)totalCount / PageSize));

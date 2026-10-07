@@ -175,6 +175,7 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
 
     public sealed class AdminCatalogItemDto
     {
+        private bool _hasActiveDiscount;
         public int Id { get; set; }
         public string Name { get; set; }
         public string Slug { get; set; }
@@ -191,22 +192,42 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public System.DateTime? DiscountStartDate { get; set; }
         public System.DateTime? DiscountEndDate { get; set; }
         public bool DiscountIsActive { get; set; } = true;
-        public bool HasActiveDiscount { get; set; }
+        public bool HasActiveDiscount
+        {
+            get
+            {
+                if (_hasActiveDiscount) return true;
+                if (!DiscountIsActive) return false;
+                var now = System.DateTime.UtcNow;
+                if (DiscountStartDate.HasValue && DiscountStartDate.Value > now) return false;
+                if (DiscountEndDate.HasValue && DiscountEndDate.Value < now) return false;
+                return DiscountPercentage > 0
+                    || (string.Equals(DiscountType, "FixedAmount", System.StringComparison.OrdinalIgnoreCase) && DiscountAmount > 0)
+                    || (string.Equals(DiscountType, "FIXED_AMOUNT", System.StringComparison.OrdinalIgnoreCase) && DiscountAmount > 0)
+                    || (CalculatedEffectivePrice > 0 && CalculatedEffectivePrice < BasePrice);
+            }
+            set => _hasActiveDiscount = value;
+        }
 
         public decimal EffectivePrice
         {
             get
             {
-                if (CalculatedEffectivePrice > 0) return CalculatedEffectivePrice;
-                if (HasActiveDiscount || DiscountPercentage > 0)
+                if (CalculatedEffectivePrice > 0 && CalculatedEffectivePrice < BasePrice) return CalculatedEffectivePrice;
+                if (HasActiveDiscount || DiscountPercentage > 0 || DiscountAmount > 0)
                 {
-                    if (string.Equals(DiscountType, "FixedAmount", System.StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(DiscountType, "FixedAmount", System.StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(DiscountType, "FIXED_AMOUNT", System.StringComparison.OrdinalIgnoreCase))
                     {
                         return System.Math.Max(0, BasePrice - DiscountAmount);
                     }
-                    decimal pct = DiscountAmount > 0 ? DiscountAmount : DiscountPercentage;
-                    return System.Math.Round(BasePrice * (1.0m - (pct / 100.0m)), 2);
+                    decimal pct = DiscountPercentage > 0 ? DiscountPercentage : DiscountAmount;
+                    if (pct > 0)
+                    {
+                        return System.Math.Round(BasePrice * (1.0m - (pct / 100.0m)), 2);
+                    }
                 }
+                if (CalculatedEffectivePrice > 0) return CalculatedEffectivePrice;
                 return BasePrice;
             }
             set => CalculatedEffectivePrice = value;
@@ -216,19 +237,22 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         {
             get
             {
-                if (!HasActiveDiscount && DiscountPercentage <= 0) return "0%";
-                if (string.Equals(DiscountType, "FixedAmount", System.StringComparison.OrdinalIgnoreCase))
+                if (!HasActiveDiscount && DiscountPercentage <= 0 && DiscountAmount <= 0 && !(EffectivePrice < BasePrice)) return "—";
+                if (string.Equals(DiscountType, "FixedAmount", System.StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(DiscountType, "FIXED_AMOUNT", System.StringComparison.OrdinalIgnoreCase))
                 {
-                    return $"-&#8369;{DiscountAmount:N0}";
+                    decimal diff = DiscountAmount > 0 ? DiscountAmount : (BasePrice > EffectivePrice ? BasePrice - EffectivePrice : 0m);
+                    return diff > 0 ? $"-&#8369;{diff:N0}" : "—";
                 }
-                decimal pct = DiscountAmount > 0 ? DiscountAmount : DiscountPercentage;
-                return $"-{pct:0}%";
+                decimal pct = DiscountPercentage > 0 ? DiscountPercentage : (BasePrice > 0 && EffectivePrice < BasePrice ? System.Math.Round((BasePrice - EffectivePrice) / BasePrice * 100m, 0) : 0m);
+                return pct > 0 ? $"-{pct:0}%" : "—";
             }
         }
         public string MainImageUrl { get; set; }
         public bool IsActive { get; set; }
         public string PublicationStatus { get; set; } = "Published";
         public System.DateTime CreatedAt { get; set; }
+        public System.DateTime? UpdatedAt { get; set; }
         public int VariantCount { get; set; }
     }
 
@@ -386,6 +410,21 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         public List<AdminColorDto> Colors { get; set; } = new List<AdminColorDto>();
         public List<AdminVariantDto> Variants { get; set; } = new List<AdminVariantDto>();
         public List<AdminGalleryDto> GalleryImages { get; set; } = new List<AdminGalleryDto>();
+    }
+
+    public sealed class CatalogProductLookupDto
+    {
+        [Newtonsoft.Json.JsonProperty("id")]
+        public int Id { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("brandId")]
+        public int BrandId { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("categoryId")]
+        public int CategoryId { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("name")]
+        public string Name { get; set; }
     }
 }
 

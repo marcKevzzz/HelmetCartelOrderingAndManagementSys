@@ -97,7 +97,7 @@
                         </div>
                         <div class="product-card__price">
                             <span class="price-current">&#8369;<%# Eval("EffectivePrice", "{0:N0}") %></span>
-                            <%# (int)Eval("DiscountPercentage") > 0 ? "<span class=\"price-original\">&#8369;" + string.Format("{0:N0}", Eval("BasePrice")) + "</span><span class=\"discount-badge\">-" + Eval("DiscountPercentage") + "%</span>" : "" %>
+                            <%# (decimal)Eval("EffectivePrice") < (decimal)Eval("BasePrice") ? "<span class=\"price-original\">&#8369;" + string.Format("{0:N0}", Eval("BasePrice")) + "</span><span class=\"discount-badge\">" + Eval("DiscountBadgeText") + "</span>" : "" %>
                         </div>
                     </asp:HyperLink>
                 </ItemTemplate>
@@ -138,7 +138,7 @@
                         </div>
                         <div class="product-card__price">
                             <span class="price-current">&#8369;<%# Eval("EffectivePrice", "{0:N0}") %></span>
-                            <%# (int)Eval("DiscountPercentage") > 0 ? "<span class=\"price-original\">&#8369;" + string.Format("{0:N0}", Eval("BasePrice")) + "</span><span class=\"discount-badge\">-" + Eval("DiscountPercentage") + "%</span>" : "" %>
+                            <%# (decimal)Eval("EffectivePrice") < (decimal)Eval("BasePrice") ? "<span class=\"price-original\">&#8369;" + string.Format("{0:N0}", Eval("BasePrice")) + "</span><span class=\"discount-badge\">" + Eval("DiscountBadgeText") + "</span>" : "" %>
                         </div>
                     </asp:HyperLink>
                 </ItemTemplate>

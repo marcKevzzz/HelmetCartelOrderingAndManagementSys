@@ -101,6 +101,8 @@ namespace HelmetCartelOrderingAndManagementSys.Pages
                 }
 
                 GalleryImages = new List<ProductGalleryImageDto>();
+                var seenUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
                 if (!string.IsNullOrWhiteSpace(ProductItem.MainImageUrl))
                 {
                     GalleryImages.Add(new ProductGalleryImageDto
@@ -109,10 +111,22 @@ namespace HelmetCartelOrderingAndManagementSys.Pages
                         AltText = ProductItem.Name + " main view",
                         DisplayOrder = 0
                     });
+                    seenUrls.Add(NormalizeUrlKey(ProductItem.MainImageUrl));
                 }
-                GalleryImages.AddRange(ProductItem.GalleryImages
-                    .Where(image => !string.IsNullOrWhiteSpace(image.ImageUrl))
-                    .OrderBy(image => image.DisplayOrder));
+
+                if (ProductItem.GalleryImages != null)
+                {
+                    foreach (var image in ProductItem.GalleryImages
+                        .Where(image => !string.IsNullOrWhiteSpace(image.ImageUrl))
+                        .OrderBy(image => image.DisplayOrder))
+                    {
+                        var key = NormalizeUrlKey(image.ImageUrl);
+                        if (seenUrls.Add(key))
+                        {
+                            GalleryImages.Add(image);
+                        }
+                    }
+                }
                 rptGalleryImages.DataSource = GalleryImages;
                 rptGalleryImages.DataBind();
 
@@ -129,7 +143,7 @@ namespace HelmetCartelOrderingAndManagementSys.Pages
                     ProductSpecifications = new List<ProductSpecificationDto>();
                 }
                 pnlProductSpecifications.Visible = ProductSpecifications.Count > 0;
-                pnlSpecToggle.Visible = ProductSpecifications.Count > 3;
+                pnlSpecToggle.Visible = ProductSpecifications.Count > 1;
                 lblNoSpecifications.Visible = ProductSpecifications.Count == 0;
                 rptProductSpecifications.DataSource = ProductSpecifications;
                 rptProductSpecifications.DataBind();
@@ -279,6 +293,12 @@ namespace HelmetCartelOrderingAndManagementSys.Pages
             if (string.Equals(trimmed, "XXXL", StringComparison.OrdinalIgnoreCase)) return "3XL";
             if (string.Equals(trimmed, "XXXXL", StringComparison.OrdinalIgnoreCase)) return "4XL";
             return trimmed;
+        }
+
+        private static string NormalizeUrlKey(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return string.Empty;
+            return url.Trim().Replace('\\', '/').TrimStart('~').TrimStart('/');
         }
     }
 }

@@ -61,9 +61,9 @@
 
                 <div class="product-info__price-row" id="detail-price-row">
                     <span class="price-current-lg" id="detail-price"><%= ProductItem != null ? "&#8369;" + ProductItem.EffectivePrice.ToString("N0") : "Unavailable" %></span>
-                    <% if (ProductItem != null && ProductItem.DiscountPercentage > 0) { %>
+                    <% if (ProductItem != null && (ProductItem.EffectivePrice < ProductItem.BasePrice || ProductItem.DiscountPercentage > 0)) { %>
                         <span class="price-original-lg" id="detail-orig-price">&#8369;<%= ProductItem.BasePrice.ToString("N0") %></span>
-                        <span class="discount-badge-lg" id="detail-discount-badge">-<%= ProductItem.DiscountPercentage %>%</span>
+                        <span class="discount-badge-lg" id="detail-discount-badge"><%= ProductItem.DiscountBadgeText %></span>
                     <% } %>
                 </div>
 
@@ -188,7 +188,7 @@
                     <tbody>
                         <asp:Repeater ID="rptProductSpecifications" runat="server">
                             <ItemTemplate>
-                                <tr class='<%# Container.ItemIndex >= 3 ? "detail-spec-row detail-spec-row--extra" : "detail-spec-row" %>'>
+                                <tr class='<%# Container.ItemIndex == 0 ? "detail-spec-row detail-spec-row--first" : (Container.ItemIndex == 1 ? "detail-spec-row detail-spec-row--peek" : "detail-spec-row detail-spec-row--extra") %>'>
                                     <th scope="row"><%# System.Web.HttpUtility.HtmlEncode(Convert.ToString(Eval("DisplayName"))) %></th>
                                     <td><%# System.Web.HttpUtility.HtmlEncode(Convert.ToString(Eval("SpecificationValue"))) %></td>
                                 </tr>
@@ -198,8 +198,13 @@
                 </table>
             </asp:Panel>
             <asp:Label ID="lblNoSpecifications" runat="server" CssClass="details-specs-empty" Text="Specifications are not available for this product yet." />
-            <asp:Panel ID="pnlSpecToggle" runat="server" CssClass="details-toggle-wrap" Visible="false">
-                <button type="button" id="btn-toggle-details" class="details-toggle-btn" aria-expanded="false" aria-controls="product-spec-list">Show more</button>
+            <asp:Panel ID="pnlSpecToggle" runat="server" CssClass="details-toggle-wrap checkout-receipt-toggle-wrap" Visible="false">
+                <button type="button" id="btn-toggle-details" class="btn-receipt-toggle" aria-expanded="false" aria-controls="product-spec-list">
+                    <span id="btn-toggle-details-text">Show more</span>
+                    <svg class="receipt-caret-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
             </asp:Panel>
         </section>
 
@@ -374,7 +379,7 @@
             <div class="related-products-grid">
                 <asp:Repeater ID="rptRelatedProducts" runat="server">
                     <ItemTemplate>
-                        <asp:HyperLink runat="server" CssClass="product-card" NavigateUrl='<%# "~/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=" + Eval("Id") %>'>
+                        <asp:HyperLink runat="server" CssClass="product-card" NavigateUrl='<%# "~/Pages/Storefront/ProductDetail/ProductDetail.aspx?slug=" + Eval("Slug") %>'>
                             <div class="product-card__img-wrap">
                                 <img class="product-card__img" src='<%# System.Web.HttpUtility.HtmlAttributeEncode(Convert.ToString(Eval("MainImageUrl"))) %>' alt='<%# System.Web.HttpUtility.HtmlAttributeEncode(Convert.ToString(Eval("Name"))) %>' loading="lazy" />
                             </div>
@@ -386,7 +391,7 @@
                             </div>
                             <div class="product-card__pricing">
                                 <span class="price-current">&#8369;<%# Eval("EffectivePrice", "{0:N0}") %></span>
-                                <%# (int)Eval("DiscountPercentage") > 0 ? "<span class=\"price-original\">&#8369;" + string.Format("{0:N0}", Eval("BasePrice")) + "</span><span class=\"discount-badge\">-" + Eval("DiscountPercentage") + "%</span>" : "" %>
+                                <%# (decimal)Eval("EffectivePrice") < (decimal)Eval("BasePrice") ? "<span class=\"price-original\">&#8369;" + string.Format("{0:N0}", Eval("BasePrice")) + "</span><span class=\"discount-badge\">" + Eval("DiscountBadgeText") + "</span>" : "" %>
                             </div>
                         </asp:HyperLink>
                     </ItemTemplate>
@@ -544,5 +549,5 @@
     <script type="application/json" id="product-detail-data">
         <%= ProductJson %>
     </script>
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/product-detail.js?v=20261007") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/product-detail.js?v=20261007_2") %>'></script>
 </asp:Content>

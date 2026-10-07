@@ -30,6 +30,15 @@
                     <asp:LinkButton ID="btnTabPublishedInactive" runat="server" CssClass="admin-tab-btn" CommandArgument="published_inactive" OnClick="FilterTab_Click">Inactive</asp:LinkButton>
                     <asp:LinkButton ID="btnTabDrafts" runat="server" CssClass="admin-tab-btn" CommandArgument="drafts" OnClick="FilterTab_Click">Draft</asp:LinkButton>
                 </div>
+
+                <asp:DropDownList ID="ddlBrandFilter" runat="server" AutoPostBack="true" OnSelectedIndexChanged="FilterDropdown_Changed" CssClass="admin-filter-select" aria-label="Filter by brand">
+                </asp:DropDownList>
+                <asp:DropDownList ID="ddlCategoryFilter" runat="server" AutoPostBack="true" OnSelectedIndexChanged="FilterDropdown_Changed" CssClass="admin-filter-select" aria-label="Filter by helmet category">
+                </asp:DropDownList>
+                <asp:HyperLink ID="lnkClearFilter" runat="server" NavigateUrl="/Pages/Admin/Catalog/Catalog.aspx" CssClass="btn-pill-sm btn-pill--outline" Visible="false">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <span>Clear Filter</span>
+                </asp:HyperLink>
             </div>
 
             <!-- Table Top Metadata (Replaces Status Count Tag) -->
@@ -99,8 +108,9 @@
                                     <div class="admin-catalog-pricing-card">
                                         <span class="admin-catalog-effective-price">&#8369;<%# Convert.ToDecimal(Eval("EffectivePrice")).ToString("N2") %></span>
                                         <div class="admin-catalog-price-meta">
-                                            <span class='<%# (bool)Eval("HasActiveDiscount") || Convert.ToInt32(Eval("DiscountPercentage")) > 0 ? "admin-catalog-original-price" : "admin-catalog-original-price is-regular" %>'>&#8369;<%# Convert.ToDecimal(Eval("BasePrice")).ToString("N2") %></span>
-                                            <%# (bool)Eval("HasActiveDiscount") || Convert.ToInt32(Eval("DiscountPercentage")) > 0 ? "<span class=\"admin-catalog-discount\">" + Eval("DiscountBadgeText") + "</span>" : "<span class=\"admin-catalog-no-discount\">&mdash;</span>" %>
+                                            <%# Convert.ToDecimal(Eval("EffectivePrice")) < Convert.ToDecimal(Eval("BasePrice")) || (bool)Eval("HasActiveDiscount")
+                                                ? "<span class=\"admin-catalog-original-price\">&#8369;" + Convert.ToDecimal(Eval("BasePrice")).ToString("N2") + "</span><span class=\"admin-catalog-discount\">" + Eval("DiscountBadgeText") + "</span>"
+                                                : "<span class=\"admin-catalog-original-price is-regular\">&#8369;" + Convert.ToDecimal(Eval("BasePrice")).ToString("N2") + "</span><span class=\"admin-catalog-no-discount\">&mdash;</span>" %>
                                         </div>
                                     </div>
                                 </td>

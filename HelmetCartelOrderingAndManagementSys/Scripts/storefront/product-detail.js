@@ -231,10 +231,16 @@ function initProductDetailPage() {
     // -------------------------------------------------------------
     const detailsSection = document.getElementById('product-details');
     const detailsToggle = document.getElementById('btn-toggle-details');
+    const detailsToggleText = document.getElementById('btn-toggle-details-text');
     detailsToggle?.addEventListener('click', () => {
         const expanded = detailsSection?.classList.toggle('is-expanded') || false;
+        detailsToggle.classList.toggle('is-expanded', expanded);
         detailsToggle.setAttribute('aria-expanded', String(expanded));
-        detailsToggle.textContent = expanded ? 'Show less' : 'Show more';
+        if (detailsToggleText) {
+            detailsToggleText.textContent = expanded ? 'Show less' : 'Show more';
+        } else {
+            detailsToggle.textContent = expanded ? 'Show less' : 'Show more';
+        }
     });
 
     // -------------------------------------------------------------
@@ -666,6 +672,24 @@ function initProductDetailPage() {
     // -------------------------------------------------------------
     // 11. CART, WISHLIST, BUY NOW ACTIONS
     // -------------------------------------------------------------
+    function calculateEffectiveVariantPrice(originalPrice) {
+        if (!serverProduct) return originalPrice;
+        const discountType = String(serverProduct.discountType || '').toLowerCase();
+        const isFixedDiscount = discountType.includes('fixed');
+        const discountAmt = Number(serverProduct.discountAmount || 0);
+        const discountPct = Number(serverProduct.discountPercentage || 0);
+
+        if (serverProduct.hasActiveDiscount || discountAmt > 0 || discountPct > 0) {
+            if (isFixedDiscount && discountAmt > 0) {
+                return Math.max(0, originalPrice - discountAmt);
+            }
+            if (discountPct > 0) {
+                return Math.max(0, Math.round(originalPrice * (1 - discountPct / 100) * 100) / 100);
+            }
+        }
+        return originalPrice;
+    }
+
     function getSelectedProductDetails() {
         const urlParams = new URLSearchParams(window.location.search);
         const currentProdId = parseInt(serverProduct?.id ? String(serverProduct.id) : (urlParams.get('id') || '1'), 10);
@@ -688,8 +712,8 @@ function initProductDetailPage() {
         const brand = serverProduct.brand;
         const basePrice = Number(serverProduct.basePrice);
         const originalPrice = basePrice + Number(matchedVariant.priceAdjustment || 0);
+        const price = calculateEffectiveVariantPrice(originalPrice);
         const discPercent = serverProduct?.discountPercentage || 0;
-        const price = Math.round(originalPrice * (1 - discPercent / 100) * 100) / 100;
         const img = serverProduct.mainImageUrl;
         const rating = serverProduct.rating;
         const variantId = matchedVariant.id;
@@ -793,12 +817,36 @@ function initProductDetailPage() {
 
         if (!variant) return;
         const original = Number(serverProduct.basePrice) + Number(variant.priceAdjustment || 0);
-        const current = original * (1 - Number(serverProduct.discountPercentage || 0) / 100);
+        const current = calculateEffectiveVariantPrice(original);
         const formatPrice = amount => `\u20B1${amount.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
         const priceLabel = document.getElementById('detail-price');
         const originalLabel = document.getElementById('detail-orig-price');
+        const discountBadge = document.getElementById('detail-discount-badge');
+
         if (priceLabel) priceLabel.textContent = formatPrice(current);
-        if (originalLabel) originalLabel.textContent = formatPrice(original);
+        if (originalLabel) {
+            originalLabel.textContent = formatPrice(original);
+            originalLabel.style.display = current < original ? 'inline' : 'none';
+        }
+        if (discountBadge) {
+            if (current < original) {
+                discountBadge.style.display = 'inline-flex';
+                const discountType = String(serverProduct.discountType || '').toLowerCase();
+                const isFixedDiscount = discountType.includes('fixed');
+                const discountAmt = Number(serverProduct.discountAmount || 0);
+                const discountPct = Number(serverProduct.discountPercentage || 0);
+                if (isFixedDiscount && discountAmt > 0) {
+                    discountBadge.textContent = `-₱${discountAmt.toLocaleString('en-PH', { maximumFractionDigits: 0 })}`;
+                } else if (discountPct > 0) {
+                    discountBadge.textContent = `-${Math.round(discountPct)}%`;
+                } else if (original > 0 && current < original) {
+                    const diffPct = Math.round(((original - current) / original) * 100);
+                    discountBadge.textContent = `-${diffPct}%`;
+                }
+            } else {
+                discountBadge.style.display = 'none';
+            }
+        }
     }
 
     // Add to Cart

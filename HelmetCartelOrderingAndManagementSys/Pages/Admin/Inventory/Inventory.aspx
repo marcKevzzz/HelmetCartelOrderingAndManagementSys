@@ -39,6 +39,10 @@
                     <!-- Helmet Type / Category Dropdown -->
                     <asp:DropDownList ID="ddlCategoryFilter" runat="server" AutoPostBack="true" OnSelectedIndexChanged="FilterDropdown_Changed" CssClass="admin-filter-select" aria-label="Filter by helmet category">
                     </asp:DropDownList>
+                    <asp:HyperLink ID="lnkClearFilter" runat="server" NavigateUrl="/Pages/Admin/Inventory/Inventory.aspx" CssClass="btn-pill-sm btn-pill--outline" Visible="false">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        <span>Clear Filter</span>
+                    </asp:HyperLink>
                 </div>
 
                 <!-- Meta Range Info (Moved to Top) -->

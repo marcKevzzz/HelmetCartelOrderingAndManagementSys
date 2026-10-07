@@ -210,6 +210,13 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
             }
         }
 
+        [HttpGet, Route("catalog/check-duplicate"), StaffAuthorize(adminOnly: true)]
+        public async Task<IHttpActionResult> CheckDuplicate([FromUri] int brandId, [FromUri] int categoryId, [FromUri] string name, [FromUri] int productId = 0)
+        {
+            var isDuplicate = await _data.IsDuplicateProductAsync(productId, brandId, categoryId, name).ConfigureAwait(false);
+            return Ok(ApiResponse<object>.Ok(new { isDuplicate }));
+        }
+
         [HttpPost, Route("catalog/products"), StaffAuthorize(adminOnly: true)]
         public Task<IHttpActionResult> SaveProduct(AdminProductDto d)
         {
@@ -272,8 +279,19 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
         public Task<IHttpActionResult> SaveVariant(AdminVariantDto d)
         {
             if (d == null) return Task.FromResult<IHttpActionResult>(BadRequest("Variant is required."));
+            string size = NormalizeVariantSize(d.Size);
             return Rows("dbo.sp_AdminSaveVariant", P("@Id", d.Id), P("@ProductColorId", d.ProductColorId), P("@SKU", d.SKU),
-                P("@Size", d.Size), P("@PriceAdjustment", d.PriceAdjustment), P("@ReorderPoint", d.ReorderPoint), P("@IsActive", d.IsActive));
+                P("@Size", size), P("@PriceAdjustment", d.PriceAdjustment), P("@ReorderPoint", d.ReorderPoint), P("@IsActive", d.IsActive));
+        }
+
+        private static string NormalizeVariantSize(string size)
+        {
+            if (string.IsNullOrWhiteSpace(size)) return size;
+            string trimmed = size.Trim();
+            if (string.Equals(trimmed, "XXL", StringComparison.OrdinalIgnoreCase)) return "2XL";
+            if (string.Equals(trimmed, "XXXL", StringComparison.OrdinalIgnoreCase)) return "3XL";
+            if (string.Equals(trimmed, "XXXXL", StringComparison.OrdinalIgnoreCase)) return "4XL";
+            return trimmed;
         }
 
         [HttpPost, Route("inventory/variants/{id:int}/toggle-active")]

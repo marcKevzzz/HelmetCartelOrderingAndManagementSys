@@ -29,6 +29,8 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             set => ViewState["IsDraft"] = value;
         }
 
+        public string ExistingProductsJson { get; set; } = "[]";
+
         public int ProductId
         {
             get
@@ -84,6 +86,10 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 {
                     ddlCategory.Items.Add(new ListItem(c.Name, c.Id.ToString()));
                 }
+
+                // Populate Existing Catalog Products for instantaneous duplicate validation
+                var existingLookups = await _adminRepo.GetCatalogItemLookupsAsync().ConfigureAwait(false);
+                ExistingProductsJson = JsonConvert.SerializeObject(existingLookups ?? new List<CatalogProductLookupDto>());
 
                 if (ProductId > 0)
                 {
@@ -232,6 +238,15 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     }
                     if (ddlCategory.Items.Count > 1 && int.TryParse(ddlCategory.Items[1].Value, out int fc))
                         categoryId = fc;
+                }
+
+                int.TryParse(hdnProductId.Value, out int currentProdId);
+
+                // Enforce duplicate validation: cannot add product if same brand, category, and name exists
+                if (await _adminRepo.IsDuplicateProductAsync(currentProdId, brandId, categoryId, name).ConfigureAwait(false))
+                {
+                    ShowAlert($"A helmet model with the name '{name}' already exists in the catalog under this brand and category.");
+                    return;
                 }
 
                 string slug = string.IsNullOrWhiteSpace(txtSlug.Text) ? GenerateSlug(name) : GenerateSlug(txtSlug.Text.Trim());

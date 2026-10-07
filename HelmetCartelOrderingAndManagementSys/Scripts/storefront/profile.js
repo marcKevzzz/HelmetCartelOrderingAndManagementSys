@@ -641,8 +641,19 @@ export const ProfileController = {
     }
 
     const previewImages = images.slice(0, 3);
-    const totalCount = order?.itemCount || items?.length || images.length;
-    const extraCount = Math.max(0, totalCount - previewImages.length);
+    const totalQuantity = (items && items.length > 0)
+      ? items.reduce((sum, i) => sum + (Number(i.quantity) || 1), 0)
+      : (Number(order?.itemCount) || items?.length || images.length || 1);
+    const distinctItemCount = (items && items.length > 0) ? items.length : (images.length || 1);
+
+    let badgeHtml = '';
+    if (distinctItemCount === 1 && totalQuantity > 1) {
+      badgeHtml = `<span class="deck-badge">x${totalQuantity}</span>`;
+    } else if (distinctItemCount > previewImages.length) {
+      badgeHtml = `<span class="deck-badge">+${distinctItemCount - previewImages.length}</span>`;
+    } else if (totalQuantity > distinctItemCount) {
+      badgeHtml = `<span class="deck-badge">x${totalQuantity}</span>`;
+    }
 
     return `
       ${previewImages
@@ -654,14 +665,15 @@ export const ProfileController = {
         `,
         )
         .join("")}
-      ${extraCount > 0 ? `<span class="deck-badge">+${extraCount}</span>` : ""}
+      ${badgeHtml}
     `;
   },
 
-  updateOrderCardDeck(orderId, items) {
+  updateOrderCardDeck(orderId, items, order) {
     const deckEl = document.getElementById(`deck-stack-${orderId}`);
     if (deckEl) {
-      deckEl.innerHTML = this.createStackingDeckHtml({ id: orderId }, items);
+      const orderObj = order || this.orderDetailsCache.get(orderId) || this.orders.find((o) => o.id === orderId) || { id: orderId };
+      deckEl.innerHTML = this.createStackingDeckHtml(orderObj, items);
     }
   },
 
@@ -693,7 +705,7 @@ export const ProfileController = {
             }
 
             if (orderData && Array.isArray(orderData.items)) {
-              this.updateOrderCardDeck(orderId, orderData.items);
+              this.updateOrderCardDeck(orderId, orderData.items, orderData);
               body.innerHTML = orderData.items
                 .map((item) => {
                   const imgUrl =
@@ -709,12 +721,14 @@ export const ProfileController = {
                   <div class="order-item-detail-row">
                     <a href="/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=${item.productId || 1}" class="order-item-detail-img-link" title="View Product Details">
                       <img src="${this.escapeHtml(imgUrl)}" alt="${this.escapeHtml(item.productName)}" class="order-item-detail-img" />
+                      ${item.quantity > 1 ? `<span class="order-item-detail-qty-badge">x${item.quantity}</span>` : ""}
                     </a>
                     <div class="order-item-detail-info">
                       <h4 class="order-item-detail-title" title="${this.escapeHtml(item.productName)}">
                         <a href="/Pages/Storefront/ProductDetail/ProductDetail.aspx?id=${item.productId || 1}" class="order-item-title-link">${this.escapeHtml(item.productName)}</a>
                       </h4>
                       <div class="order-item-detail-specs">
+                        <span>Qty: <strong>${item.quantity}</strong></span>
                         ${item.size ? `<span>Size: <strong>${this.escapeHtml(item.size)}</strong></span>` : ""}
                         ${item.color ? `<span>Color: <strong>${this.escapeHtml(item.color)}</strong></span>` : ""}
                         ${item.sku ? `<span>SKU: <code>${this.escapeHtml(item.sku)}</code></span>` : ""}
@@ -1277,6 +1291,8 @@ export const ProfileController = {
     const emptyContainer = document.getElementById("addresses-empty-state");
     if (!listContainer || !emptyContainer) return;
 
+    const returnUrl = this.getCheckoutReturnUrl();
+
     if (!this.addresses || this.addresses.length === 0) {
       listContainer.style.display = "none";
       emptyContainer.style.display = "flex";
@@ -1673,33 +1689,20 @@ export const ProfileController = {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       let returnUrl = urlParams.get('returnUrl');
-      if (returnUrl) {
+      if (returnUrl && returnUrl.toLowerCase().includes('checkout')) {
         sessionStorage.setItem('hc_checkout_return_url', returnUrl);
         return returnUrl;
       }
-      returnUrl = sessionStorage.getItem('hc_checkout_return_url');
-      if (returnUrl) return returnUrl;
 
-      if (document.referrer && document.referrer.includes('Checkout.aspx')) {
+      if (document.referrer && document.referrer.toLowerCase().includes('checkout.aspx')) {
         const refUrl = new URL(document.referrer, window.location.origin);
         returnUrl = refUrl.pathname + refUrl.search;
         sessionStorage.setItem('hc_checkout_return_url', returnUrl);
         return returnUrl;
       }
 
-      const buyNowItem = sessionStorage.getItem(APP_CONSTANTS.STORAGE_KEYS?.BUY_NOW_ITEM || 'hc_buy_now_item')
-                      || localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS?.BUY_NOW_ITEM || 'hc_buy_now_item');
-      if (buyNowItem) {
-        return '/Pages/Storefront/Checkout/Checkout.aspx?mode=buynow';
-      }
-
-      const cart = localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS?.CART || 'hc_cart');
-      if (cart) {
-        const items = JSON.parse(cart);
-        if (Array.isArray(items) && items.length > 0) {
-          return '/Pages/Storefront/Checkout/Checkout.aspx';
-        }
-      }
+      // If user did not arrive from checkout, purge any leftover session key
+      sessionStorage.removeItem('hc_checkout_return_url');
     } catch (_) {}
     return null;
   },

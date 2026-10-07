@@ -292,7 +292,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             }
         }
 
-        public async Task<List<AdminCatalogItemDto>> GetCatalogProductsAsync(string search = null)
+        public async Task<List<AdminCatalogItemDto>> GetCatalogProductsAsync(string search = null, string brand = null, string category = null, int? productId = null)
         {
             var list = new List<AdminCatalogItemDto>();
             using (var connection = (SqlConnection)_factory.CreateConnection())
@@ -300,6 +300,9 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             {
                 command.CommandType = CommandType.StoredProcedure;
                 command.Parameters.Add(new SqlParameter("@Search", SqlDbType.NVarChar, 200) { Value = (object)search ?? DBNull.Value });
+                command.Parameters.Add(new SqlParameter("@Brand", SqlDbType.NVarChar, 100) { Value = (object)brand ?? DBNull.Value });
+                command.Parameters.Add(new SqlParameter("@Category", SqlDbType.NVarChar, 100) { Value = (object)category ?? DBNull.Value });
+                command.Parameters.Add(new SqlParameter("@ProductId", SqlDbType.Int) { Value = (object)productId ?? DBNull.Value });
 
                 await connection.OpenAsync().ConfigureAwait(false);
                 using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
@@ -323,12 +326,14 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             DiscountAmount = HasColumn(reader, "DiscountAmount") && !reader.IsDBNull(reader.GetOrdinal("DiscountAmount")) ? reader.GetDecimal(reader.GetOrdinal("DiscountAmount")) : 0m,
                             DiscountStartDate = HasColumn(reader, "DiscountStartDate") && !reader.IsDBNull(reader.GetOrdinal("DiscountStartDate")) ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("DiscountStartDate")) : null,
                             DiscountEndDate = HasColumn(reader, "DiscountEndDate") && !reader.IsDBNull(reader.GetOrdinal("DiscountEndDate")) ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("DiscountEndDate")) : null,
-                            DiscountIsActive = HasColumn(reader, "DiscountIsActive") && !reader.IsDBNull(reader.GetOrdinal("DiscountIsActive")) && reader.GetBoolean(reader.GetOrdinal("DiscountIsActive")),
-                            HasActiveDiscount = HasColumn(reader, "HasActiveDiscount") && !reader.IsDBNull(reader.GetOrdinal("HasActiveDiscount")) && reader.GetBoolean(reader.GetOrdinal("HasActiveDiscount")),
+                            DiscountIsActive = HasColumn(reader, "DiscountIsActive") && !reader.IsDBNull(reader.GetOrdinal("DiscountIsActive")) && Convert.ToBoolean(reader["DiscountIsActive"]),
+                            HasActiveDiscount = (HasColumn(reader, "HasActiveDiscount") && !reader.IsDBNull(reader.GetOrdinal("HasActiveDiscount")) && Convert.ToBoolean(reader["HasActiveDiscount"]))
+                                || (HasColumn(reader, "DiscountIsActive") && !reader.IsDBNull(reader.GetOrdinal("DiscountIsActive")) && Convert.ToBoolean(reader["DiscountIsActive"]) && (Convert.ToDecimal(reader["DiscountAmount"]) > 0 || Convert.ToInt32(reader["DiscountPercentage"]) > 0)),
                             MainImageUrl = reader.IsDBNull(reader.GetOrdinal("MainImageUrl")) ? null : reader.GetString(reader.GetOrdinal("MainImageUrl")),
                             PublicationStatus = HasColumn(reader, "PublicationStatus") && !reader.IsDBNull(reader.GetOrdinal("PublicationStatus")) ? reader.GetString(reader.GetOrdinal("PublicationStatus")) : "Published",
                             IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
                             CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+                            UpdatedAt = HasColumn(reader, "UpdatedAt") && !reader.IsDBNull(reader.GetOrdinal("UpdatedAt")) ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("UpdatedAt")) : null,
                             VariantCount = reader.GetInt32(reader.GetOrdinal("VariantCount"))
                         });
                     }
@@ -979,6 +984,49 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
         public static SqlParameter Param(string name, object value)
         {
             return new SqlParameter(name, value ?? DBNull.Value);
+        }
+
+        public async Task<List<CatalogProductLookupDto>> GetCatalogItemLookupsAsync()
+        {
+            var list = new List<CatalogProductLookupDto>();
+            using (var connection = (SqlConnection)_factory.CreateConnection())
+            using (var command = new SqlCommand("dbo.sp_AdminGetCatalogItemLookups", connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+                await connection.OpenAsync().ConfigureAwait(false);
+                using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync().ConfigureAwait(false))
+                    {
+                        list.Add(new CatalogProductLookupDto
+                        {
+                            Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                            BrandId = reader.GetInt32(reader.GetOrdinal("BrandId")),
+                            CategoryId = reader.GetInt32(reader.GetOrdinal("CategoryId")),
+                            Name = reader.GetString(reader.GetOrdinal("Name"))
+                        });
+                    }
+                }
+            }
+            return list;
+        }
+
+        public async Task<bool> IsDuplicateProductAsync(int productId, int brandId, int categoryId, string name)
+        {
+            if (string.IsNullOrWhiteSpace(name) || brandId <= 0 || categoryId <= 0) return false;
+            using (var connection = (SqlConnection)_factory.CreateConnection())
+            using (var command = new SqlCommand("dbo.sp_AdminCheckProductDuplicate", connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add(new SqlParameter("@ProductId", SqlDbType.Int) { Value = productId });
+                command.Parameters.Add(new SqlParameter("@BrandId", SqlDbType.Int) { Value = brandId });
+                command.Parameters.Add(new SqlParameter("@CategoryId", SqlDbType.Int) { Value = categoryId });
+                command.Parameters.Add(new SqlParameter("@Name", SqlDbType.NVarChar, 200) { Value = name.Trim() });
+
+                await connection.OpenAsync().ConfigureAwait(false);
+                var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
+                return result != null && Convert.ToBoolean(result);
+            }
         }
     }
 }

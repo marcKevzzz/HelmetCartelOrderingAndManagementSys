@@ -12,6 +12,9 @@ namespace HelmetCartelOrderingAndManagementSys.Admin {
         protected global::System.Web.UI.WebControls.LinkButton btnTabActive;
         protected global::System.Web.UI.WebControls.LinkButton btnTabPublishedInactive;
         protected global::System.Web.UI.WebControls.LinkButton btnTabDrafts;
+        protected global::System.Web.UI.WebControls.DropDownList ddlBrandFilter;
+        protected global::System.Web.UI.WebControls.DropDownList ddlCategoryFilter;
+        protected global::System.Web.UI.WebControls.HyperLink lnkClearFilter;
         protected global::System.Web.UI.WebControls.Literal litShowingTop;
         protected global::System.Web.UI.WebControls.Literal litTotalTop;
         protected global::System.Web.UI.WebControls.Repeater rptCatalog;

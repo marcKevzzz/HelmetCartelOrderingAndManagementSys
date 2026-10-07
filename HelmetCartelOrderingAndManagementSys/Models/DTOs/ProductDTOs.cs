@@ -24,18 +24,26 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         {
             get
             {
-                if (CalculatedEffectivePrice > 0)
+                if (CalculatedEffectivePrice > 0 && CalculatedEffectivePrice < BasePrice)
                 {
                     return CalculatedEffectivePrice;
                 }
-                if (HasActiveDiscount || DiscountPercentage > 0)
+                if (HasActiveDiscount || DiscountPercentage > 0 || DiscountAmount > 0)
                 {
-                    if (string.Equals(DiscountType, "FixedAmount", StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(DiscountType, "FixedAmount", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(DiscountType, "FIXED_AMOUNT", StringComparison.OrdinalIgnoreCase))
                     {
                         return Math.Max(0, BasePrice - DiscountAmount);
                     }
-                    decimal pct = DiscountAmount > 0 ? DiscountAmount : DiscountPercentage;
-                    return Math.Round(BasePrice * (1.0m - (pct / 100.0m)), 2);
+                    decimal pct = DiscountPercentage > 0 ? DiscountPercentage : DiscountAmount;
+                    if (pct > 0)
+                    {
+                        return Math.Round(BasePrice * (1.0m - (pct / 100.0m)), 2);
+                    }
+                }
+                if (CalculatedEffectivePrice > 0)
+                {
+                    return CalculatedEffectivePrice;
                 }
                 return BasePrice;
             }
@@ -46,13 +54,19 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
         {
             get
             {
-                if (!HasActiveDiscount && DiscountPercentage <= 0) return string.Empty;
-                if (string.Equals(DiscountType, "FixedAmount", StringComparison.OrdinalIgnoreCase))
+                if (!HasActiveDiscount && DiscountPercentage <= 0 && DiscountAmount <= 0 && !(CalculatedEffectivePrice > 0 && CalculatedEffectivePrice < BasePrice)) return string.Empty;
+                if (string.Equals(DiscountType, "FixedAmount", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(DiscountType, "FIXED_AMOUNT", StringComparison.OrdinalIgnoreCase))
                 {
-                    return $"-&#8369;{DiscountAmount:N0}";
+                    decimal diff = DiscountAmount > 0 ? DiscountAmount : (BasePrice > CalculatedEffectivePrice && CalculatedEffectivePrice > 0 ? BasePrice - CalculatedEffectivePrice : 0m);
+                    return diff > 0 ? $"-&#8369;{diff:N0}" : string.Empty;
                 }
-                decimal pct = DiscountAmount > 0 ? DiscountAmount : DiscountPercentage;
-                return $"-{pct:0}%";
+                decimal pct = DiscountPercentage > 0 ? DiscountPercentage : DiscountAmount;
+                if (pct <= 0 && BasePrice > 0 && CalculatedEffectivePrice > 0 && CalculatedEffectivePrice < BasePrice)
+                {
+                    pct = Math.Round(((BasePrice - CalculatedEffectivePrice) / BasePrice) * 100m, 0);
+                }
+                return pct > 0 ? $"-{pct:0}%" : string.Empty;
             }
         }
         public decimal Rating { get; set; }

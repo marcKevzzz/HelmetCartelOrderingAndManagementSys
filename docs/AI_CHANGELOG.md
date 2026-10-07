@@ -1,5 +1,123 @@
 # AI Change Log & Architectural Evolution: Helmet Cartel
 
+## [2026-10-08] — Standardization of 2XL Sizing, Order History Quantity Multiplier Preservation, and Profile Address/Return Fixes
+
+- **Size Standardization (XXL -> 2XL Canonicalization) Across Database, API, and Admin/Storefront:**
+  - **Problem Solved:** Sizing was inconsistent across the system. The database stored `XXL` across 86 helmet variants in `dbo.ProductVariants` and 4 historical orders in `dbo.OrderItems` (with `-XXL` SKU suffixes), whereas the storefront shop filters (`ProductFilterControl.ascx`), Product Detail page (`ProductDetail.aspx`), and Admin Catalog Wizard (`CatalogItem.aspx`) presented `2XL`. This caused discrepancies in the Admin Inventory table (`Inventory.aspx`), order history, and receipts.
+  - **Resolution (`60_standardize_2xl_and_rma_sequence.sql`, `AdminController.cs`, `OrderRepository.cs`):**
+    - Created and executed Migration 60: standardizing all `Size = 'XXL'` to `'2XL'` and updating SKU suffixes `-XXL` to `-2XL` across `dbo.ProductVariants` and `dbo.OrderItems`.
+    - Added `NormalizeVariantSize(string size)` to `AdminController.cs` for variant saving endpoints (`catalog/variants`).
+    - Added `NormalizeSize(string size)` to `OrderRepository.cs` when creating orders and summarizing order items to guarantee canonical `2XL` storage regardless of entry point.
+    - Verified distinct variant sizes in MSSQL: `[2XL, L, M, S, XL]`.
+
+- **Profile Order History Quantity Badge (`x2`) Preservation Across Dropdown Toggling:**
+  - **Problem Solved:** When a customer ordered multiple units of a product (e.g. quantity 2), the order card thumbnail originally displayed an `x2` indicator in the stacking deck preview. However, clicking the accordion toggle to expand the item details called `updateOrderCardDeck(orderId, items)` which passed `{ id: orderId }` without `itemCount`. This recalculated `extraCount` to `0` and completely wiped the `x2` indicator from the card header.
+  - **Resolution (`profile.js`, `profile.css`, `Profile.aspx`):**
+    - Updated `createStackingDeckHtml(order, items)`: dynamically computes `totalQuantity` from `items.reduce((sum, i) => sum + (Number(i.quantity) || 1), 0)` (or fallback to `order.itemCount`). When `distinctItemCount === 1 && totalQuantity > 1`, cleanly renders `<span class="deck-badge">x${totalQuantity}</span>`.
+    - Updated `updateOrderCardDeck(orderId, items, order)`: retrieves the cached order object (`this.orderDetailsCache.get(orderId)` or `this.orders.find(...)`) rather than passing an empty dummy object, ensuring the deck badge retains `x2` and never disappears when the dropdown is clicked or toggled.
+    - Enhanced expanded order row: added prominent `<span>Qty: <strong>${item.quantity}</strong></span>` in `.order-item-detail-specs` and styled a persistent `.order-item-detail-qty-badge` overlay on the item thumbnail for items with `quantity > 1`.
+
+- **Fixed `ReferenceError: returnUrl is not defined` in Profile Addresses (`profile.js`):**
+  - **Problem Solved:** Navigating to or initializing the profile page threw `ReferenceError: returnUrl is not defined` at line 1338 in `renderAddresses()`, causing `loadUserAddresses()` to reject and disrupting the tab initialization pipeline.
+  - **Resolution:** Added `const returnUrl = this.getCheckoutReturnUrl();` at the beginning of `renderAddresses()` in `profile.js`.
+
+- **Fixed 500 Internal Server Error on `POST /api/v1/returns` (`60_standardize_2xl_and_rma_sequence.sql`):**
+  - **Problem Solved:** Submitting a return/exchange request failed with HTTP 500 because `sp_CreateReturnRequest` called `NEXT VALUE FOR dbo.Seq_RmaNumber`, but the sequence `dbo.Seq_RmaNumber` did not exist in `HelmetCartelDB`.
+  - **Resolution:** Created sequence `dbo.Seq_RmaNumber` starting at 1002 in Migration 60, and enhanced `sp_CreateReturnRequest` with safe TRY/CATCH fallback sequence generation to prevent unhandled database exceptions during RMA submissions. Bumped script and stylesheet versions in `Profile.aspx` (`profile.js?v=20261008_fix1`, `profile.css?v=11`).
+
+## [2026-10-07] — Catalog Recency Ordering (New/Updated on Top) & Most Popular Storefront Sorting Clarification
+
+- **Catalog Table Automatic Recency Sorting (`sp_AdminCatalogProducts`, `Catalog.aspx.cs`, `AdminDTOs.cs`, `AdminDataRepository.cs`, `59_catalog_recent_sort_and_popular_order.sql`, `HelmetCartelDB_Complete.sql`):**
+  - **Problem Solved:** Newly added or recently edited helmet models did not automatically display at the top of the Catalog management table (`Catalog.aspx`), forcing administrators to navigate across pagination pages to locate recently updated items.
+  - **Resolution:**
+    - Updated `dbo.sp_AdminCatalogProducts` to return `p.UpdatedAt` and sort deterministically by `ORDER BY ISNULL(p.UpdatedAt, p.CreatedAt) DESC, p.Id DESC`.
+    - Added `UpdatedAt` property to `AdminCatalogItemDto` and mapped from `SqlDataReader` in `AdminDataRepository.cs`.
+    - In `Catalog.aspx.cs`, added `.OrderByDescending(p => p.UpdatedAt ?? p.CreatedAt).ThenByDescending(p => p.Id)` after tab status filtering so the newest or most recently edited helmet model always occupies row 1 of the first page.
+
+- **Storefront "Most Popular" Order Mechanics & Signature Synchronization (`sp_GetProductsPaged`):**
+  - **Mechanics:** "Most Popular" in the shop is powered by `dbo.sp_GetProductsPaged` (`@SortBy = 'popular'`). It ranks products based on verified sales (`sales.UnitsSold DESC` from orders where status is NOT `Cancelled`, `Refunded`, or `PendingPayment`) combined with customer reviews (`review.Rating DESC` and `review.ReviewCount DESC`).
+  - **Confirmed Orders vs Completed Orders:** The calculation uses all confirmed, paid orders (`Processing`, `Shipped`, `Delivered`, `Completed`) rather than exclusively `Completed`, ensuring newly paid orders immediately boost a helmet's popularity without waiting weeks for delivery finalization. Excludes unpaid or cancelled orders.
+  - **Parameter Signature Guard:** Synchronized the exact parameter list (`@CategoryId, @BrandId, @Brand, @Category, @RidingStyle, @Search, @OnSale, @MinPrice, @MaxPrice, @Colors, @Sizes, @SortBy, @PageNumber, @PageSize, @TotalCount OUTPUT`), ensuring seamless ADO.NET execution with `ProductRepository.cs` and eliminating the 500 argument count error. Verified `GET /api/v1/products?pageSize=12` returns HTTP 200 with 35 items.
+
+- **Product Detail Variant Dynamic Discount Calculation (`product-detail.js`, `ProductDetail.aspx`):**
+  - **Problem Solved:** On the Product Detail page (`ProductDetail.aspx`), selecting a variant for a product with a fixed amount discount (e.g. Shoei J-Cruise II Tradisi with Base Price ₱34,000, Size L adjustment +₱500 = ₱34,500, fixed discount ₱250) displayed `₱34,500  ₱34,500  -₱250` because the client-side variant updater only handled `discountPercentage`. Since fixed discounts have `discountPercentage = 0`, the effective price fell back to the undiscounted original price.
+  - **Resolution:** Added `calculateEffectiveVariantPrice(originalPrice)` in `product-detail.js` to compute discounts across both percentage and fixed amount types (`FixedAmount`: `Math.max(0, originalPrice - discountAmount)`). Updated `updateSelectedVariantUi()` to accurately compute the effective price (e.g. `₱34,250.00`), crossed-out original price (`₱34,500.00`), and formatted discount badge (`-₱250`). Updated `getSelectedProductDetails()` to ensure the cart and checkout payload use the exact discounted price.
+
+- **Admin Catalog Table Discount Display & Badge Integration (`Catalog.aspx`, `AdminDTOs.cs`, `AdminDataRepository.cs`, `sp_AdminCatalogProducts`):**
+  - **Problem Solved:** Products with active fixed discounts in `Pages/Admin/Catalog/Catalog.aspx` only displayed their base undiscounted price in the Pricing column and rendered `—` for the discount badge.
+  - **Resolution:**
+    - Updated `dbo.sp_AdminCatalogProducts` to return computed `HasActiveDiscount` (BIT) and `EffectivePrice` using `dbo.fn_CalculateEffectivePrice`.
+    - Enhanced `AdminCatalogItemDto`:
+      - `HasActiveDiscount`: dynamically verifies date ranges, `DiscountIsActive`, `DiscountPercentage > 0`, or `DiscountAmount > 0` for `FixedAmount`.
+      - `EffectivePrice`: accurately computes fixed or percentage discount if not provided by SQL.
+      - `DiscountBadgeText`: formats `-₱{Amount}` or `-{Percent}%`.
+    - Updated `Catalog.aspx` Repeater item template: evaluates `Convert.ToDecimal(Eval("EffectivePrice")) < Convert.ToDecimal(Eval("BasePrice")) || (bool)Eval("HasActiveDiscount")` to render the bold discounted price, strikethrough original base price, and discount badge pill (`.table-discount-badge`).
+
+- **Catalog Search Filtering vs Sorting To Top (`Catalog.aspx.cs`, `Catalog.aspx`):**
+  - **Problem Solved:** When selecting a catalog model from the top search bar (which redirects to `Catalog.aspx?id={Id}`), the page previously showed all products and merely placed the target product at the top of the table.
+  - **Resolution:** Updated `Catalog.aspx.cs` so that when `TargetProductId` is provided (via `?id={id}`), the catalog table explicitly filters down to that specific product (`products = products.Where(p => p.Id == TargetProductId.Value).ToList()`). Added `lnkClearFilter` to allow the admin to reset the filter with one click back to the full catalog.
+
+- **Brand & Category Filtering in Catalog and Inventory via Search & Dropdowns (`Catalog.aspx`, `Catalog.aspx.cs`, `Inventory.aspx`, `Inventory.aspx.cs`, `sp_AdminGlobalSearch`, `sp_AdminCatalogProducts`, `sp_AdminInventoryVariants`):**
+  - **Global Autocomplete Search (`sp_AdminGlobalSearch`):**
+    - Brands search results now offer dual navigation targets:
+      - `[Brand] (Catalog)`: navigates to `/Pages/Admin/Catalog/Catalog.aspx?brand={Name}`
+      - `[Brand] (Inventory)`: navigates to `/Pages/Admin/Inventory/Inventory.aspx?brand={Name}`
+    - Categories search results now offer dual navigation targets:
+      - `[Category] (Catalog)`: navigates to `/Pages/Admin/Catalog/Catalog.aspx?category={Name}`
+      - `[Category] (Inventory)`: navigates to `/Pages/Admin/Inventory/Inventory.aspx?category={Name}`
+  - **Catalog Page (`Catalog.aspx`, `Catalog.aspx.cs`):**
+    - Added `ddlBrandFilter` and `ddlCategoryFilter` dropdowns to the filter bar.
+    - Supported URL parameters `?brand=...` and `?category=...`, automatically selecting the corresponding dropdown and querying `dbo.sp_AdminCatalogProducts`.
+  - **Inventory Page (`Inventory.aspx`, `Inventory.aspx.cs`):**
+    - Added `CurrentCategory` in ViewState and query parameter `?category=...` support alongside `?brand=...`.
+    - Added `lnkClearFilter` control that appears dynamically whenever search, brand, category, or status filters are active.
+  - **Direct Query Search:**
+    - Typing a brand name or category name into the search bar (`?q=...` or `?search=...`) now automatically filters both `sp_AdminCatalogProducts` and `sp_AdminInventoryVariants` by matching brand and category names.
+  - **Database Migration:** Packaged all stored procedure updates into `database/schema/58_fix_catalog_pricing_and_search_filters.sql` and synchronized into `database/setup/HelmetCartelDB_Complete.sql`.
+
+- **Catalog Duplicate Item Validation Across All Layers (`CatalogItem.aspx`, `catalog-item.js`, `CatalogItem.aspx.cs`, `AdminController.cs`, `AdminDataRepository.cs`, `57_catalog_duplicate_validation.sql`, `HelmetCartelDB_Complete.sql`):**
+  - **Problem Solved:** When creating or editing helmets in the Admin Catalog Wizard, users could mistakenly enter existing helmets with the identical Brand, Category, and Model Name combination, creating duplicate listings in the database and catalog.
+  - **Real-Time Client-Side Validation (`catalog-item.js`, `CatalogItem.aspx`):**
+    - Embedded lightweight catalog lookups array (`#existing-catalog-data`) via `ExistingProductsJson` on page load.
+    - Evaluates brand, category, and case-insensitive trimmed product model names on typing (`input`), brand change (`change`), and category change (`change`) with zero-latency instant feedback.
+    - Added dedicated inline error element `#errProductDuplicate` (*"This helmet model already exists in the catalog under this brand and category."*) directly below `txtProductName` and highlights input with `.is-invalid`.
+    - Automatically excludes the current product ID (`ProductId > 0`) when editing an existing product so editing its other attributes does not trigger a false-positive conflict against itself.
+    - **Wizard Step & Submission Guarding:** Blocks advancing to Step 2 ("Next: Specifications →") via `validateStep(1)` if duplicate exists. Blocks saving as draft or publishing to storefront via `handleFormSubmit(e, isDraftMode)`, automatically switching back to Tab 1, focusing `txtProductName`, and displaying an alert toast.
+  - **Server-Side Verification & Stored Procedure Protection (`AdminDataRepository.cs`, `CatalogItem.aspx.cs`, `AdminController.cs`, `sp_AdminSaveProduct`, `sp_AdminCheckProductDuplicate`):**
+    - Created `dbo.sp_AdminCheckProductDuplicate` returning `BIT IsDuplicate` and `dbo.sp_AdminGetCatalogItemLookups` returning `Id, BrandId, CategoryId, Name`.
+    - Updated `dbo.sp_AdminSaveProduct` stored procedure to throw error `52102: 'A helmet model with this brand, category, and name already exists in the catalog.'` if duplicate parameters are passed.
+    - Added API endpoint `GET /api/v1/admin/catalog/check-duplicate` secured with `[StaffAuthorize(adminOnly: true)]` and integrated server-side pre-save duplicate validation in `CatalogItem.aspx.cs`.
+    - Synchronized all procedures into `database/setup/HelmetCartelDB_Complete.sql`.
+
+- **Products API 500 Internal Server Error Resolution (`ProductRepository.cs`, `sp_GetProductsPaged`):**
+  - Resolved `GET /api/v1/products?pageSize=50` 500 error caused by type casting in `ProductRepository.cs`. Changed `reader.GetBoolean(...)` to safe `Convert.ToBoolean(...)` for computed columns (`HasActiveDiscount`), validated via live endpoint testing returning HTTP 200 OK and valid JSON.
+
+
+- **Catalog Discount Display Fix Across Storefront & Detail Pages (`fn_CalculateEffectivePrice`, `sp_GetProductsPaged`, `sp_GetProductById`, `sp_GetRelatedProducts`, `Default.aspx`, `Shop.aspx.cs`, `ProductDetail.aspx`, `ProductDTOs.cs`, `ProductRepository.cs`):**
+  - **Case-Insensitive Discount Type Matching:** Updated `dbo.fn_CalculateEffectivePrice`, `dbo.sp_GetProductsPaged`, and `dbo.sp_GetProductById` to accept both PascalCase (`FixedAmount`) and UPPER_SNAKE_CASE (`FIXED_AMOUNT`), preventing fixed amount discounts from falling back to base price.
+  - **Boolean Conversion & Alias Synchronization:** Standardized stored procedure output with `CONVERT(BIT, ...)` and aligned both `HasActiveDiscount` and `IsDiscountActive` aliases. Refactored `ProductRepository.cs` to use safe `Convert.ToBoolean(...)` rather than `reader.GetBoolean()`, eliminating `InvalidCastException` when reading computed SQL expressions.
+  - **Storefront & Default Page Pricing Markup:** Updated `Default.aspx`, `Shop.aspx.cs`, and `ProductDetail.aspx` hero pricing to render discounts whenever `EffectivePrice < BasePrice` and format badges using `DiscountBadgeText` (supporting `-₱250` and `-%`), ensuring products with fixed discounts clearly display their current discounted price, struck-through original price, and badge.
+
+- **Primary Image Gallery Deduplication (`ProductDetail.aspx.cs`):**
+  - **Duplicate Gallery Thumbnail Prevention:** Resolved duplicate rendering of the primary image when `MainImageUrl` is added alongside `ProductItem.GalleryImages` (created by the admin catalog wizard). Implemented URL normalization and `HashSet<string>` deduplication so the hero image is never rendered twice in thumbnail strips or modal carousels.
+
+- **Related Products Slug Navigation (`ProductDetail.aspx`):**
+  - **Slug URL Alignment:** Corrected `NavigateUrl` in `rptRelatedProducts` on `ProductDetail.aspx` from `?id={Id}` to `?slug={Slug}`, aligning with the SEO and storefront URL routing standards. Also updated related product pricing markup to support fixed amount discount badges.
+
+## [2026-10-07] — Review Moderation Modal Simplification, Admin Toast Design Alignment & Product Specifications Peek Redesign
+
+- **Admin Review Inspect Modal Simplification (`Reviews.aspx`, `reviews.js`):**
+  - **Removed Footer Actions:** Completely removed the 3 action buttons (`btn-delete-review-modal`, `btn-cancel-review-modal`, `btn-toggle-visibility-action`) and their footer container from `#admin-review-modal`. The dialog is now a clean, distraction-free inspection card that closes via the header `&times;` button or backdrop click. Moderation and admin-only deletion actions remain accessible directly from the reviews table rows.
+  - **JS Listener Cleanup (`reviews.js`):** Safely removed listeners and references for the removed modal actions while preserving core review fetching, status filtering, search debouncing, and deletion workflows.
+
+- **Admin Toast Design Alignment with Storefront (`admin.css`, `admin.js`):**
+  - **Design Discrepancy Resolution:** Unified the admin toast notification styling to match the storefront design system. Admin toasts previously used dark slate `#18181B` cards with thick colored left borders. Updated `#adminToastContainer .toast` and `.admin-toast` to render as clean `#ffffff` white cards with `#e4e4e7` border, `#171717` typography, multi-layered soft drop shadows, and minimalist colored status icons without the thick left borders.
+
+- **Product Specifications UI Cutoff & Receipt-Style Toggle Redesign (`ProductDetail.aspx`, `ProductDetail.aspx.cs`, `product-detail.js`, `storefront.css`):**
+  - **Two-Row Cutoff & Peek Row Low Opacity:** When collapsed (`.product-details-section:not(.is-expanded)`), the technical specification table displays the 1st row normally, renders the 2nd row with low opacity (`.detail-spec-row--peek`, `opacity: 0.28`, `pointer-events: none`) as an elegant preview peek, and hides row 3 and beyond (`.detail-spec-row--extra`, `display: none`). Expanding the table smoothly restores the 2nd row to full opacity and reveals all specifications.
+  - **Receipt-Style Toggle Button:** Restyled the "Show more" button (`#btn-toggle-details`) inside `.details-toggle-wrap` to match the Order Receipt toggle (`.btn-receipt-toggle`), featuring pill border radius, subtle hover elevation, and a 180-degree rotating caret SVG icon (`receipt-caret-icon`) indicating expanded/collapsed state.
+  - **Code-Behind Threshold (`ProductDetail.aspx.cs`):** Updated `pnlSpecToggle.Visible = ProductSpecifications.Count > 1` so products with multiple specifications present the interactive peek and expand control.
+
 ## [2026-10-07] — Reviews Moderation: Admin-Only Permanent Review Deletion & Confirmation Modal
 
 - **Review Deletion Architecture & Security Barrier:**

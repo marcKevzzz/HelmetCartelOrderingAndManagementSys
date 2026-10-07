@@ -2132,13 +2132,17 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
   pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: var(--radius-md);
-  background: #18181B;
-  border: 1px solid #27272A;
-  color: #F4F4F5;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: var(--radius-md, 8px);
+  background: #ffffff;
+  border: 1px solid var(--color-border-subtle, #e4e4e7);
+  color: #171717;
+  font-weight: var(--weight-medium, 500);
+  box-shadow:
+    0 10px 25px -4px rgba(0, 0, 0, 0.12),
+    0 4px 10px -2px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
   font-size: var(--text-body-sm);
   min-width: 300px;
   max-width: 440px;
@@ -2149,6 +2153,7 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
               opacity 0.22s ease,
               box-shadow 0.25s ease,
+              filter 0.25s ease,
               max-height 0.25s ease,
               padding 0.2s ease,
               margin 0.2s ease;
@@ -2161,6 +2166,7 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
   z-index: 30;
   transform: translateY(0) scale(1);
   opacity: 1;
+  filter: none;
   animation: adminToastIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -2169,6 +2175,7 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
   z-index: 20;
   transform: translateY(11px) scale(0.94);
   opacity: 0.94;
+  filter: brightness(0.98);
 }
 
 .admin-toast:nth-last-child(3),
@@ -2176,6 +2183,7 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
   z-index: 10;
   transform: translateY(21px) scale(0.88);
   opacity: 0.85;
+  filter: brightness(0.96);
 }
 
 .admin-toast:nth-last-child(n+4),
@@ -2236,7 +2244,9 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
 #adminToastContainer:hover .admin-toast:hover,
 #adminToastContainer:hover .toast:hover {
   transform: translateY(-2px) scale(1.01) !important;
-  box-shadow: 0 14px 28px -4px rgba(0, 0, 0, 0.5), 0 8px 14px -4px rgba(0, 0, 0, 0.4) !important;
+  box-shadow:
+    0 14px 28px -4px rgba(0, 0, 0, 0.16),
+    0 6px 12px -2px rgba(0, 0, 0, 0.08) !important;
 }
 
 @keyframes adminToastUnfold {
@@ -2283,13 +2293,20 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
   }
 }
 
-.admin-toast-icon {
+.admin-toast-icon,
+#adminToastContainer .toast__icon {
   flex-shrink: 0;
   width: 20px;
   height: 20px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.admin-toast-icon svg,
+#adminToastContainer .toast__icon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .admin-toast-content {
@@ -2304,18 +2321,21 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
   font-size: var(--text-caption);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  color: #171717;
 }
 
-.admin-toast-message {
+.admin-toast-message,
+#adminToastContainer .toast__message {
+  flex: 1;
   font-size: var(--text-body-sm);
-  color: #E4E4E7;
+  color: #171717;
   line-height: 1.4;
 }
 
 .admin-toast-close {
   background: transparent;
   border: none;
-  color: #A1A1AA;
+  color: #71717A;
   cursor: pointer;
   padding: 4px;
   display: flex;
@@ -2326,47 +2346,27 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
 }
 
 .admin-toast-close:hover {
-  color: #FFFFFF;
-}
-
-.admin-toast--success,
-#adminToastContainer .toast--success {
-  border-left: 4px solid #10B981;
+  color: #18181B;
 }
 
 .admin-toast--success .admin-toast-icon,
 #adminToastContainer .toast--success .toast__icon {
-  color: #10B981;
-}
-
-.admin-toast--error,
-#adminToastContainer .toast--error {
-  border-left: 4px solid #EF4444;
+  color: var(--color-accent-green, #10B981);
 }
 
 .admin-toast--error .admin-toast-icon,
 #adminToastContainer .toast--error .toast__icon {
-  color: #EF4444;
-}
-
-.admin-toast--warning,
-#adminToastContainer .toast--warning {
-  border-left: 4px solid #F59E0B;
+  color: #dc2626;
 }
 
 .admin-toast--warning .admin-toast-icon,
 #adminToastContainer .toast--warning .toast__icon {
-  color: #F59E0B;
-}
-
-.admin-toast--info,
-#adminToastContainer .toast--info {
-  border-left: 4px solid #3B82F6;
+  color: var(--color-accent-amber, #f59e0b);
 }
 
 .admin-toast--info .admin-toast-icon,
 #adminToastContainer .toast--info .toast__icon {
-  color: #3B82F6;
+  color: #171717;
 }
 
 /* ==========================================================================

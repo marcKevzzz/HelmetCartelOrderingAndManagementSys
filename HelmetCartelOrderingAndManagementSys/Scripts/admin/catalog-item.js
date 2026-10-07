@@ -18,6 +18,7 @@
   let colors = [];
   let variants = [];
   let gallery = [];
+  let existingCatalogItems = [];
   let draggedTileIndex = null;
   let dropInsertBeforeIndex = null;
 
@@ -172,6 +173,9 @@
      1. DATA INITIALIZATION FROM HIDDEN JSON FIELDS
      ========================================================================== */
   function initExistingData() {
+    // 0. Existing Catalog Items for Duplicate Checking
+    loadExistingCatalogLookups();
+
     // 1. Technical Specs
     if (dom.hdnSpecificationsJson && dom.hdnSpecificationsJson.value) {
       try {
@@ -1657,6 +1661,7 @@
             opt.selected = true;
             dom.ddlBrand.appendChild(opt);
             clearInlineError('errBrand');
+            checkProductDuplicate();
           }
 
           closeBrandModal();
@@ -1750,6 +1755,7 @@
             opt.selected = true;
             dom.ddlCategory.appendChild(opt);
             clearInlineError('errCategory');
+            checkProductDuplicate();
           }
 
           closeCatModal();
@@ -1767,21 +1773,84 @@
   /* ==========================================================================
      10. COMPREHENSIVE INLINE VALIDATION & FORM SUBMISSION
      ========================================================================== */
+  function loadExistingCatalogLookups() {
+    try {
+      const el = document.getElementById('existing-catalog-data');
+      if (el && el.textContent) {
+        existingCatalogItems = JSON.parse(el.textContent.trim()) || [];
+      }
+    } catch (e) {
+      console.warn('Could not parse existing catalog lookups:', e);
+      existingCatalogItems = [];
+    }
+  }
+
+  function normalizeName(str) {
+    return (str || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
+  function checkProductDuplicate() {
+    if (!dom.txtProductName || !dom.ddlBrand || !dom.ddlCategory) return false;
+
+    const brandId = parseInt(dom.ddlBrand.value, 10);
+    const categoryId = parseInt(dom.ddlCategory.value, 10);
+    const rawName = dom.txtProductName.value.trim();
+    const normalizedName = normalizeName(rawName);
+
+    if (!brandId || !categoryId || !normalizedName) {
+      clearInlineError('errProductDuplicate');
+      return false;
+    }
+
+    const currentProdId = parseInt(dom.hdnProductId && dom.hdnProductId.value ? dom.hdnProductId.value : '0', 10) || 0;
+
+    const isDuplicate = existingCatalogItems.some((item) => {
+      const itemId = item.id || item.Id || 0;
+      if (currentProdId > 0 && itemId === currentProdId) {
+        return false;
+      }
+
+      const itemBrandId = item.brandId || item.BrandId || 0;
+      const itemCategoryId = item.categoryId || item.CategoryId || 0;
+      const itemName = normalizeName(item.name || item.Name || '');
+
+      return itemBrandId === brandId && itemCategoryId === categoryId && itemName === normalizedName;
+    });
+
+    if (isDuplicate) {
+      showInlineError('errProductDuplicate', dom.txtProductName);
+      return true;
+    } else {
+      clearInlineError('errProductDuplicate');
+      return false;
+    }
+  }
+
   function bindValidationEvents() {
     // Tab 1 field blur/input clearers
     if (dom.ddlBrand) {
       dom.ddlBrand.addEventListener('change', () => {
         if (dom.ddlBrand.value) clearInlineError('errBrand');
+        checkProductDuplicate();
       });
     }
     if (dom.ddlCategory) {
       dom.ddlCategory.addEventListener('change', () => {
         if (dom.ddlCategory.value) clearInlineError('errCategory');
+        checkProductDuplicate();
       });
     }
     if (dom.txtProductName) {
       dom.txtProductName.addEventListener('input', () => {
-        if (dom.txtProductName.value.trim()) clearInlineError('errProductName');
+        if (dom.txtProductName.value.trim()) {
+          clearInlineError('errProductName');
+          checkProductDuplicate();
+        } else {
+          clearInlineError('errProductDuplicate');
+        }
+      });
+      dom.txtProductName.addEventListener('blur', () => {
+        checkProductDuplicate();
       });
     }
     if (dom.txtDescription) {
@@ -1843,13 +1912,18 @@
         clearInlineError('errCategory');
       }
 
-      // 3. Name
+      // 3. Name & Duplicate Check
       if (!dom.txtProductName || !dom.txtProductName.value.trim()) {
         showInlineError('errProductName', dom.txtProductName);
+        clearInlineError('errProductDuplicate');
         isValid = false;
         if (!firstInvalidEl) firstInvalidEl = dom.txtProductName;
       } else {
         clearInlineError('errProductName');
+        if (checkProductDuplicate()) {
+          isValid = false;
+          if (!firstInvalidEl) firstInvalidEl = dom.txtProductName;
+        }
       }
 
       // 4. Description
@@ -2000,7 +2074,20 @@
 
     if (errorSpanId === 'errBrand' && dom.ddlBrand) dom.ddlBrand.classList.remove('is-invalid');
     if (errorSpanId === 'errCategory' && dom.ddlCategory) dom.ddlCategory.classList.remove('is-invalid');
-    if (errorSpanId === 'errProductName' && dom.txtProductName) dom.txtProductName.classList.remove('is-invalid');
+    if (errorSpanId === 'errProductName' && dom.txtProductName) {
+      const dupSpan = document.getElementById('errProductDuplicate');
+      if (!dupSpan || dupSpan.style.display === 'none') {
+        dom.txtProductName.classList.remove('is-invalid');
+      }
+    }
+    if (errorSpanId === 'errProductDuplicate') {
+      const span = document.getElementById('errProductDuplicate');
+      if (span) span.style.display = 'none';
+      const nameSpan = document.getElementById('errProductName');
+      if (!nameSpan || nameSpan.style.display === 'none') {
+        if (dom.txtProductName) dom.txtProductName.classList.remove('is-invalid');
+      }
+    }
     if (errorSpanId === 'errDescription' && dom.txtDescription) dom.txtDescription.classList.remove('is-invalid');
     if (errorSpanId === 'errSpecShellMaterial' && dom.specShellMaterial) dom.specShellMaterial.classList.remove('is-invalid');
     if (errorSpanId === 'errSpecSafetyCertifications' && dom.specSafetyCertifications) dom.specSafetyCertifications.classList.remove('is-invalid');
@@ -2019,21 +2106,35 @@
   }
 
   function handleFormSubmit(e, isDraftMode) {
-    // In Draft mode, require at least Helmet Name and Brand
+    // In Draft mode, require at least Helmet Name and Brand, and prevent duplicates
     if (isDraftMode) {
       if (!dom.txtProductName || !dom.txtProductName.value.trim()) {
-        e.preventDefault();
+        if (e) e.preventDefault();
         window.switchWizardTab(1);
         showInlineError('errProductName', dom.txtProductName);
         dom.txtProductName.focus();
+        return false;
+      }
+      if (checkProductDuplicate()) {
+        if (e) e.preventDefault();
+        window.switchWizardTab(1);
+        dom.txtProductName.focus();
+        if (typeof window.showAdminToast === 'function') {
+          window.showAdminToast('This helmet model already exists in the catalog under this brand and category.', 'danger', 'Duplicate Helmet');
+        }
         return false;
       }
     } else {
       // Full publish requires all steps 1, 2, 3, 4, 5
       for (let s of [1, 2, 3, 4, 5]) {
         if (!validateStep(s)) {
-          e.preventDefault();
+          if (e) e.preventDefault();
           window.switchWizardTab(s);
+          if (s === 1 && checkProductDuplicate()) {
+            if (typeof window.showAdminToast === 'function') {
+              window.showAdminToast('This helmet model already exists in the catalog under this brand and category.', 'danger', 'Duplicate Helmet');
+            }
+          }
           return false;
         }
       }

@@ -174,9 +174,12 @@ namespace HelmetCartelOrderingAndManagementSys.Pages
             int discountPct = Convert.ToInt32(discountPercentageObj ?? 0);
             string badgeText = Convert.ToString(discountBadgeTextObj ?? "");
 
-            if ((hasDiscount || discountPct > 0) && effectivePrice < basePrice)
+            if (effectivePrice < basePrice)
             {
-                if (string.IsNullOrWhiteSpace(badgeText)) badgeText = $"-{discountPct}%";
+                if (string.IsNullOrWhiteSpace(badgeText))
+                {
+                    badgeText = discountPct > 0 ? $"-{discountPct}%" : $"-&#8369;{(basePrice - effectivePrice):N0}";
+                }
                 return $"<span class=\"price-current\">&#8369;{effectivePrice:N0}</span><span class=\"price-original\">&#8369;{basePrice:N0}</span><span class=\"discount-badge\">{badgeText}</span>";
             }
             return $"<span class=\"price-current\">&#8369;{effectivePrice:N0}</span>";

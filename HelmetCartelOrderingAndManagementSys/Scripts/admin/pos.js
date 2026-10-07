@@ -686,7 +686,7 @@ if (root) {
     .catch(error => { ui.message.hidden = false; ui.message.textContent = error.status === 401 ? 'Sign in as staff to use the POS counter.' : 'Products could not be loaded. Try again.'; });
 
   if (window.jQuery?.hubConnection) {
-    const connection = window.jQuery.hubConnection('/signalr');
+    const connection = window.jQuery.hubConnection();
     const inventory = connection.createHubProxy('inventoryHub');
     inventory.on(APP_CONSTANTS.SIGNALR_EVENTS.STOCK_UPDATED, () => {
       clearTimeout(stockTimer);

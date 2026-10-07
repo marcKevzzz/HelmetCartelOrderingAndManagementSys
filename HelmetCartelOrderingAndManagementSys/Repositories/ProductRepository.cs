@@ -73,8 +73,9 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 DiscountAmount = HasColumn(reader, "DiscountAmount") && !reader.IsDBNull(reader.GetOrdinal("DiscountAmount")) ? reader.GetDecimal(reader.GetOrdinal("DiscountAmount")) : 0m,
                                 DiscountStartDate = HasColumn(reader, "DiscountStartDate") && !reader.IsDBNull(reader.GetOrdinal("DiscountStartDate")) ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("DiscountStartDate")) : null,
                                 DiscountEndDate = HasColumn(reader, "DiscountEndDate") && !reader.IsDBNull(reader.GetOrdinal("DiscountEndDate")) ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("DiscountEndDate")) : null,
-                                DiscountIsActive = HasColumn(reader, "DiscountIsActive") && !reader.IsDBNull(reader.GetOrdinal("DiscountIsActive")) && reader.GetBoolean(reader.GetOrdinal("DiscountIsActive")),
-                                HasActiveDiscount = HasColumn(reader, "HasActiveDiscount") && !reader.IsDBNull(reader.GetOrdinal("HasActiveDiscount")) && reader.GetBoolean(reader.GetOrdinal("HasActiveDiscount")),
+                                DiscountIsActive = HasColumn(reader, "DiscountIsActive") && !reader.IsDBNull(reader.GetOrdinal("DiscountIsActive")) && Convert.ToBoolean(reader["DiscountIsActive"]),
+                                HasActiveDiscount = (HasColumn(reader, "HasActiveDiscount") && !reader.IsDBNull(reader.GetOrdinal("HasActiveDiscount")) && Convert.ToBoolean(reader["HasActiveDiscount"]))
+                                    || (HasColumn(reader, "IsDiscountActive") && !reader.IsDBNull(reader.GetOrdinal("IsDiscountActive")) && Convert.ToBoolean(reader["IsDiscountActive"])),
                                 Rating = reader.GetDecimal(reader.GetOrdinal("Rating")),
                                 ReviewCount = reader.GetInt32(reader.GetOrdinal("ReviewCount")),
                                 MainImageUrl = reader.IsDBNull(reader.GetOrdinal("MainImageUrl")) ? string.Empty : NormalizeImageUrl(reader.GetString(reader.GetOrdinal("MainImageUrl"))),
@@ -127,8 +128,9 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 DiscountAmount = HasColumn(reader, "DiscountAmount") && !reader.IsDBNull(reader.GetOrdinal("DiscountAmount")) ? reader.GetDecimal(reader.GetOrdinal("DiscountAmount")) : 0m,
                                 DiscountStartDate = HasColumn(reader, "DiscountStartDate") && !reader.IsDBNull(reader.GetOrdinal("DiscountStartDate")) ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("DiscountStartDate")) : null,
                                 DiscountEndDate = HasColumn(reader, "DiscountEndDate") && !reader.IsDBNull(reader.GetOrdinal("DiscountEndDate")) ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("DiscountEndDate")) : null,
-                                DiscountIsActive = HasColumn(reader, "DiscountIsActive") && !reader.IsDBNull(reader.GetOrdinal("DiscountIsActive")) && reader.GetBoolean(reader.GetOrdinal("DiscountIsActive")),
-                                HasActiveDiscount = HasColumn(reader, "HasActiveDiscount") && !reader.IsDBNull(reader.GetOrdinal("HasActiveDiscount")) && reader.GetBoolean(reader.GetOrdinal("HasActiveDiscount")),
+                                DiscountIsActive = HasColumn(reader, "DiscountIsActive") && !reader.IsDBNull(reader.GetOrdinal("DiscountIsActive")) && Convert.ToBoolean(reader["DiscountIsActive"]),
+                                HasActiveDiscount = (HasColumn(reader, "HasActiveDiscount") && !reader.IsDBNull(reader.GetOrdinal("HasActiveDiscount")) && Convert.ToBoolean(reader["HasActiveDiscount"]))
+                                    || (HasColumn(reader, "IsDiscountActive") && !reader.IsDBNull(reader.GetOrdinal("IsDiscountActive")) && Convert.ToBoolean(reader["IsDiscountActive"])),
                                 Rating = reader.GetDecimal(reader.GetOrdinal("Rating")),
                                 ReviewCount = reader.GetInt32(reader.GetOrdinal("ReviewCount")),
                                 OrderCount = reader.GetInt32(reader.GetOrdinal("OrderCount")),
@@ -228,8 +230,9 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 DiscountAmount = HasColumn(reader, "DiscountAmount") && !reader.IsDBNull(reader.GetOrdinal("DiscountAmount")) ? reader.GetDecimal(reader.GetOrdinal("DiscountAmount")) : 0m,
                                 DiscountStartDate = HasColumn(reader, "DiscountStartDate") && !reader.IsDBNull(reader.GetOrdinal("DiscountStartDate")) ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("DiscountStartDate")) : null,
                                 DiscountEndDate = HasColumn(reader, "DiscountEndDate") && !reader.IsDBNull(reader.GetOrdinal("DiscountEndDate")) ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("DiscountEndDate")) : null,
-                                DiscountIsActive = HasColumn(reader, "DiscountIsActive") && !reader.IsDBNull(reader.GetOrdinal("DiscountIsActive")) && reader.GetBoolean(reader.GetOrdinal("DiscountIsActive")),
-                                HasActiveDiscount = HasColumn(reader, "HasActiveDiscount") && !reader.IsDBNull(reader.GetOrdinal("HasActiveDiscount")) && reader.GetBoolean(reader.GetOrdinal("HasActiveDiscount")),
+                                DiscountIsActive = HasColumn(reader, "DiscountIsActive") && !reader.IsDBNull(reader.GetOrdinal("DiscountIsActive")) && Convert.ToBoolean(reader["DiscountIsActive"]),
+                                HasActiveDiscount = (HasColumn(reader, "HasActiveDiscount") && !reader.IsDBNull(reader.GetOrdinal("HasActiveDiscount")) && Convert.ToBoolean(reader["HasActiveDiscount"]))
+                                    || (HasColumn(reader, "IsDiscountActive") && !reader.IsDBNull(reader.GetOrdinal("IsDiscountActive")) && Convert.ToBoolean(reader["IsDiscountActive"])),
                                 Rating = reader.GetDecimal(reader.GetOrdinal("Rating")),
                                 ReviewCount = reader.GetInt32(reader.GetOrdinal("ReviewCount")),
                                 OrderCount = reader.GetInt32(reader.GetOrdinal("OrderCount")),
@@ -270,7 +273,8 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                     DiscountAmount = HasColumn(reader, "DiscountAmount") && !reader.IsDBNull(reader.GetOrdinal("DiscountAmount")) ? reader.GetDecimal(reader.GetOrdinal("DiscountAmount")) : 0m,
                                     DiscountStartDate = HasColumn(reader, "DiscountStartDate") && !reader.IsDBNull(reader.GetOrdinal("DiscountStartDate")) ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("DiscountStartDate")) : null,
                                     DiscountEndDate = HasColumn(reader, "DiscountEndDate") && !reader.IsDBNull(reader.GetOrdinal("DiscountEndDate")) ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("DiscountEndDate")) : null,
-                                    HasActiveDiscount = HasColumn(reader, "HasActiveDiscount") && !reader.IsDBNull(reader.GetOrdinal("HasActiveDiscount")) && reader.GetBoolean(reader.GetOrdinal("HasActiveDiscount"))
+                                    HasActiveDiscount = (HasColumn(reader, "HasActiveDiscount") && !reader.IsDBNull(reader.GetOrdinal("HasActiveDiscount")) && Convert.ToBoolean(reader["HasActiveDiscount"]))
+                                        || (HasColumn(reader, "IsDiscountActive") && !reader.IsDBNull(reader.GetOrdinal("IsDiscountActive")) && Convert.ToBoolean(reader["IsDiscountActive"]))
                                 });
                             }
                         }
@@ -346,6 +350,11 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                 Category = reader.GetString(reader.GetOrdinal("Category")),
                                 BasePrice = reader.GetDecimal(reader.GetOrdinal("BasePrice")),
                                 DiscountPercentage = reader.GetInt32(reader.GetOrdinal("DiscountPercentage")),
+                                CalculatedEffectivePrice = HasColumn(reader, "EffectivePrice") && !reader.IsDBNull(reader.GetOrdinal("EffectivePrice")) ? reader.GetDecimal(reader.GetOrdinal("EffectivePrice")) : 0m,
+                                DiscountType = HasColumn(reader, "DiscountType") && !reader.IsDBNull(reader.GetOrdinal("DiscountType")) ? reader.GetString(reader.GetOrdinal("DiscountType")) : "Percentage",
+                                DiscountAmount = HasColumn(reader, "DiscountAmount") && !reader.IsDBNull(reader.GetOrdinal("DiscountAmount")) ? reader.GetDecimal(reader.GetOrdinal("DiscountAmount")) : 0m,
+                                HasActiveDiscount = (HasColumn(reader, "HasActiveDiscount") && !reader.IsDBNull(reader.GetOrdinal("HasActiveDiscount")) && Convert.ToBoolean(reader["HasActiveDiscount"]))
+                                    || (HasColumn(reader, "IsDiscountActive") && !reader.IsDBNull(reader.GetOrdinal("IsDiscountActive")) && Convert.ToBoolean(reader["IsDiscountActive"])),
                                 Rating = reader.GetDecimal(reader.GetOrdinal("Rating")),
                                 ReviewCount = reader.GetInt32(reader.GetOrdinal("ReviewCount")),
                                 MainImageUrl = reader.IsDBNull(reader.GetOrdinal("MainImageUrl")) ? string.Empty : NormalizeImageUrl(reader.GetString(reader.GetOrdinal("MainImageUrl"))),

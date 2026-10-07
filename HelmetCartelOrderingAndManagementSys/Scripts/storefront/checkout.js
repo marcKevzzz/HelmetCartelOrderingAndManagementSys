@@ -146,7 +146,7 @@ function computeShippingDetails(cityInput, provinceInput) {
     const prov = (provinceInput || '').trim().toLowerCase();
 
     if (!city && !prov) {
-        return { fee: 150, region: 'Metro Manila (NCR)', eta: '1\u20132 Business Days' };
+        return { fee: 0, region: 'Unspecified Address', eta: 'Select address to calculate' };
     }
 
     const isNcr = prov === 'metro manila' || prov === 'ncr';
@@ -215,10 +215,11 @@ function calculateTotals() {
     const validQuote = appliedVoucher && voucherSignature === voucherItemsSignature();
     const subtotal = merchandiseQuote?.signature === voucherItemsSignature() ? merchandiseQuote.subtotal : items.reduce((sum, i) => sum + (i.price * i.quantity), 0);
     const isFreeShipping = validQuote && appliedVoucher.discountType === (APP_CONSTANTS.VOUCHER_TYPES?.FREE_SHIPPING || 'FREE_SHIPPING');
-    const effectiveShipping = isFreeShipping ? 0 : selectedShippingCost;
+    const hasDeliveryAddress = selectedFulfillment === 'pickup' || !!selectedAddress;
+    const effectiveShipping = (isFreeShipping || !hasDeliveryAddress) ? 0 : selectedShippingCost;
     const discount = validQuote ? (isFreeShipping ? selectedShippingCost : Number(appliedVoucher.discountAmount)) : 0;
     const total = subtotal - (isFreeShipping ? 0 : discount) + effectiveShipping;
-    return { subtotal, discount, total, isFreeShipping, effectiveShipping };
+    return { subtotal, discount, total, isFreeShipping, effectiveShipping, hasDeliveryAddress };
 }
 
 function renderSidebar() {
@@ -278,6 +279,8 @@ function renderSidebar() {
             shippingEl.innerHTML = 'FREE (In-Store Pickup)';
         } else if (isFreeShipping) {
             shippingEl.innerHTML = '<span class="status-badge status--completed">FREE (Voucher)</span>';
+        } else if (!selectedAddress) {
+            shippingEl.innerHTML = '<span class="status-badge status--pending">Add Address</span>';
         } else {
             shippingEl.innerHTML = `&#8369;${selectedShippingCost.toLocaleString()}`;
         }
@@ -322,15 +325,19 @@ function renderSelectedAddressCard() {
 }
 
 function updateDynamicShippingFee() {
+    const cardDeliveryPriceEl = document.getElementById('card-delivery-price-text');
     if (selectedFulfillment === 'pickup') {
         selectedShippingCost = 0;
+        if (cardDeliveryPriceEl) cardDeliveryPriceEl.innerHTML = 'FREE';
+    } else if (!selectedAddress) {
+        selectedShippingCost = 0;
+        if (cardDeliveryPriceEl) cardDeliveryPriceEl.innerHTML = '<span class="status-badge status--pending">Add Address</span>';
     } else {
         const city = selectedAddress?.city || '';
         const prov = selectedAddress?.province || '';
         const details = computeShippingDetails(city, prov);
         selectedShippingCost = details.fee;
 
-        const cardDeliveryPriceEl = document.getElementById('card-delivery-price-text');
         if (cardDeliveryPriceEl) cardDeliveryPriceEl.innerHTML = `&#8369;${details.fee.toLocaleString()}`;
     }
     renderSidebar();
@@ -771,7 +778,29 @@ function bindCheckoutEvents() {
                 return;
             }
 
-            // Direct fulfillment (COD / Cash In-Store)
+            // Direct fulfillment simulated processing delay (COD / Bank Transfer / Cash In-Store)
+            const delay = ms => new Promise(res => setTimeout(res, ms));
+            if (selectedPaymentKey === 'cod') {
+                if (textSpan) textSpan.textContent = "Verifying COD booking...";
+                await delay(900);
+                if (textSpan) textSpan.textContent = "Reserving warehouse inventory...";
+                await delay(800);
+                if (textSpan) textSpan.textContent = "Order Placed Successfully!";
+                await delay(500);
+            } else if (selectedPaymentKey === 'bank') {
+                if (textSpan) textSpan.textContent = "Logging bank transfer reference...";
+                await delay(900);
+                if (textSpan) textSpan.textContent = "Reserving inventory allocation...";
+                await delay(800);
+                if (textSpan) textSpan.textContent = "Transfer Registered Successfully!";
+                await delay(500);
+            } else {
+                if (textSpan) textSpan.textContent = "Reserving in-store pickup item...";
+                await delay(900);
+                if (textSpan) textSpan.textContent = "Order Placed Successfully!";
+                await delay(500);
+            }
+
             await completeOrderDisplay();
         } catch (err) {
             if (orderError) orderError.textContent = err.message || 'Order could not be placed. Review your details and try again.';
@@ -832,12 +861,18 @@ function showSimulationModal(orderNo, totalAmount, onSuccessCallback, onCancelCa
         confirming = true;
         successBtn.disabled = true;
         closeBtn.disabled = true;
+        if (cancelBtn) cancelBtn.disabled = true;
         successBtn.classList.add('btn--loading');
         alertEl?.classList.add('is-hidden');
         statusBanner.hidden = false;
         statusBanner.className = 'sim-status-banner is-processing';
-        statusText.textContent = 'Confirming payment...';
+        statusText.textContent = 'Connecting to QRPh network...';
+
+        const delay = ms => new Promise(res => setTimeout(res, ms));
         try {
+            await delay(900);
+            statusText.textContent = 'Verifying payment with InstaPay switch...';
+
             const payment = await ApiClient.simulatePayment({
                 orderNumber: orderNo,
                 paymentChannel: APP_CONSTANTS.PAYMENT_CHANNELS.QRPH,
@@ -846,10 +881,14 @@ function showSimulationModal(orderNo, totalAmount, onSuccessCallback, onCancelCa
             if (payment?.paymentStatus !== APP_CONSTANTS.PAYMENT_STATUS.COMPLETED) {
                 throw new Error('Payment has not been confirmed. Please try again.');
             }
+
+            await delay(800);
             statusBanner.className = 'sim-status-banner is-success';
-            statusText.textContent = 'Payment successful.';
-            await onSuccessCallback(payment);
+            statusText.textContent = 'Payment confirmed! Generating receipt...';
+
+            await delay(900);
             modal.classList.add('is-hidden');
+            await onSuccessCallback(payment);
         } catch (error) {
             if (alertEl && alertMsg) {
                 alertMsg.textContent = error.message || 'Unable to confirm payment. Please try again.';
@@ -858,6 +897,7 @@ function showSimulationModal(orderNo, totalAmount, onSuccessCallback, onCancelCa
             statusBanner.hidden = true;
             successBtn.disabled = false;
             successBtn.classList.remove('btn--loading');
+            if (cancelBtn) cancelBtn.disabled = false;
             confirming = false;
         } finally {
             closeBtn.disabled = false;

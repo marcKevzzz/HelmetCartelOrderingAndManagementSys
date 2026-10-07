@@ -14,7 +14,7 @@ export const RealtimeManager = {
     console.log('[RealtimeManager] Initializing real-time listener...');
 
     if (window.$ && window.$.hubConnection) {
-      this.hubConnection = window.$.hubConnection('/signalr');
+      this.hubConnection = window.$.hubConnection();
       const inventoryHubProxy = this.hubConnection.createHubProxy('inventoryHub');
       const customerOrderProxy = this.hubConnection.createHubProxy('customerOrderHub');
       customerOrderProxy.on(APP_CONSTANTS.SIGNALR_EVENTS.ORDER_STATUS_CHANGED, (data) => {

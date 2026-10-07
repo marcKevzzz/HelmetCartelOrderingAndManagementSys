@@ -1,7 +1,7 @@
 <%@ Page Title="My Account & Order Tracking" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Profile.aspx.cs" Inherits="HelmetCartelOrderingAndManagementSys.Pages.ProfilePage" ResponseEncoding="utf-8" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
-    <link rel="stylesheet" href='<%= ResolveUrl("~/Content/css/storefront/profile.css?v=10") %>' />
+    <link rel="stylesheet" href='<%= ResolveUrl("~/Content/css/storefront/profile.css?v=11") %>' />
     <link rel="stylesheet" href="/Content/css/receipts.css?v=1" />
 </asp:Content>
 
@@ -237,6 +237,13 @@
                     <div class="profile-section-card">
                         <!-- Return to Checkout Alert Banner -->
                         <div class="checkout-return-banner" id="checkout-return-banner" hidden>
+                            <a href="/Pages/Storefront/Checkout/Checkout.aspx" class="btn btn--primary btn--sm checkout-return-banner__btn" id="btn-return-to-checkout">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                                    <polyline points="12 19 5 12 12 5"></polyline>
+                                </svg>
+                                <span>Back to Checkout</span>
+                            </a>
                             <div class="checkout-return-banner__info">
                                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" class="checkout-return-banner__icon">
                                     <circle cx="9" cy="21" r="1"></circle>
@@ -248,27 +255,23 @@
                                     <p class="checkout-return-banner__desc">Add or select your delivery destination, then return to finalize your order.</p>
                                 </div>
                             </div>
-                            <a href="/Pages/Storefront/Checkout/Checkout.aspx" class="btn btn--primary btn--sm checkout-return-banner__btn" id="btn-return-to-checkout">
-                                <span>Back to Checkout</span>
-                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                                    <polyline points="12 5 19 12 12 19"></polyline>
-                                </svg>
-                            </a>
                         </div>
 
                         <div class="profile-section-header">
-                            <div>
-                                <h2 class="profile-section-card__title">Saved Delivery Addresses</h2>
-                                <p class="profile-section-card__desc">Manage your shipping destinations for quick auto-fill during checkout.</p>
-                            </div>
-                            <div class="profile-section-header__actions">
-                                <a href="/Pages/Storefront/Checkout/Checkout.aspx" class="btn btn--outline btn--sm" id="btn-header-back-to-checkout" hidden>
+                            <div class="profile-section-header__title-wrap">
+                                <a href="/Pages/Storefront/Checkout/Checkout.aspx" class="btn btn--outline btn--sm btn-address-return-left" id="btn-header-back-to-checkout" hidden>
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="15 18 9 12 15 6"></polyline>
+                                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                                        <polyline points="12 19 5 12 12 5"></polyline>
                                     </svg>
                                     <span>Back to Checkout</span>
                                 </a>
+                                <div>
+                                    <h2 class="profile-section-card__title">Saved Delivery Addresses</h2>
+                                    <p class="profile-section-card__desc">Manage your shipping destinations for quick auto-fill during checkout.</p>
+                                </div>
+                            </div>
+                            <div class="profile-section-header__actions">
                                 <button type="button" class="btn btn--primary btn--sm" id="btn-add-new-address">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
                                         <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -671,5 +674,5 @@
     </div>
 
     <!-- Page Specific Script -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/profile.js?v=20261007_return1") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/profile.js?v=20261008_fix1") %>'></script>
 </asp:Content>

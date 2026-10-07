@@ -137,6 +137,7 @@
                     <label class="admin-form-label" for="txtProductName">Helmet Model Name <span class="admin-required-star">*</span></label>
                     <asp:TextBox ID="txtProductName" runat="server" CssClass="admin-form-input" placeholder="e.g. Shoei RF-1400 Dedicated" ClientIDMode="Static"></asp:TextBox>
                     <span class="inline-error-msg" id="errProductName">Product name is required.</span>
+                    <span class="inline-error-msg" id="errProductDuplicate">This helmet model already exists in the catalog under this brand and category.</span>
                 </div>
 
                 <div class="admin-form-group">
@@ -618,5 +619,6 @@
 </asp:Content>
 
 <asp:Content ID="Content3" ContentPlaceHolderID="ScriptsContent" runat="server">
-    <script src="/Scripts/admin/catalog-item.js?v=19"></script>
+    <script id="existing-catalog-data" type="application/json"><%= ExistingProductsJson %></script>
+    <script src="/Scripts/admin/catalog-item.js?v=20"></script>
 </asp:Content>

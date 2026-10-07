@@ -98,7 +98,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                             itemTotal,
                                             reader.GetString(reader.GetOrdinal("ProductName")),
                                             reader.GetString(reader.GetOrdinal("SKU")),
-                                            reader.GetString(reader.GetOrdinal("Size")),
+                                            NormalizeSize(reader.GetString(reader.GetOrdinal("Size"))),
                                             reader.GetString(reader.GetOrdinal("Color"))
                                         ));
                                     }
@@ -498,6 +498,16 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                 string err = errorParam.Value as string;
                 return (success, err);
             }
+        }
+
+        private static string NormalizeSize(string size)
+        {
+            if (string.IsNullOrWhiteSpace(size)) return size;
+            string trimmed = size.Trim();
+            if (string.Equals(trimmed, "XXL", StringComparison.OrdinalIgnoreCase)) return "2XL";
+            if (string.Equals(trimmed, "XXXL", StringComparison.OrdinalIgnoreCase)) return "3XL";
+            if (string.Equals(trimmed, "XXXXL", StringComparison.OrdinalIgnoreCase)) return "4XL";
+            return trimmed;
         }
 
         private static int GetOrdinalOrDefault(IDataRecord reader, string primaryName, string fallbackName = null)
