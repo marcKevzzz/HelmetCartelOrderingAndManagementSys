@@ -121,11 +121,13 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="accordion-chevron"><polyline points="18 15 12 9 6 15"></polyline></svg>
     </div>
     <div class="filter-sizes-grid filter-accordion-content">
+        <button type="button" class="filter-size-pill" data-size="XS" aria-pressed="false">XS</button>
         <button type="button" class="filter-size-pill" data-size="S" aria-pressed="false">S</button>
         <button type="button" class="filter-size-pill" data-size="M" aria-pressed="false">M</button>
         <button type="button" class="filter-size-pill" data-size="L" aria-pressed="false">L</button>
         <button type="button" class="filter-size-pill" data-size="XL" aria-pressed="false">XL</button>
-        <button type="button" class="filter-size-pill" data-size="XXL" aria-pressed="false">XXL</button>
+        <button type="button" class="filter-size-pill" data-size="2XL" aria-pressed="false">2XL</button>
+        <button type="button" class="filter-size-pill" data-size="3XL" aria-pressed="false">3XL</button>
     </div>
 
     <!-- Apply Filter Button -->

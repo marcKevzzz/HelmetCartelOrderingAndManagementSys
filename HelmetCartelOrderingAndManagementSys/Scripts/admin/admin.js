@@ -720,11 +720,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('adminToastContainer');
     if (!container) return;
 
+    if (!container.dataset.hoverBound) {
+      container.dataset.hoverBound = 'true';
+      container.addEventListener('mouseenter', () => {
+        container.dataset.isHovered = 'true';
+      });
+      container.addEventListener('mouseleave', () => {
+        container.dataset.isHovered = 'false';
+        container.querySelectorAll('.toast, .admin-toast').forEach(t => {
+          if (typeof t.__resumeDismiss === 'function') {
+            t.__resumeDismiss();
+          }
+        });
+      });
+    }
+
     const toastType = type === 'error' ? 'error' :
       type === 'warning' || type === 'alert' ? 'warning' :
       type === 'success' ? 'success' : 'info';
     const toast = document.createElement('div');
-    toast.className = `toast toast--${toastType}`;
+    toast.className = `toast toast--${toastType} admin-toast admin-toast--${toastType}`;
     toast.setAttribute('role', toastType === 'error' ? 'alert' : 'status');
     if (title) toast.setAttribute('aria-label', `${title}: ${message}`);
 
@@ -749,10 +764,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     container.appendChild(toast);
 
-    if (duration > 0) {
+    const dismissToast = () => {
+      if (toast.dataset.dismissing === 'true') return;
+      toast.dataset.dismissing = 'true';
+      toast.classList.add('toast--exit');
       setTimeout(() => {
-        toast.remove();
-      }, duration);
+        if (toast.parentNode) toast.remove();
+      }, 250);
+    };
+
+    toast.addEventListener('click', dismissToast);
+
+    if (duration > 0) {
+      let dismissTimeoutId = null;
+      const scheduleAutoDismiss = (delay = duration) => {
+        clearTimeout(dismissTimeoutId);
+        dismissTimeoutId = setTimeout(() => {
+          if (container.dataset.isHovered === 'true') {
+            toast.__resumeDismiss = () => scheduleAutoDismiss(2500);
+            return;
+          }
+          if (toast.isConnected) dismissToast();
+        }, delay);
+      };
+      scheduleAutoDismiss(duration);
     }
   };
 

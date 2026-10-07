@@ -6,6 +6,7 @@ using System.Web.UI;
 using HelmetCartelOrderingAndManagementSys.Infrastructure;
 using HelmetCartelOrderingAndManagementSys.Models.DTOs;
 using HelmetCartelOrderingAndManagementSys.Repositories;
+using HelmetCartelOrderingAndManagementSys.Constants;
 
 namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
 {
@@ -31,10 +32,27 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
         {
             if (!IsPostBack)
             {
-                if (int.TryParse(Request.QueryString["id"], out int id) && id > 0)
+                string idParam = Request.QueryString["id"];
+                string orderNumParam = Request.QueryString["orderNumber"];
+                string paymentRefParam = Request.QueryString["paymentRef"] ?? Request.QueryString["paymentReference"] ?? Request.QueryString["ref"];
+                string searchParam = Request.QueryString["q"] ?? Request.QueryString["search"];
+
+                if (int.TryParse(idParam, out int id) && id > 0)
                 {
                     OrderId = id;
                     RegisterAsyncTask(new PageAsyncTask(() => LoadOrderDetailsAsync(id)));
+                }
+                else if (!string.IsNullOrWhiteSpace(paymentRefParam))
+                {
+                    RegisterAsyncTask(new PageAsyncTask(() => LoadOrderByLookupAsync(paymentRefParam.Trim())));
+                }
+                else if (!string.IsNullOrWhiteSpace(orderNumParam))
+                {
+                    RegisterAsyncTask(new PageAsyncTask(() => LoadOrderByLookupAsync(orderNumParam.Trim())));
+                }
+                else if (!string.IsNullOrWhiteSpace(searchParam))
+                {
+                    RegisterAsyncTask(new PageAsyncTask(() => LoadOrderByLookupAsync(searchParam.Trim())));
                 }
                 else
                 {
@@ -56,6 +74,7 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
                             try
                             {
                                 await _adminRepo.UpdateOrderStatusAsync(OrderId, targetStatus).ConfigureAwait(false);
+                                await Services.OrderNotifications.PublishAsync(OrderId, AppConstants.StockAuditChangeType.OnlineSale).ConfigureAwait(false);
                                 try
                                 {
                                     var orderHub = Microsoft.AspNet.SignalR.GlobalHost.ConnectionManager.GetHubContext<Hubs.OrderHub>();
@@ -74,13 +93,53 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
 
         private async Task LoadOrderDetailsAsync(int id)
         {
-            var order = await _orderRepo.GetOrderByIdAsync(id).ConfigureAwait(false);
-            if (order == null)
+            try
+            {
+                var order = await _orderRepo.GetOrderByIdAsync(id).ConfigureAwait(false);
+                if (order == null)
+                {
+                    ShowNotFound();
+                    return;
+                }
+
+                BindOrderDetails(order);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError($"[OrderDetail.aspx] Error loading order {id}: {ex}");
+                ShowNotFound();
+            }
+        }
+
+        private async Task LoadOrderByLookupAsync(string lookup)
+        {
+            if (string.IsNullOrWhiteSpace(lookup))
             {
                 ShowNotFound();
                 return;
             }
 
+            try
+            {
+                var order = await _orderRepo.GetOrderByOrderNumberAsync(lookup).ConfigureAwait(false);
+                if (order != null)
+                {
+                    BindOrderDetails(order);
+                }
+                else
+                {
+                    ShowNotFound();
+                }
+            }
+            catch
+            {
+                ShowNotFound();
+            }
+        }
+
+        private void BindOrderDetails(Models.DTOs.OrderSummaryDto order)
+        {
+            OrderId = order.Id;
             pnlNotFound.Visible = false;
             pnlOrderContent.Visible = true;
 
@@ -97,7 +156,15 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
             litActionButtons.Text = RenderActionButtons(order);
 
             // Items
-            litItemCount.Text = (order.Items != null ? order.Items.Count : 0).ToString();
+            int totalUnits = 0;
+            if (order.Items != null)
+            {
+                foreach (var item in order.Items)
+                {
+                    totalUnits += item.Quantity;
+                }
+            }
+            litItemCount.Text = totalUnits.ToString();
             rptOrderItems.DataSource = order.Items;
             rptOrderItems.DataBind();
 
@@ -139,14 +206,6 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
             if (litShippingRecipient != null) litShippingRecipient.Text = Server.HtmlEncode(order.CustomerName ?? "Valued Customer");
             if (litKpiDeliveryMethod != null) litKpiDeliveryMethod.Text = isDelivery ? "Delivery" : "Store Pickup";
 
-            int totalUnits = 0;
-            if (order.Items != null)
-            {
-                foreach (var item in order.Items)
-                {
-                    totalUnits += item.Quantity;
-                }
-            }
             if (litSummaryItemCount != null) litSummaryItemCount.Text = totalUnits.ToString();
 
             string paymentText = order.PaymentStatus == "Completed" ? "Paid" :
@@ -187,7 +246,8 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
 
             // Payment
             string paymentMethodDisplay = order.PaymentMethod;
-            if (string.Equals(order.PaymentMethod, "HitPay", StringComparison.OrdinalIgnoreCase))
+            bool isHitPay = string.Equals(order.PaymentMethod, "HitPay", StringComparison.OrdinalIgnoreCase);
+            if (isHitPay)
                 paymentMethodDisplay = "HitPay Online (QR Ph / GCash / Maya)";
             else if (string.Equals(order.PaymentMethod, "CashOnDelivery", StringComparison.OrdinalIgnoreCase))
                 paymentMethodDisplay = "Cash on Delivery (COD)";
@@ -196,6 +256,17 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
 
             litPaymentMethod.Text = Server.HtmlEncode(paymentMethodDisplay ?? "Pending Method");
             litPaymentStatus.Text = Server.HtmlEncode(order.PaymentStatus ?? "Pending");
+
+            if (!string.IsNullOrWhiteSpace(order.GatewayReference))
+            {
+                phPaymentReference.Visible = true;
+                litPaymentRefLabel.Text = isHitPay ? "HitPay Reference: " : "Payment Reference: ";
+                litPaymentReference.Text = Server.HtmlEncode(order.GatewayReference);
+            }
+            else
+            {
+                phPaymentReference.Visible = false;
+            }
         }
 
         private void ShowNotFound()
@@ -305,7 +376,8 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
             {
                 try
                 {
-                    await _adminRepo.UpdateOrderStatusAsync(OrderId, "Shipped", null, courier, tracking).ConfigureAwait(false);
+                    await _adminRepo.UpdateOrderStatusAsync(OrderId, AppConstants.OrderStatus.Shipped, null, courier, tracking).ConfigureAwait(false);
+                    await Services.OrderNotifications.PublishAsync(OrderId, AppConstants.StockAuditChangeType.OnlineSale).ConfigureAwait(false);
                     try
                     {
                         var orderHub = Microsoft.AspNet.SignalR.GlobalHost.ConnectionManager.GetHubContext<Hubs.OrderHub>();

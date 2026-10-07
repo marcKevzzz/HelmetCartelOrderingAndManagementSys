@@ -92,6 +92,14 @@ namespace HelmetCartelOrderingAndManagementSys.Constants
             public const string Card = "CARD";
         }
 
+        public static class ShippingLocations
+        {
+            public static readonly string[] GreaterManila = { "cavite", "laguna", "batangas", "rizal", "bulacan" };
+            public static readonly string[] Luzon = { "pampanga", "nueva ecija", "tarlac", "zambales", "bataan", "pangasinan", "ilocos", "la union", "benguet", "baguio", "cagayan", "isabela", "nueva vizcaya", "quirino", "aurora", "quezon", "albay", "camarines", "sorsogon", "catanduanes", "masbate", "marinduque", "occidental mindoro", "oriental mindoro", "palawan", "romblon", "abra", "apayao", "ifugao", "kalinga", "mountain province" };
+            public static readonly string[] Visayas = { "cebu", "bohol", "iloilo", "negros", "leyte", "samar", "panay", "capiz", "aklan", "antique", "guimaras", "biliran", "siquijor" };
+            public static readonly string[] Mindanao = { "davao", "misamis", "bukidnon", "south cotabato", "cotabato", "zamboanga", "lanao", "agusan", "surigao", "sultan kudarat", "sarangani", "basilan", "sulu", "tawi-tawi", "maguindanao" };
+        }
+
         public static class PaymentStatus
         {
             public const string Pending = "Pending";
@@ -137,6 +145,12 @@ namespace HelmetCartelOrderingAndManagementSys.Constants
         {
             public const int DefaultReorderPoint = 3;
             public const int CriticalZero = 0;
+        }
+
+        public static class StockAlertSeverity
+        {
+            public const string Low = "LOW_STOCK";
+            public const string Critical = "CRITICAL_ZERO";
         }
 
         public static class HitPay
@@ -190,6 +204,7 @@ namespace HelmetCartelOrderingAndManagementSys.Constants
 
         public static class ErrorCodes
         {
+            public const string InvalidInput = "INVALID_INPUT";
             public const string InsufficientStock = "INSUFFICIENT_STOCK";
             public const string ProductNotFound = "PRODUCT_NOT_FOUND";
             public const string VariantNotFound = "VARIANT_NOT_FOUND";

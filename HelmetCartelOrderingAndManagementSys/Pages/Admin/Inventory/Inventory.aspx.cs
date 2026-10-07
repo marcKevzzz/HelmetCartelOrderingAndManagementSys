@@ -102,6 +102,12 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 {
                     CurrentViewMode = Request.QueryString["view"].ToLowerInvariant() == "audit" ? "audit" : "stock";
                 }
+                else if (!string.IsNullOrWhiteSpace(CurrentSearch) &&
+                        (CurrentSearch.StartsWith("PO-", StringComparison.OrdinalIgnoreCase) ||
+                         CurrentSearch.StartsWith("RESTOCK-", StringComparison.OrdinalIgnoreCase)))
+                {
+                    CurrentViewMode = "audit";
+                }
 
                 if (!string.IsNullOrEmpty(Request.QueryString["brand"]))
                 {

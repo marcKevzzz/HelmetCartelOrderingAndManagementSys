@@ -395,7 +395,7 @@
         <!-- 1. Top Header Navigation, Statuses & Actions -->
         <header class="od-header">
             <div class="od-header-left">
-                <a href="Orders.aspx" class="btn-pill btn-pill--outline" style="width:fit-content;margin-bottom:var(--space-2);">
+                <a href="Orders.aspx" class="orderdetail-btn-pill-presentation btn-pill btn-pill--outline">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="15 18 9 12 15 6"></polyline>
                     </svg>
@@ -441,7 +441,7 @@
                     <div class="od-card is-open" id="secOrderItems">
                         <div class="od-card-header" onclick="toggleCard('secOrderItems')">
                             <div class="od-card-title-wrap">
-                                <h2 class="od-card-title">Order Item (<asp:Literal ID="litItemCount" runat="server" />)</h2>
+                                <h2 class="od-card-title">Order Items (<asp:Literal ID="litItemCount" runat="server" />)</h2>
                                 <span class="admin-badge "><asp:Literal ID="litKpiOrderStatus" runat="server" /></span>
                             </div>
                             <svg class="od-chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -510,7 +510,7 @@
                                 </div>
 
                                 <asp:PlaceHolder ID="phDiscount" runat="server" Visible="false">
-                                    <div class="od-summary-row" style="color:var(--color-accent-red);">
+                                    <div class="orderdetail-od-summary-row-presentation od-summary-row">
                                         <span>Discount</span>
                                         <span>Promotional</span>
                                         <strong class="od-summary-amount">-&#8369;<asp:Literal ID="litDiscount" runat="server" /></strong>
@@ -537,6 +537,12 @@
                                 <div class="od-summary-paid-subtext">
                                     Payment Method: <asp:Literal ID="litPaymentMethod" runat="server" /> &bull; Status: <asp:Literal ID="litPaymentStatus" runat="server" />
                                 </div>
+                                <asp:PlaceHolder ID="phPaymentReference" runat="server" Visible="false">
+                                    <div class="orderdetail-od-summary-paid-subtext-presentation od-summary-paid-subtext">
+                                        <asp:Literal ID="litPaymentRefLabel" runat="server">HitPay Reference:</asp:Literal>
+                                        <strong class="orderdetail-admin-cell-mono-presentation admin-cell-mono"><asp:Literal ID="litPaymentReference" runat="server" /></strong>
+                                    </div>
+                                </asp:PlaceHolder>
                             </div>
                         </div>
                     </div>
@@ -604,7 +610,7 @@
                             <asp:Literal ID="litShippingSectionTitle" runat="server">Shipping Address</asp:Literal>
                         </h3>
                         <div class="od-sidebar-line">
-                            <span class="admin-badge admin-badge--neutral" style="margin-bottom:var(--space-2);"><asp:Literal ID="litDeliveryMethod" runat="server" /></span>
+                            <span class="orderdetail-admin-badge-presentation admin-badge admin-badge--neutral"><asp:Literal ID="litDeliveryMethod" runat="server" /></span>
                         </div>
                         <div class="od-sidebar-line">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -618,9 +624,9 @@
                             <asp:Literal ID="litDeliveryRegion" runat="server" Visible="false" />
                         </div>
                         <asp:PlaceHolder ID="phCourierInfo" runat="server" Visible="false">
-                            <div class="od-sidebar-muted" style="margin-top:var(--space-3);padding-top:var(--space-2);border-top:1px solid var(--color-border-subtle);">
+                            <div class="orderdetail-od-sidebar-muted-presentation od-sidebar-muted">
                                 Courier: <strong><asp:Literal ID="litCourier" runat="server" /></strong><br />
-                                Tracking: <code style="color:var(--color-text-main);"><asp:Literal ID="litTrackingNumber" runat="server" /></code>
+                                Tracking: <code class="orderdetail-tracking-reference"><asp:Literal ID="litTrackingNumber" runat="server" /></code>
                             </div>
                         </asp:PlaceHolder>
                     </div>
@@ -649,7 +655,7 @@
         <div class="admin-modal admin-modal--confirm" role="dialog" aria-modal="true" aria-labelledby="dispatchModalTitle">
             <h3 class="admin-modal-title" id="dispatchModalTitle">Dispatch Order</h3>
             <p class="admin-modal-desc-subtle">Enter courier delivery details for shipment dispatch.</p>
-            <div class="order-detail-modal-body-stack" style="display:flex;flex-direction:column;gap:var(--space-3);margin:var(--space-4) 0;">
+            <div class="orderdetail-order-detail-modal-body-stack-presentation order-detail-modal-body-stack">
                 <div>
                     <label class="order-detail-meta-label">Courier Name</label>
                     <asp:TextBox ID="txtCourier" runat="server" CssClass="admin-form-input" placeholder="e.g. J&amp;T Express, LBC, Flash Express" />
@@ -659,7 +665,7 @@
                     <asp:TextBox ID="txtTrackingNumber" runat="server" CssClass="admin-form-input" placeholder="e.g. JT123456789PH" />
                 </div>
             </div>
-            <div class="admin-modal-footer" style="display:flex;justify-content:flex-end;gap:var(--space-2);">
+            <div class="orderdetail-admin-modal-footer-presentation admin-modal-footer">
                 <button type="button" class="btn-pill btn-pill--outline" onclick="closeDispatchModal();">Cancel</button>
                 <asp:Button ID="btnConfirmDispatch" runat="server" CssClass="btn-pill btn-pill--primary" Text="Confirm Dispatch" OnClick="btnConfirmDispatch_Click" />
             </div>

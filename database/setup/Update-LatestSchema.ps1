@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param([switch]$DryRun, [ValidateRange(18,99)][int]$StartMigration = 18, [ValidateRange(18,99)][int]$EndMigration = 41)
+param([switch]$DryRun,
+    [Parameter(Mandatory)][ValidateRange(18,99)][int]$StartMigration,
+    [Parameter(Mandatory)][ValidateRange(18,99)][int]$EndMigration,
+    [switch]$IncludeDemoContent)
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 [xml]$configuration = Get-Content (Join-Path $repositoryRoot 'HelmetCartelOrderingAndManagementSys/Web.config')
@@ -25,6 +28,10 @@ try {
     $transaction = $connection.BeginTransaction()
     try {
         foreach ($number in $StartMigration..$EndMigration) {
+            if ($number -eq 47 -and -not $IncludeDemoContent) {
+                Write-Output 'Skipped optional demo-content cleanup migration 47.'
+                continue
+            }
             $file = @(Get-ChildItem (Join-Path (Split-Path $PSScriptRoot -Parent) 'schema') -Filter ('{0}_*.sql' -f $number) | Sort-Object Name)
             if ($file.Count -eq 0) { throw "No migration found for $number." }
             foreach ($migrationFile in $file) {

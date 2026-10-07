@@ -58,6 +58,7 @@ export const ProfileController = {
 
     this.updateWishlistCount();
     this.renderWishlist();
+    this.updateCheckoutReturnBanner();
   },
 
   /* ==========================================================================
@@ -215,6 +216,8 @@ export const ProfileController = {
       btn.classList.toggle("active", isActive);
       btn.setAttribute("aria-selected", isActive ? "true" : "false");
     });
+
+    this.updateCheckoutReturnBanner();
 
     // Update active content panes
     document.querySelectorAll(".profile-tab-pane").forEach((pane) => {
@@ -885,8 +888,8 @@ export const ProfileController = {
         return `${prefix}: Item Received &bull; Inspection in Progress`;
       case 'COMPLETED':
         return isExchange 
-          ? 'Exchange: Completed &bull; Replacement Dispatched' 
-          : 'Return: Completed &bull; Refund Processed';
+          ? 'Exchange: Completed &bull; Handover Recorded'
+          : 'Return: Completed &bull; Manual Refund Recorded';
       case 'REJECTED':
         return `${prefix}: Request Declined`;
       case 'CANCELLED':
@@ -1332,6 +1335,18 @@ export const ProfileController = {
 
           <div class="address-card-actions">
             ${
+              returnUrl
+                ? `
+              <button type="button" class="btn-address-action btn-address-action--checkout btn btn--primary btn--sm" data-action="use-checkout" data-address-id="${addr.id}">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span>Use for Checkout</span>
+              </button>
+            `
+                : ""
+            }
+            ${
               !isDefault
                 ? `
               <button type="button" class="btn-address-action btn-address-action--default" data-action="set-default" data-address-id="${addr.id}">
@@ -1418,6 +1433,8 @@ export const ProfileController = {
         }
       } else if (action === "set-default" && addr) {
         await this.setDefaultUserAddress(addr);
+      } else if (action === "use-checkout" && addr) {
+        await this.selectAddressForCheckout(addr);
       }
     });
   },
@@ -1577,12 +1594,34 @@ export const ProfileController = {
 
       const res = await ApiClient.saveUserAddress(payload);
       if (res && res.success !== false) {
-        RealtimeManager.showToast(
-          "Delivery address saved successfully.",
-          "info",
-        );
         this.closeAddressModal();
         await this.loadUserAddresses();
+
+        const returnUrl = this.getCheckoutReturnUrl();
+        if (returnUrl) {
+          try {
+            const stateKey = 'hc_checkout_state';
+            const raw = localStorage.getItem(stateKey);
+            const draft = raw ? JSON.parse(raw) : {};
+            draft.fulfillment = 'delivery';
+            const savedId = res.data?.id || res.id || (this.addresses.length > 0 ? this.addresses[0].id : null);
+            if (savedId) draft.selectedAddressId = savedId;
+            localStorage.setItem(stateKey, JSON.stringify(draft));
+          } catch (_) {}
+
+          RealtimeManager.showToast(
+            "Delivery address saved! Returning to checkout...",
+            "success",
+          );
+          setTimeout(() => {
+            window.location.href = returnUrl;
+          }, 1000);
+        } else {
+          RealtimeManager.showToast(
+            "Delivery address saved successfully.",
+            "info",
+          );
+        }
       } else {
         throw new Error(res?.message || "Failed to save address.");
       }
@@ -1599,7 +1638,7 @@ export const ProfileController = {
     }
   },
 
-  async setDefaultUserAddress(addr) {
+  async setDefaultUserAddress(addr, showFeedback = true) {
     try {
       const payload = {
         id: addr.id,
@@ -1615,16 +1654,101 @@ export const ProfileController = {
         isDefault: true,
       };
       await ApiClient.saveUserAddress(payload);
-      RealtimeManager.showToast(
-        `"${addr.addressLabel || "Address"}" set as default delivery address.`,
-        "info",
-      );
+      if (showFeedback) {
+        RealtimeManager.showToast(
+          `"${addr.addressLabel || "Address"}" set as default delivery address.`,
+          "info",
+        );
+      }
       await this.loadUserAddresses();
     } catch (err) {
       RealtimeManager.showToast(
         err.message || "Error updating default address.",
         "alert",
       );
+    }
+  },
+
+  getCheckoutReturnUrl() {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      let returnUrl = urlParams.get('returnUrl');
+      if (returnUrl) {
+        sessionStorage.setItem('hc_checkout_return_url', returnUrl);
+        return returnUrl;
+      }
+      returnUrl = sessionStorage.getItem('hc_checkout_return_url');
+      if (returnUrl) return returnUrl;
+
+      if (document.referrer && document.referrer.includes('Checkout.aspx')) {
+        const refUrl = new URL(document.referrer, window.location.origin);
+        returnUrl = refUrl.pathname + refUrl.search;
+        sessionStorage.setItem('hc_checkout_return_url', returnUrl);
+        return returnUrl;
+      }
+
+      const buyNowItem = sessionStorage.getItem(APP_CONSTANTS.STORAGE_KEYS?.BUY_NOW_ITEM || 'hc_buy_now_item')
+                      || localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS?.BUY_NOW_ITEM || 'hc_buy_now_item');
+      if (buyNowItem) {
+        return '/Pages/Storefront/Checkout/Checkout.aspx?mode=buynow';
+      }
+
+      const cart = localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS?.CART || 'hc_cart');
+      if (cart) {
+        const items = JSON.parse(cart);
+        if (Array.isArray(items) && items.length > 0) {
+          return '/Pages/Storefront/Checkout/Checkout.aspx';
+        }
+      }
+    } catch (_) {}
+    return null;
+  },
+
+  updateCheckoutReturnBanner() {
+    const returnUrl = this.getCheckoutReturnUrl();
+    const banner = document.getElementById('checkout-return-banner');
+    const btnReturn = document.getElementById('btn-return-to-checkout');
+    const btnHeaderReturn = document.getElementById('btn-header-back-to-checkout');
+
+    if (returnUrl && this.activeTab === 'addresses') {
+      if (banner) banner.hidden = false;
+      if (btnReturn) btnReturn.href = returnUrl;
+      if (btnHeaderReturn) {
+        btnHeaderReturn.hidden = false;
+        btnHeaderReturn.href = returnUrl;
+      }
+    } else {
+      if (banner) banner.hidden = true;
+      if (btnHeaderReturn) btnHeaderReturn.hidden = true;
+    }
+  },
+
+  async selectAddressForCheckout(addr) {
+    try {
+      if (!addr.isDefault) {
+        await this.setDefaultUserAddress(addr, false);
+      }
+      try {
+        const stateKey = 'hc_checkout_state';
+        const raw = localStorage.getItem(stateKey);
+        const draft = raw ? JSON.parse(raw) : {};
+        draft.selectedAddressId = addr.id;
+        draft.fulfillment = 'delivery';
+        localStorage.setItem(stateKey, JSON.stringify(draft));
+      } catch (_) {}
+
+      const returnUrl = this.getCheckoutReturnUrl() || '/Pages/Storefront/Checkout/Checkout.aspx';
+      RealtimeManager.showToast(
+        `Selected "${addr.addressLabel || 'Address'}" for delivery! Returning to checkout...`,
+        'success'
+      );
+      setTimeout(() => {
+        window.location.href = returnUrl;
+      }, 800);
+    } catch (err) {
+      console.warn('[Profile] Error selecting address for checkout:', err);
+      const returnUrl = this.getCheckoutReturnUrl() || '/Pages/Storefront/Checkout/Checkout.aspx';
+      window.location.href = returnUrl;
     }
   },
 
@@ -2197,7 +2321,7 @@ export const ProfileController = {
   initSignalRListener() {
     try {
       RealtimeManager.init();
-      window.addEventListener("orderStatusChanged", (e) => {
+      window.addEventListener(APP_CONSTANTS.SIGNALR_EVENTS.ORDER_STATUS_CHANGED, async (e) => {
         const data = e.detail;
         if (!data || !data.orderNumber) return;
 
@@ -2206,7 +2330,7 @@ export const ProfileController = {
         );
         if (order) {
           order.orderStatus = data.newStatus || data.status;
-          this.renderOrders();
+          await Promise.all([this.loadUserOrders(), this.loadUserPayments()]);
           RealtimeManager.showToast(
             `Order #${data.orderNumber} status updated to: ${this.formatStatusLabel(order.orderStatus)}!`,
             "info",

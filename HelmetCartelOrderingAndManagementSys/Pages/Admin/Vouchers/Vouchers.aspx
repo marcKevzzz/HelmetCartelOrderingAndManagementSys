@@ -95,12 +95,12 @@
             <table class="admin-table admin-table-vouchers">
                 <thead>
                     <tr>
-                        <th style="min-width: 170px;">Voucher Code</th>
-                        <th style="min-width: 160px;">Discount Value</th>
-                        <th style="min-width: 140px;">Min. Spend</th>
-                        <th style="min-width: 160px;">Usage Progress</th>
-                        <th style="min-width: 180px;">Validity &amp; Expiry</th>
-                        <th style="min-width: 140px; text-align: right;">Actions</th>
+                        <th class="voucher-code">Voucher Code</th>
+                        <th class="voucher-discount">Discount Value</th>
+                        <th class="voucher-minimum">Min. Spend</th>
+                        <th class="voucher-usage">Usage Progress</th>
+                        <th class="voucher-validity">Validity &amp; Expiry</th>
+                        <th class="voucher-actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="voucher-rows">

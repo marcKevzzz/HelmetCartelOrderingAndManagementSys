@@ -618,5 +618,5 @@
 </asp:Content>
 
 <asp:Content ID="Content3" ContentPlaceHolderID="ScriptsContent" runat="server">
-    <script src="/Scripts/admin/catalog-item.js?v=18"></script>
+    <script src="/Scripts/admin/catalog-item.js?v=19"></script>
 </asp:Content>

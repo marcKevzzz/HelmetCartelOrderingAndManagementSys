@@ -15,7 +15,7 @@ namespace HelmetCartelOrderingAndManagementSys.Pages
     {
         private const int CatalogPageSize = 9;
         private static readonly string[] AllowedColors = { "Green", "Red", "Orange", "Cyan", "Blue", "Purple", "Pink", "White", "Black", "Grey", "Yellow" };
-        private static readonly string[] AllowedSizes = { "S", "M", "L", "XL", "XXL" };
+        private static readonly string[] AllowedSizes = { "XS", "S", "M", "L", "XL", "2XL", "XXL", "3XL" };
         private static readonly string[] AllowedSorts = { "popular", "top_selling", "price_asc", "price_desc", "newest", "rating" };
         private readonly IProductRepository _productRepository;
         public string CatalogHeading { get; private set; } = "HELMETS";
@@ -150,8 +150,13 @@ namespace HelmetCartelOrderingAndManagementSys.Pages
             {
                 tokens = tokens.Where(option => allowed.Contains(option, StringComparer.OrdinalIgnoreCase));
             }
-            var normalized = tokens.ToArray();
-            return normalized.Length == 0 ? null : string.Join(",", normalized);
+            var list = tokens.ToList();
+            if (list.Contains("2XL", StringComparer.OrdinalIgnoreCase) && !list.Contains("XXL", StringComparer.OrdinalIgnoreCase))
+                list.Add("XXL");
+            else if (list.Contains("XXL", StringComparer.OrdinalIgnoreCase) && !list.Contains("2XL", StringComparer.OrdinalIgnoreCase))
+                list.Add("2XL");
+
+            return list.Count == 0 ? null : string.Join(",", list);
         }
 
         private string BuildShopUrl(int page)

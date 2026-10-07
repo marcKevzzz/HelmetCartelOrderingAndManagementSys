@@ -33,6 +33,8 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
 
     public class OrderSummaryDto
     {
+        [Newtonsoft.Json.JsonIgnore]
+        public int? UserId { get; set; }
         public int Id { get; set; }
         public string OrderNumber { get; set; }
         public string VoucherCode { get; set; }

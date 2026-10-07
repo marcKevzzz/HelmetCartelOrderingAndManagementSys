@@ -393,6 +393,22 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             }
         }
 
+        public async Task<bool> UpdateUserRoleAsync(int userId, string newRole, int actorUserId)
+        {
+            using (var connection = (SqlConnection)_factory.CreateConnection())
+            using (var command = new SqlCommand("dbo.sp_AdminUpdateUserRole", connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+                command.Parameters.Add(new SqlParameter("@RoleName", SqlDbType.NVarChar, 50) { Value = newRole });
+                command.Parameters.Add(new SqlParameter("@ActorUserId", SqlDbType.Int) { Value = actorUserId });
+
+                await connection.OpenAsync().ConfigureAwait(false);
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                return true;
+            }
+        }
+
         public async Task<(bool Success, string Status, string Message)> DeleteProductAsync(int productId)
         {
             using (var connection = (SqlConnection)_factory.CreateConnection())

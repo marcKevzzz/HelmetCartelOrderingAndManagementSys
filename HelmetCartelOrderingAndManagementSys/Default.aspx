@@ -10,7 +10,7 @@
             <div class="hero-content">
                 <h1 class="hero-content__title">FIND HELMETS Matching<br />YOUR STYLE</h1>
                 <p class="hero-content__desc">
-                    Browse through our curated range of rigorously tested, DOT & ECE-certified helmets, engineered to protect your ride and elevate your individuality.
+                    Browse helmets and riding gear by brand, size, and color. Check each product's specifications to find the right fit.
                 </p>
                 <asp:HyperLink runat="server" NavigateUrl="~/Pages/Storefront/Shop/Shop.aspx" CssClass="btn--hero">
                     <span>Shop Now</span>
@@ -31,7 +31,7 @@
                     </div>
                     <div class="hero-stat">
                         <div class="hero-stat__number"><asp:Literal ID="litRidersCount" runat="server">0</asp:Literal></div>
-                        <div class="hero-stat__label">Satisfied Riders</div>
+                        <div class="hero-stat__label">Completed Orders</div>
                     </div>
                 </div>
             </div>

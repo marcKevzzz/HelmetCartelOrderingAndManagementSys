@@ -19,5 +19,8 @@ namespace HelmetCartelOrderingAndManagementSys.Admin {
         protected global::System.Web.UI.WebControls.LinkButton lnkUsersPrev;
         protected global::System.Web.UI.WebControls.Repeater rptUsersPages;
         protected global::System.Web.UI.WebControls.LinkButton lnkUsersNext;
+        protected global::System.Web.UI.WebControls.Button btnConfirmRoleChange;
+        protected global::System.Web.UI.WebControls.HiddenField hfSelectedUserId;
+        protected global::System.Web.UI.WebControls.HiddenField hfSelectedNewRole;
     }
 }

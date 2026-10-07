@@ -52,6 +52,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                             try
                             {
                                 await _adminRepo.UpdateOrderStatusAsync(orderId, targetStatus).ConfigureAwait(false);
+                                await Services.OrderNotifications.PublishAsync(orderId, AppConstants.StockAuditChangeType.OnlineSale).ConfigureAwait(false);
                                 try
                                 {
                                     var orderHub = Microsoft.AspNet.SignalR.GlobalHost.ConnectionManager.GetHubContext<Hubs.OrderHub>();
@@ -218,6 +219,7 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     try
                     {
                         await _adminRepo.UpdateOrderStatusAsync(orderId, targetStatus).ConfigureAwait(false);
+                        await Services.OrderNotifications.PublishAsync(orderId, AppConstants.StockAuditChangeType.OnlineSale).ConfigureAwait(false);
                     }
                     catch (Exception)
                     {

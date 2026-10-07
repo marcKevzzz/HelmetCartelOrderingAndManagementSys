@@ -33,6 +33,8 @@ namespace HelmetCartelOrderingAndManagementSys.Services
 
             try { VoucherService.NormalizeCode(request.VoucherCode, true); }
             catch (ArgumentException e) { return ApiResponse<OrderSummaryDto>.Fail(e.Message, AppConstants.ErrorCodes.InvalidVoucher); }
+            try { CheckoutPolicy.ValidateAndPrice(request); }
+            catch (ArgumentException e) { return ApiResponse<OrderSummaryDto>.Fail(e.Message, AppConstants.ErrorCodes.InvalidInput); }
 
             // 1. Check stock availability before initiating order
             foreach (var item in request.Items)
@@ -66,7 +68,7 @@ namespace HelmetCartelOrderingAndManagementSys.Services
                     // COD are not completed sales yet, so do not deduct CurrentStock here. The
                     // reservation is converted to a sale when the order is fulfilled and payment
                     // is recorded by the order-status stored procedure.
-                    await NotifySafelyAsync(() => BroadcastCommittedStockAsync(request.Items, AppConstants.StockAuditChangeType.OnlineSale)).ConfigureAwait(false);
+                    await OrderNotifications.PublishAsync(orderResult, AppConstants.StockAuditChangeType.OnlineSale).ConfigureAwait(false);
                     NotifySafely(() => OrderHub.NotifyNewOrder(orderResult));
 
                     string msg = isCod
@@ -76,6 +78,7 @@ namespace HelmetCartelOrderingAndManagementSys.Services
                 }
 
                 var order = await _orderRepository.CreateOrderAsync(request, orderNumber, AppConstants.OrderSources.Online, userId).ConfigureAwait(false);
+                await OrderNotifications.PublishAsync(order, AppConstants.StockAuditChangeType.OnlineSale).ConfigureAwait(false);
 
                 // Check if HitPay simulation mode is enabled
                 var isSimulation = string.Equals(System.Configuration.ConfigurationManager.AppSettings["HitPay:SimulationMode"], "true", StringComparison.OrdinalIgnoreCase);
@@ -133,7 +136,7 @@ namespace HelmetCartelOrderingAndManagementSys.Services
                 var order = await _orderRepository.CreatePhysicalSaleAsync(request, GenerateOrderNumber(),
                     AppConstants.OrderSources.InStorePos, AppConstants.OrderStatus.Completed,
                     AppConstants.PaymentStatus.Completed, staffUserId).ConfigureAwait(false);
-                await NotifySafelyAsync(() => BroadcastCommittedStockAsync(request.Items, AppConstants.StockAuditChangeType.InStoreSale)).ConfigureAwait(false);
+                await OrderNotifications.PublishAsync(order, AppConstants.StockAuditChangeType.InStoreSale).ConfigureAwait(false);
                 NotifySafely(() => OrderHub.NotifyNewOrder(order));
                 return ApiResponse<OrderSummaryDto>.Ok(order, "In-store sale completed and stock reconciled.");
             }
@@ -173,7 +176,7 @@ namespace HelmetCartelOrderingAndManagementSys.Services
             {
                 await NotifySafelyAsync(async () => {
                     var order = await _orderRepository.GetOrderByIdAsync(orderId).ConfigureAwait(false);
-                    if (order != null) OrderHub.NotifyOrderStatusChanged(orderId, order.OrderNumber, newStatus);
+                    await OrderNotifications.PublishAsync(order, AppConstants.StockAuditChangeType.OnlineSale).ConfigureAwait(false);
                 }).ConfigureAwait(false);
                 return ApiResponse<bool>.Ok(true, "Order status updated.");
             }
@@ -203,7 +206,7 @@ namespace HelmetCartelOrderingAndManagementSys.Services
             if (!processed) return false;
             await NotifySafelyAsync(() => BroadcastCommittedStockAsync(order.Items.Select(x => new OrderItemRequestDto { VariantId = x.VariantId, Quantity = x.Quantity }),
                 AppConstants.StockAuditChangeType.OnlineSale)).ConfigureAwait(false);
-            NotifySafely(() => OrderHub.NotifyOrderStatusChanged(order.Id, orderNumber, AppConstants.OrderStatus.Processing));
+            NotifySafely(() => OrderHub.NotifyOrderStatusChanged(order.Id, orderNumber, AppConstants.OrderStatus.Processing, order.UserId));
 
             return true;
         }

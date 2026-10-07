@@ -139,7 +139,6 @@
                             <input type="checkbox" id="signin-remember" class="auth-checkbox" checked />
                             <span>Remember this device</span>
                         </label>
-                        <a href="mailto:support@helmetcartel.com?subject=Password%20Reset" class="auth-link">Forgot password?</a>
                     </div>
 
                     <button type="submit" class="auth-submit-btn" id="btn-signin-submit">

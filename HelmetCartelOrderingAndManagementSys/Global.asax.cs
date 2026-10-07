@@ -28,6 +28,9 @@ namespace HelmetCartelOrderingAndManagementSys
             { "~/Admin/CatalogItem.aspx", "~/Pages/Admin/CatalogItem/CatalogItem.aspx" },
             { "~/Admin/Inventory.aspx", "~/Pages/Admin/Inventory/Inventory.aspx" },
             { "~/Admin/Orders.aspx", "~/Pages/Admin/Orders/Orders.aspx" },
+            { "~/Admin/OrderDetail.aspx", "~/Pages/Admin/Orders/OrderDetail.aspx" },
+            { "~/Admin/Orders/OrderDetail.aspx", "~/Pages/Admin/Orders/OrderDetail.aspx" },
+            { "~/Admin/Returns.aspx", "~/Pages/Admin/Returns/Returns.aspx" },
             { "~/Admin/POS.aspx", "~/Pages/Admin/POS/POS.aspx" },
             { "~/Admin/Reports.aspx", "~/Pages/Admin/Reports/Reports.aspx" },
             { "~/Admin/Users.aspx", "~/Pages/Admin/Users/Users.aspx" },
@@ -58,7 +61,10 @@ namespace HelmetCartelOrderingAndManagementSys
                 var user = new Infrastructure.JwtTokenProvider().ValidateToken(token);
                 if (user != null && (user.Role == Constants.AppConstants.Roles.Admin || user.Role == Constants.AppConstants.Roles.Staff))
                 {
-                    if (appRelativePath.StartsWith("~/Pages/Admin/Vouchers/", StringComparison.OrdinalIgnoreCase) && user.Role != Constants.AppConstants.Roles.Admin)
+                    bool isAdminOnlySection = appRelativePath.StartsWith("~/Pages/Admin/Vouchers/", StringComparison.OrdinalIgnoreCase) ||
+                                              appRelativePath.StartsWith("~/Pages/Admin/Users/", StringComparison.OrdinalIgnoreCase);
+
+                    if (isAdminOnlySection && user.Role != Constants.AppConstants.Roles.Admin)
                     {
                         Response.Redirect("~/Pages/Admin/Inventory/Inventory.aspx", false);
                         CompleteRequest();

@@ -1,5 +1,15 @@
 # Database Design & Architecture: Helmet Cartel
 
+## Academic correction update (migrations 51–52)
+
+Migration 51 supplies transactional order inventory changes, method-specific fulfillment transitions, owner-only cancellation, sale/restock audit entries, and order-related restock alerts. It distinguishes physical units (`CurrentStock`) from reserved units (`ReservedStock`). An order-specific negative `ONLINE_SALE` audit identifies stock already committed, preventing paid fulfillment/cancellation from touching another order's reservation. The existing cancellation trigger releases voucher usage within the same transaction.
+
+Migration 52 supplies manual return/exchange processing and settled revenue views. Returns require approval, receipt, and recorded completion. Refunds are bounded by the discounted merchandise line; exchanges record zero refund and deduct an equal-price replacement's available units. A replacement must belong to the original product. Inspected sellable goods may be restocked once. Both original and replacement variants receive relevant audit/alert updates.
+
+`v_SettledOrderRevenue` and `v_SettledSalesLines` provide consistent completed/delivered merchandise revenue after discounts and completed manual refunds. Shipping is excluded, exchange/approval amounts are not deducted, and completed payment rows are collapsed to one settlement per order. Completed returns remove the original line from net units sold.
+
+The fresh installer includes structural changes through 52 but skips optional destructive demo cleanup 47. See `ACADEMIC_FIX_STATUS.md` for test coverage and the presentation's manual cancellation/refund boundaries. Gateway/simulation procedures were left unchanged.
+
 ## 1. Overview
 The database layer for the Helmet Cartel Ordering and Management System is implemented on **Microsoft SQL Server (MSSQL)**. The schema is designed for strict referential integrity, ACID transactional consistency, real-time stock reconciliation, and complete auditability.
 

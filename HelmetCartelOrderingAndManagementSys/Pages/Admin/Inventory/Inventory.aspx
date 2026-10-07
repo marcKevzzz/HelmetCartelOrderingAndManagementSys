@@ -216,13 +216,13 @@
             <div class="admin-table-wrapper">
                 <table class="admin-table">
                     <colgroup>
-                        <col style="width: 14%;" />
-                        <col style="width: 24%;" />
-                        <col style="width: 14%;" />
-                        <col style="width: 12%;" />
-                        <col style="width: 10%;" />
-                        <col style="width: 11%;" />
-                        <col style="width: 15%;" />
+                        <col class="inventory-table-column-1" />
+                        <col class="inventory-table-column-2" />
+                        <col class="inventory-table-column-3" />
+                        <col class="inventory-table-column-4" />
+                        <col class="inventory-table-column-5" />
+                        <col class="inventory-table-column-6" />
+                        <col class="inventory-table-column-7" />
                     </colgroup>
                     <thead>
                         <tr>

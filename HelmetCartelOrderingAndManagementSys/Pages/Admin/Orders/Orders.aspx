@@ -56,13 +56,13 @@
                 <colgroup>
                     <col class="col-order-num" />
                     <col class="col-customer" />
-                    <col style="min-width: 120px;" />
-                    <col style="min-width: 100px;" />
-                    <col style="min-width: 65px; width: 65px;" />
+                    <col class="orders-table-column-1" />
+                    <col class="orders-table-column-2" />
+                    <col class="orders-table-column-3" />
                     <col class="col-price" />
                     <col class="col-status" />
-                    <col style="min-width: 130px; width: 150px;" />
-                    <col style="min-width: 140px; width: 170px;" />
+                    <col class="orders-table-column-4" />
+                    <col class="orders-table-column-5" />
                     <col class="col-actions orders" />
                 </colgroup>
                 <thead>
@@ -162,7 +162,7 @@
     </div>
 
     <!-- Admin Order Dispatch Modal -->
-    <div class="admin-modal-backdrop" id="dispatchModalBackdrop" style="display: none;">
+    <div class="admin-modal-backdrop is-hidden" id="dispatchModalBackdrop">
         <div class="admin-modal admin-modal--sm" role="dialog" aria-modal="true" aria-labelledby="dispatchModalTitle">
             <div class="admin-modal-header">
                 <h3 class="admin-modal-title" id="dispatchModalTitle">Dispatch Delivery Order</h3>
@@ -172,7 +172,7 @@
                 <input type="hidden" id="dispatchOrderId" />
                 <p class="admin-cell-mono-muted" id="dispatchOrderSummaryText">Order Reference</p>
 
-                <div class="admin-form-group" style="margin-top: 12px;">
+                <div class="orders-admin-form-group-presentation admin-form-group">
                     <label class="admin-form-label" for="dispatchCourier">Courier Partner *</label>
                     <select id="dispatchCourier" class="admin-form-select">
                         <option value="J&amp;T Express" selected>J&amp;T Express</option>
@@ -184,18 +184,18 @@
                     </select>
                 </div>
 
-                <div class="admin-form-group" style="margin-top: 12px;">
+                <div class="orders-admin-form-group-presentation admin-form-group">
                     <label class="admin-form-label" for="dispatchTrackingNumber">Waybill / Tracking Number *</label>
                     <input type="text" id="dispatchTrackingNumber" class="admin-form-input" placeholder="e.g. JT782910482910" />
-                    <span class="inline-error-msg" id="err-dispatch-tracking" style="display: none; color: var(--color-accent-red); font-size: 0.8rem; margin-top: 4px;"></span>
+                    <span class="orders-err-dispatch-tracking-presentation inline-error-msg" id="err-dispatch-tracking"></span>
                 </div>
 
-                <div class="admin-form-group" style="margin-top: 12px;">
+                <div class="orders-admin-form-group-presentation admin-form-group">
                     <label class="admin-form-label" for="dispatchNotes">Dispatch Notes (Optional)</label>
                     <input type="text" id="dispatchNotes" class="admin-form-input" placeholder="e.g. Handed to rider, parcel sealed" />
                 </div>
             </div>
-            <div class="admin-modal-footer admin-modal-actions-right" style="margin-top: 16px;">
+            <div class="orders-admin-modal-footer-presentation admin-modal-footer admin-modal-actions-right">
                 <button type="button" class="btn-pill btn-pill--outline" onclick="closeDispatchModal()">Cancel</button>
                 <button type="button" class="btn-pill btn-pill--primary" id="btnConfirmDispatch" onclick="confirmDispatch()">
                     <span>Confirm Dispatch</span>
@@ -204,5 +204,5 @@
         </div>
     </div>
 
-    <script src='<%= ResolveUrl("~/Scripts/admin/orders.js?v=1") %>'></script>
+    <script src='<%= ResolveUrl("~/Scripts/admin/orders.js?v=2") %>'></script>
 </asp:Content>

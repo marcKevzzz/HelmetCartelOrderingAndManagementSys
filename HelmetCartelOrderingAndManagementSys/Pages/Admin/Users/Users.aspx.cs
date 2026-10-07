@@ -267,5 +267,31 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                 Response.End();
             }));
         }
+
+        protected void btnConfirmRoleChange_Click(object sender, EventArgs e)
+        {
+            if (int.TryParse(hfSelectedUserId.Value, out int targetUserId) && !string.IsNullOrWhiteSpace(hfSelectedNewRole.Value))
+            {
+                string newRole = hfSelectedNewRole.Value.Trim();
+                int actorUserId = CurrentActorUserId;
+
+                RegisterAsyncTask(new PageAsyncTask(async () =>
+                {
+                    try
+                    {
+                        await _adminRepo.UpdateUserRoleAsync(targetUserId, newRole, actorUserId).ConfigureAwait(false);
+                        string msg = $"User role successfully updated to {newRole}.";
+                        string script = $"if(window.showAdminToast){{window.showAdminToast({Newtonsoft.Json.JsonConvert.SerializeObject(msg)},'success','Role Updated');}}";
+                        ScriptManager.RegisterStartupScript(this, GetType(), "roleUpdatedToast", script, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        string script = $"if(window.showAdminToast){{window.showAdminToast({Newtonsoft.Json.JsonConvert.SerializeObject(ex.Message)},'error','Update Failed');}}";
+                        ScriptManager.RegisterStartupScript(this, GetType(), "roleUpdateErrToast", script, true);
+                    }
+                    await LoadUsersDataAsync().ConfigureAwait(false);
+                }));
+            }
+        }
     }
 }

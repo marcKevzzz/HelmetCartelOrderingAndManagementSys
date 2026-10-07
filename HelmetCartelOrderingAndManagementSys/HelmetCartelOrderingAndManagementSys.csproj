@@ -340,6 +340,8 @@
     <Compile Include="Infrastructure\JwtTokenProvider.cs" />
     <Compile Include="Infrastructure\PaginationHelper.cs" />
     <Compile Include="Infrastructure\StaffAuthorizeAttribute.cs" />
+    <Compile Include="Infrastructure\CustomerAuthorizeAttribute.cs" />
+    <Compile Include="Hubs\CustomerOrderHub.cs" />
     <Compile Include="Infrastructure\StaffHubAuthorizeAttribute.cs" />
     <Compile Include="Repositories\IUserRepository.cs" />
     <Compile Include="Repositories\UserRepository.cs" />
@@ -514,6 +516,8 @@
     <Compile Include="Services\InventoryService.cs" />
     <Compile Include="Services\IOrderService.cs" />
     <Compile Include="Services\OrderService.cs" />
+    <Compile Include="Services\CheckoutPolicy.cs" />
+    <Compile Include="Services\OrderNotifications.cs" />
     <Compile Include="Services\IHitPayService.cs" />
     <Compile Include="Services\HitPayService.cs" />
   </ItemGroup>

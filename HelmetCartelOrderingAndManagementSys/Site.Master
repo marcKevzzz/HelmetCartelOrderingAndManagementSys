@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="~/Content/css/variables.css?v=4" runat="server" />
     <link rel="stylesheet" href="~/Content/css/reset.css?v=3" runat="server" />
     <link rel="stylesheet" href="~/Content/css/layout.css?v=6" runat="server" />
-    <link rel="stylesheet" href="~/Content/css/components.css?v=4" runat="server" />
+    <link rel="stylesheet" href="~/Content/css/components.css?v=6" runat="server" />
     <link rel="stylesheet" href="~/Content/css/storefront/storefront.css?v=11" runat="server" />
 
     <asp:ContentPlaceHolder ID="HeadContent" runat="server">
@@ -392,13 +392,6 @@
 
                 <div class="footer-bottom">
                     <div>Helmet Cartel © 2026. All Rights Reserved.</div>
-                    <div class="payment-badges">
-                        <span class="payment-badge">HitPay</span>
-                        <span class="payment-badge">GCash</span>
-                        <span class="payment-badge">Maya</span>
-                        <span class="payment-badge">VISA</span>
-                        <span class="payment-badge">Mastercard</span>
-                    </div>
                 </div>
             </div>
         </footer>
@@ -563,7 +556,7 @@
         <!-- Global Site Script (Mega Menu, Drawer, Badges) -->
         <script src='<%= ResolveUrl("~/Scripts/vendor/jquery-3.7.1.min.js") %>'></script>
         <script src='<%= ResolveUrl("~/Scripts/vendor/jquery.signalR-2.4.3.min.js") %>'></script>
-        <script type="module" src='<%= ResolveUrl("~/Scripts/site.js?v=20261004") %>'></script>
+        <script type="module" src='<%= ResolveUrl("~/Scripts/site.js?v=20261007-toast1") %>'></script>
     </form>
 </body>
 </html>

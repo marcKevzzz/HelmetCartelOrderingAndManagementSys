@@ -140,11 +140,19 @@ export const ApiClient = {
     return this.post(APP_CONSTANTS.ENDPOINTS.ADMIN_REVIEW_TOGGLE(id));
   },
 
+  async adminDeleteReview(id) {
+    return this.request(APP_CONSTANTS.ENDPOINTS.ADMIN_REVIEW_DELETE(id), { method: 'DELETE' });
+  },
+
   async adminGetReturns(status = 'ALL', search = '') {
     const params = new URLSearchParams();
     if (status) params.append('status', status);
     if (search) params.append('search', search);
     return this.get(`${APP_CONSTANTS.ENDPOINTS.ADMIN_RETURNS}?${params.toString()}`);
+  },
+
+  async adminGetReturnReplacements(id) {
+    return this.get(APP_CONSTANTS.ENDPOINTS.ADMIN_RETURN_REPLACEMENTS(id));
   },
 
   async adminProcessReturn(id, data) {
@@ -175,7 +183,13 @@ export const ApiClient = {
 
     try {
       const response = await fetch(url, { ...options, credentials: 'include', headers });
-      const json = await response.json();
+      let json = null;
+      const text = await response.text();
+      if (text) {
+        try { json = JSON.parse(text); } catch (_) { json = { message: text }; }
+      } else {
+        json = {};
+      }
 
       if (!response.ok || json.success === false) {
         const error = new Error(json.message || `HTTP ${response.status}: Request failed`);

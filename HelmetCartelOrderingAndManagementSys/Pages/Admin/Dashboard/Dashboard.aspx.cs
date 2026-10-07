@@ -285,29 +285,49 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
             if (type.IndexOf("stock", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 type.IndexOf("inventory", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                return string.IsNullOrWhiteSpace(refVal) ? "/Admin/Inventory.aspx" : $"/Admin/Inventory.aspx?search={HttpUtility.UrlEncode(refVal)}";
+                if (string.IsNullOrWhiteSpace(refVal))
+                    return "/Pages/Admin/Inventory/Inventory.aspx";
+
+                if (refVal.StartsWith("PO-", StringComparison.OrdinalIgnoreCase) ||
+                    refVal.IndexOf("RESTOCK", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return $"/Pages/Admin/Inventory/Inventory.aspx?view=audit&search={HttpUtility.UrlEncode(refVal)}";
+                }
+
+                return $"/Pages/Admin/Inventory/Inventory.aspx?search={HttpUtility.UrlEncode(refVal)}";
             }
 
-            if (type.IndexOf("order", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                type.IndexOf("payment", StringComparison.OrdinalIgnoreCase) >= 0)
+            if (type.IndexOf("payment", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                return string.IsNullOrWhiteSpace(refVal) ? "/Admin/Orders.aspx" : $"/Admin/Orders.aspx?search={HttpUtility.UrlEncode(refVal)}";
+                return string.IsNullOrWhiteSpace(refVal) 
+                    ? "/Pages/Admin/Orders/Orders.aspx" 
+                    : $"/Pages/Admin/Orders/OrderDetail.aspx?paymentRef={HttpUtility.UrlEncode(refVal)}";
+            }
+
+            if (type.IndexOf("order", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return string.IsNullOrWhiteSpace(refVal) 
+                    ? "/Pages/Admin/Orders/Orders.aspx" 
+                    : $"/Pages/Admin/Orders/OrderDetail.aspx?orderNumber={HttpUtility.UrlEncode(refVal)}";
             }
 
             if (type.IndexOf("rma", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 type.IndexOf("return", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 type.IndexOf("exchange", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                return string.IsNullOrWhiteSpace(refVal) ? "/Admin/Returns.aspx" : $"/Admin/Returns.aspx?search={HttpUtility.UrlEncode(refVal)}";
+                return string.IsNullOrWhiteSpace(refVal) ? "/Pages/Admin/Returns/Returns.aspx" : $"/Pages/Admin/Returns/Returns.aspx?search={HttpUtility.UrlEncode(refVal)}";
             }
 
             if (type.IndexOf("review", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 type.IndexOf("rating", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                return "/Admin/Reviews.aspx";
+                var match = System.Text.RegularExpressions.Regex.Match(refVal, @"\d+");
+                return match.Success 
+                    ? $"/Pages/Admin/Reviews/Reviews.aspx?reviewId={match.Value}" 
+                    : "/Pages/Admin/Reviews/Reviews.aspx";
             }
 
-            return string.IsNullOrWhiteSpace(refVal) ? "/Admin/Orders.aspx" : $"/Admin/Orders.aspx?search={HttpUtility.UrlEncode(refVal)}";
+            return string.IsNullOrWhiteSpace(refVal) ? "/Pages/Admin/Orders/Orders.aspx" : $"/Pages/Admin/Orders/Orders.aspx?search={HttpUtility.UrlEncode(refVal)}";
         }
     }
 }

@@ -46,6 +46,9 @@ namespace HelmetCartelOrderingAndManagementSys.Pages.Admin.Orders
         protected global::System.Web.UI.WebControls.Literal litTrackingNumber;
         protected global::System.Web.UI.WebControls.Literal litPaymentMethod;
         protected global::System.Web.UI.WebControls.Literal litPaymentStatus;
+        protected global::System.Web.UI.WebControls.PlaceHolder phPaymentReference;
+        protected global::System.Web.UI.WebControls.Literal litPaymentRefLabel;
+        protected global::System.Web.UI.WebControls.Literal litPaymentReference;
         protected global::System.Web.UI.WebControls.TextBox txtCourier;
         protected global::System.Web.UI.WebControls.TextBox txtTrackingNumber;
         protected global::System.Web.UI.WebControls.Button btnConfirmDispatch;

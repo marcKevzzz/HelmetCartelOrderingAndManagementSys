@@ -46,13 +46,18 @@ export const APP_CONSTANTS = Object.freeze({
     REVIEWS_PRODUCT: (productId) => `/api/v1/reviews/product/${productId}`,
     ADMIN_REVIEWS: '/api/v1/reviews/admin',
     ADMIN_REVIEW_TOGGLE: (id) => `/api/v1/reviews/admin/${id}/toggle-visibility`,
+    ADMIN_REVIEW_DELETE: (id) => `/api/v1/reviews/admin/${id}`,
     RETURNS: '/api/v1/returns',
     RETURNS_ORDER: (orderId) => `/api/v1/returns/order/${orderId}`,
     ADMIN_RETURNS: '/api/v1/admin/returns',
-    ADMIN_RETURN_PROCESS: (id) => `/api/v1/admin/returns/${id}/process`
+    ADMIN_RETURN_PROCESS: (id) => `/api/v1/admin/returns/${id}/process`,
+    ADMIN_RETURN_REPLACEMENTS: (id) => `/api/v1/admin/returns/${id}/replacements`
   },
 
   VOUCHER_TYPES: { PERCENTAGE: 'PERCENTAGE', FIXED_AMOUNT: 'FIXED_AMOUNT', FREE_SHIPPING: 'FREE_SHIPPING' },
+  RETURN_STATUS: { PENDING: 'Pending', APPROVED: 'Approved', RECEIVED: 'Received', COMPLETED: 'Completed', REJECTED: 'Rejected', CANCELLED: 'Cancelled' },
+  RETURN_TYPE: { RETURN: 'RETURN', EXCHANGE: 'EXCHANGE' },
+  RETURN_RESOLUTION: { REFUND: 'REFUND', REPLACEMENT: 'REPLACEMENT' },
   ERROR_CODES: { INVALID_VOUCHER: 'INVALID_VOUCHER' },
   RECEIPTS: { BRAND: 'HELMET CARTEL', SIMULATION_PREFIX: 'SIM-' },
 

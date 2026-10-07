@@ -1966,6 +1966,63 @@ BEGIN
 END;
 GO
 
+-- =====================================================================================
+-- 26. STORED PROCEDURE: sp_GetStorefrontStats
+-- Returns live counts for brands, total product catalog count, and completed orders
+-- =====================================================================================
+IF OBJECT_ID(N'dbo.sp_GetStorefrontStats', N'P') IS NULL EXEC(N'CREATE PROCEDURE dbo.sp_GetStorefrontStats AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_GetStorefrontStats
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @TotalBrands INT;
+    DECLARE @TotalProducts INT;
+    DECLARE @CompletedOrders INT;
+
+    SELECT @TotalBrands = COUNT(*) FROM dbo.Brands;
+    SELECT @TotalProducts = COUNT(*) FROM dbo.Products;
+    SELECT @CompletedOrders = COUNT(*) FROM dbo.Orders WHERE Status = 'Completed';
+
+    SELECT
+        @TotalBrands AS TotalBrands,
+        @TotalProducts AS TotalProducts,
+        @CompletedOrders AS CompletedOrders;
+END;
+GO
+
+-- =====================================================================================
+-- 27. STORED PROCEDURE: sp_GetTopCustomerReviews
+-- Returns top highest rated customer reviews across any products
+-- =====================================================================================
+IF OBJECT_ID(N'dbo.sp_GetTopCustomerReviews', N'P') IS NULL EXEC(N'CREATE PROCEDURE dbo.sp_GetTopCustomerReviews AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_GetTopCustomerReviews
+    @Limit INT = 6
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT TOP (@Limit)
+        r.Id,
+        r.ProductId,
+        r.ReviewerName,
+        r.Rating,
+        r.Title,
+        r.Comment,
+        r.IsVerifiedPurchase,
+        r.CreatedAt,
+        p.Name AS ProductName,
+        p.Slug AS ProductSlug
+    FROM dbo.ProductReviews r
+    INNER JOIN dbo.Products p ON r.ProductId = p.Id
+    WHERE r.IsHidden = 0
+    ORDER BY r.Rating DESC, r.CreatedAt DESC, r.Id DESC;
+END;
+GO
+
+
 
 GO
 -- Source: queries/04_product_specification_procedures.sql
@@ -14288,6 +14345,3311 @@ BEGIN
 END;
 
 GO
+
+
+GO
+-- Source: schema/42_admin_global_search_expansion.sql
+-- ============================================================================
+-- Migration 42: Admin Global Search Expansion (Vouchers, Reviews, Returns)
+-- ============================================================================
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_AdminGlobalSearch
+    @Query NVARCHAR(100),
+    @Limit INT = 8
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET @Query = LTRIM(RTRIM(@Query));
+    IF @Query IS NULL OR LEN(@Query) < 1
+    BEGIN
+        SELECT TOP 0 '' AS Category, '' AS Title, '' AS Subtitle, '' AS Url, '' AS Badge;
+        RETURN;
+    END;
+
+    -- 1. Point of Sale (Direct POS Action for sellable in-stock items)
+    SELECT TOP (@Limit)
+        'Point of Sale' AS Category,
+        CONCAT(b.Name, ' ', p.Name, ' (', c.Color, ' - ', v.Size, ')') AS Title,
+        CONCAT(NCHAR(8369), FORMAT(dbo.fn_CalculateEffectivePrice(p.BasePrice, v.PriceAdjustment, p.DiscountPercentage, p.DiscountType, p.DiscountAmount, p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive), 'N2'), NCHAR(32), NCHAR(8226), NCHAR(32), ISNULL(i.CurrentStock, 0), ' in stock', NCHAR(32), NCHAR(8226), NCHAR(32), 'SKU: ', v.SKU) AS Subtitle,
+        CONCAT('/Pages/Admin/POS/POS.aspx?search=', v.SKU) AS Url,
+        'Sell in POS' AS Badge
+    FROM dbo.v_VisibleProductVariants v
+    JOIN dbo.v_VisibleProductColors c ON c.Id = v.ProductColorId
+    JOIN dbo.v_VisibleProducts p ON p.Id = c.ProductId
+    JOIN dbo.Brands b ON b.Id = p.BrandId
+    LEFT JOIN dbo.v_VisibleInventories i ON i.VariantId = v.Id
+    WHERE v.IsActive = 1 AND p.IsActive = 1 AND ISNULL(i.CurrentStock, 0) > 0
+      AND (
+          p.Name LIKE '%' + @Query + '%'
+          OR b.Name LIKE '%' + @Query + '%'
+          OR CONCAT(b.Name, ' ', p.Name) LIKE '%' + @Query + '%'
+          OR CONCAT(b.Name, ' ', p.Name, ' ', c.Color) LIKE '%' + @Query + '%'
+          OR v.SKU LIKE '%' + @Query + '%'
+          OR c.Color LIKE '%' + @Query + '%'
+      )
+
+    UNION ALL
+
+    -- 2. Brands Matching Query
+    SELECT TOP (@Limit)
+        'Brands' AS Category,
+        b.Name AS Title,
+        CONCAT((SELECT COUNT(*) FROM dbo.v_VisibleProducts p WHERE p.BrandId = b.Id), ' Helmet Models in Catalog') AS Subtitle,
+        CONCAT('/Pages/Admin/Inventory/Inventory.aspx?brand=', b.Name) AS Url,
+        'Brand' AS Badge
+    FROM dbo.Brands b
+    WHERE b.Name LIKE '%' + @Query + '%'
+
+    UNION ALL
+
+    -- 3. Catalog Models
+    SELECT TOP (@Limit)
+        'Catalog' AS Category,
+        CONCAT(b.Name, ' ', p.Name) AS Title,
+        CONCAT(cat.Name, NCHAR(32), NCHAR(8226), NCHAR(32), 'Base: ', NCHAR(8369), FORMAT(p.BasePrice, 'N2')) AS Subtitle,
+        CONCAT('/Pages/Admin/Catalog/Catalog.aspx?id=', p.Id) AS Url,
+        b.Name AS Badge
+    FROM dbo.v_VisibleProducts p
+    JOIN dbo.Brands b ON b.Id = p.BrandId
+    JOIN dbo.Categories cat ON cat.Id = p.CategoryId
+    WHERE p.Name LIKE '%' + @Query + '%'
+       OR b.Name LIKE '%' + @Query + '%'
+       OR CONCAT(b.Name, ' ', p.Name) LIKE '%' + @Query + '%'
+
+    UNION ALL
+
+    -- 4. Inventory Variants (Color, Size, SKU)
+    SELECT TOP (@Limit)
+        'Inventory' AS Category,
+        CONCAT(b.Name, ' ', p.Name, ' (', c.Color, ' - ', v.Size, ')') AS Title,
+        CONCAT('Stock: ', ISNULL(i.CurrentStock,0), ' units', NCHAR(32), NCHAR(8226), NCHAR(32), 'SKU: ', v.SKU) AS Subtitle,
+        CONCAT('/Pages/Admin/Inventory/Inventory.aspx?q=', v.SKU) AS Url,
+        CASE WHEN ISNULL(i.CurrentStock,0) <= 0 THEN 'Out of Stock'
+             WHEN ISNULL(i.CurrentStock,0) <= ISNULL(i.ReorderPoint,3) THEN 'Low Stock'
+             ELSE 'In Stock' END AS Badge
+    FROM dbo.v_VisibleProductVariants v
+    JOIN dbo.v_VisibleProductColors c ON c.Id = v.ProductColorId
+    JOIN dbo.v_VisibleProducts p ON p.Id = c.ProductId
+    JOIN dbo.Brands b ON b.Id = p.BrandId
+    LEFT JOIN dbo.v_VisibleInventories i ON i.VariantId = v.Id
+    WHERE p.Name LIKE '%' + @Query + '%'
+       OR b.Name LIKE '%' + @Query + '%'
+       OR CONCAT(b.Name, ' ', p.Name) LIKE '%' + @Query + '%'
+       OR CONCAT(b.Name, ' ', p.Name, ' ', c.Color) LIKE '%' + @Query + '%'
+       OR v.SKU LIKE '%' + @Query + '%'
+       OR c.Color LIKE '%' + @Query + '%'
+
+    UNION ALL
+
+    -- 5. Orders
+    SELECT TOP (@Limit)
+        'Orders' AS Category,
+        CONCAT(o.OrderNumber, ' - ', o.CustomerName) AS Title,
+        CONCAT(NCHAR(8369), FORMAT(o.TotalAmount, 'N2'), NCHAR(32), NCHAR(8226), NCHAR(32), o.Status, NCHAR(32), NCHAR(8226), NCHAR(32), o.OrderSource) AS Subtitle,
+        CONCAT('/Pages/Admin/Orders/Orders.aspx?q=', o.OrderNumber) AS Url,
+        o.Status AS Badge
+    FROM dbo.Orders o
+    WHERE o.OrderNumber LIKE '%' + @Query + '%'
+       OR o.CustomerName LIKE '%' + @Query + '%'
+       OR o.CustomerEmail LIKE '%' + @Query + '%'
+       OR o.CustomerPhone LIKE '%' + @Query + '%'
+
+    UNION ALL
+
+    -- 6. Users
+    SELECT TOP (@Limit)
+        'Users' AS Category,
+        CONCAT(u.FirstName, N' ', u.LastName) AS Title,
+        CONCAT(u.Email, NCHAR(32), NCHAR(8226), NCHAR(32), ISNULL(u.PhoneNumber, 'No phone')) AS Subtitle,
+        CONCAT('/Pages/Admin/Users/Users.aspx?q=', u.Email) AS Url,
+        r.Name AS Badge
+    FROM dbo.Users u
+    JOIN dbo.Roles r ON r.Id = u.RoleId
+    WHERE CONCAT(u.FirstName, N' ', u.LastName) LIKE '%' + @Query + '%'
+       OR u.Email LIKE '%' + @Query + '%'
+       OR u.PhoneNumber LIKE '%' + @Query + '%'
+
+    UNION ALL
+
+    -- 7. Vouchers
+    SELECT TOP (@Limit)
+        'Vouchers' AS Category,
+        v.Code AS Title,
+        CONCAT(
+            CASE WHEN v.DiscountType = 'PERCENTAGE' THEN CONCAT(FORMAT(v.DiscountValue, 'G29'), '% OFF')
+                 ELSE CONCAT(NCHAR(8369), FORMAT(v.DiscountValue, 'N2'), ' OFF') END,
+            NCHAR(32), NCHAR(8226), NCHAR(32),
+            (SELECT COUNT(*) FROM dbo.VoucherRedemptions r WHERE r.VoucherId = v.Id AND r.ReleasedAt IS NULL), ' redeemed',
+            CASE WHEN v.MinimumSpend > 0 THEN CONCAT(NCHAR(32), NCHAR(8226), NCHAR(32), 'Min. ', NCHAR(8369), FORMAT(v.MinimumSpend, 'N2')) ELSE '' END
+        ) AS Subtitle,
+        CONCAT('/Pages/Admin/Vouchers/Vouchers.aspx?q=', v.Code) AS Url,
+        CASE WHEN v.IsActive = 1 AND (v.ExpiresAt IS NULL OR v.ExpiresAt > SYSUTCDATETIME()) AND (v.UsageLimit IS NULL OR (SELECT COUNT(*) FROM dbo.VoucherRedemptions r WHERE r.VoucherId = v.Id AND r.ReleasedAt IS NULL) < v.UsageLimit) THEN 'Active'
+             ELSE 'Inactive' END AS Badge
+    FROM dbo.Vouchers v
+    WHERE v.Code LIKE '%' + @Query + '%'
+       OR v.DiscountType LIKE '%' + @Query + '%'
+       OR CAST(v.DiscountValue AS NVARCHAR(20)) LIKE '%' + @Query + '%'
+
+    UNION ALL
+
+    -- 8. Reviews
+    SELECT TOP (@Limit)
+        'Reviews' AS Category,
+        CONCAT(r.ReviewerName, ' - ', p.Name, ' (', r.Rating, NCHAR(9733), ')') AS Title,
+        CONCAT(
+            ISNULL(r.Title, 'Review'), NCHAR(32), NCHAR(8226), NCHAR(32),
+            SUBSTRING(r.Comment, 1, 60),
+            CASE WHEN LEN(r.Comment) > 60 THEN '...' ELSE '' END
+        ) AS Subtitle,
+        CONCAT('/Pages/Admin/Reviews/Reviews.aspx?q=', r.ReviewerName) AS Url,
+        CASE WHEN r.IsHidden = 1 THEN 'Hidden'
+             ELSE 'Published' END AS Badge
+    FROM dbo.ProductReviews r
+    JOIN dbo.Products p ON p.Id = r.ProductId
+    WHERE r.ReviewerName LIKE '%' + @Query + '%'
+       OR p.Name LIKE '%' + @Query + '%'
+       OR ISNULL(r.Title, '') LIKE '%' + @Query + '%'
+       OR r.Comment LIKE '%' + @Query + '%'
+
+    UNION ALL
+
+    -- 9. Returns
+    SELECT TOP (@Limit)
+        'Returns' AS Category,
+        CONCAT(ret.RmaNumber, ' - ', o.CustomerName) AS Title,
+        CONCAT(
+            ret.RequestType, NCHAR(32), NCHAR(8226), NCHAR(32),
+            ret.Reason, NCHAR(32), NCHAR(8226), NCHAR(32),
+            o.OrderNumber
+        ) AS Subtitle,
+        CONCAT('/Pages/Admin/Returns/Returns.aspx?q=', ret.RmaNumber) AS Url,
+        ret.Status AS Badge
+    FROM dbo.ReturnRequests ret
+    JOIN dbo.Orders o ON o.Id = ret.OrderId
+    WHERE ret.RmaNumber LIKE '%' + @Query + '%'
+       OR o.CustomerName LIKE '%' + @Query + '%'
+       OR o.OrderNumber LIKE '%' + @Query + '%'
+       OR ret.Reason LIKE '%' + @Query + '%'
+       OR ret.RequestType LIKE '%' + @Query + '%';
+END;
+GO
+
+
+GO
+-- Source: schema/43_activity_feed_load_more_and_actor_role.sql
+-- =====================================================================================
+-- Migration 43: Recent Activity Feed Load More Pagination & Actor Role Identification
+-- =====================================================================================
+
+PRINT N'Applying Migration 43: Update dbo.sp_AdminRecentActivity with @Offset and ActorRole...';
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_AdminRecentActivity
+    @Limit INT = 8,
+    @Offset INT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT ActivityType, Reference, Detail, Actor, ActorRole, CreatedAt
+    FROM (
+        -- 1. Descriptive Order Activity (Single consolidated entry per customer order)
+        SELECT
+            N'Order' AS ActivityType,
+            o.OrderNumber AS Reference,
+            CONCAT(
+                CASE
+                    WHEN o.Status = N'PendingPayment' THEN N'Awaiting payment for '
+                    WHEN o.Status = N'Processing' THEN N'Placed order for '
+                    WHEN o.Status = N'ReadyForPickup' THEN N'Ready for pickup: '
+                    WHEN o.Status = N'Shipped' THEN N'Dispatched for delivery: '
+                    WHEN o.Status = N'Delivered' THEN N'Delivered to customer: '
+                    WHEN o.Status = N'Completed' THEN N'Completed order: '
+                    WHEN o.Status = N'Cancelled' THEN N'Cancelled order: '
+                    ELSE CONCAT(o.Status, N': ')
+                END,
+                ISNULL((
+                    SELECT STRING_AGG(CONCAT(p.Name, N' (', pc.Color, N', ', pv.Size, N') x', oi.Quantity), N', ')
+                    FROM dbo.OrderItems oi
+                    JOIN dbo.ProductVariants pv ON pv.Id = oi.VariantId
+                    JOIN dbo.ProductColors pc ON pc.Id = pv.ProductColorId
+                    JOIN dbo.Products p ON p.Id = pc.ProductId
+                    WHERE oi.OrderId = o.Id
+                ), N'Items'),
+                N' &bull; ',
+                CASE WHEN o.ShippingMethod = N'Pickup' THEN N'Store Pickup' ELSE N'Door-to-Door Delivery' END,
+                N' &bull; ',
+                CASE
+                    WHEN pay.Status = N'Completed' THEN CONCAT(N'Paid via ', ISNULL(pay.PaymentGateway, N'Online Payment'), N' (PHP ', FORMAT(o.TotalAmount, N'N2'), N')')
+                    WHEN pay.PaymentGateway = N'CashOnDelivery' THEN CONCAT(N'Cash on Delivery (Pending, PHP ', FORMAT(o.TotalAmount, N'N2'), N')')
+                    ELSE CONCAT(ISNULL(pay.PaymentGateway, N'Payment'), N' (PHP ', FORMAT(o.TotalAmount, N'N2'), N')')
+                END
+            ) AS Detail,
+            ISNULL(NULLIF(o.CustomerName, N''), N'Store Customer') AS Actor,
+            CASE
+                WHEN o.OrderSource IN (N'INSTORE_POS', N'IN_STORE') THEN N'Staff'
+                WHEN r.Name = N'Admin' THEN N'Admin'
+                WHEN r.Name = N'Staff' THEN N'Staff'
+                ELSE N'Customer'
+            END AS ActorRole,
+            COALESCE(o.UpdatedAt, o.CreatedAt) AS CreatedAt
+        FROM dbo.Orders o
+        LEFT JOIN dbo.Users u ON u.Id = o.UserId
+        LEFT JOIN dbo.Roles r ON r.Id = u.RoleId
+        LEFT JOIN (
+            SELECT OrderId, PaymentGateway, Status,
+                   ROW_NUMBER() OVER(PARTITION BY OrderId ORDER BY Id DESC) as rn
+            FROM dbo.Payments
+        ) pay ON pay.OrderId = o.Id AND pay.rn = 1
+
+        UNION ALL
+
+        -- 2. Staff Stock Movements (Restocks, manual adjustments, damaged stock write-offs only; excludes sales)
+        SELECT
+            N'Stock' AS ActivityType,
+            COALESCE(l.ReferenceNumber, v.SKU) AS Reference,
+            CONCAT(
+                CASE
+                    WHEN l.ChangeType = N'RESTOCK' THEN N'Restocked '
+                    WHEN l.ChangeType = N'ADJUSTMENT' AND l.QuantityChanged >= 0 THEN N'Stock increased (+ '
+                    WHEN l.ChangeType = N'ADJUSTMENT' AND l.QuantityChanged < 0 THEN N'Stock adjusted (- '
+                    WHEN l.ChangeType = N'DAMAGED' THEN N'Stock written off (- '
+                    ELSE CONCAT(l.ChangeType, N' ')
+                END,
+                p.Name, N' (', pc.Color, N', ', v.Size, N')',
+                N' &bull; Change: ',
+                CASE WHEN l.QuantityChanged > 0 THEN CONCAT(N'+', l.QuantityChanged) ELSE CAST(l.QuantityChanged AS NVARCHAR(10)) END,
+                N' &bull; Level: ',
+                l.PreviousStock + l.QuantityChanged, N' units'
+            ) AS Detail,
+            COALESCE(NULLIF(CONCAT(u.FirstName, N' ', u.LastName), N' '), N'Staff') AS Actor,
+            CASE
+                WHEN r.Name = N'Admin' THEN N'Admin'
+                WHEN r.Name = N'Customer' THEN N'Customer'
+                ELSE N'Admin'
+            END AS ActorRole,
+            l.CreatedAt
+        FROM dbo.StockAuditLogs l
+        JOIN dbo.ProductVariants v ON v.Id = l.VariantId
+        JOIN dbo.ProductColors pc ON pc.Id = v.ProductColorId
+        JOIN dbo.Products p ON p.Id = pc.ProductId
+        LEFT JOIN dbo.Users u ON u.Id = l.UserId
+        LEFT JOIN dbo.Roles r ON r.Id = u.RoleId
+        WHERE l.ChangeType IN (N'RESTOCK', N'ADJUSTMENT', N'DAMAGED')
+    ) activity
+    ORDER BY CreatedAt DESC
+    OFFSET @Offset ROWS
+    FETCH NEXT @Limit ROWS ONLY;
+END;
+GO
+
+PRINT N'Migration 43 Applied Successfully.';
+GO
+
+
+GO
+-- Source: schema/44_orders_rmas_reviews_activity_enhancements.sql
+-- =====================================================================================
+-- Migration 44: Orders, RMAs, Reviews Visibility & Full Activity Feed Scope
+-- =====================================================================================
+
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+
+PRINT N'Applying Migration 44: Enhancing Reviews, Orders, RMAs, and Recent Activity Feed...';
+GO
+
+-- 1. STORED PROCEDURE: sp_GetProductReviews
+-- Allows logged-in users to view their own reviews even if hidden (@CurrentUserId)
+-- =====================================================================================
+CREATE OR ALTER PROCEDURE dbo.sp_GetProductReviews
+    @ProductId INT,
+    @IncludeHidden BIT = 0,
+    @CurrentUserId INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        reviews.Id,
+        reviews.ProductId,
+        reviews.UserId,
+        reviews.OrderId,
+        reviews.ReviewerName,
+        reviews.Rating,
+        reviews.Title,
+        reviews.Comment,
+        reviews.IsVerifiedPurchase,
+        (SELECT COUNT(*) FROM dbo.ReviewReports reports WHERE reports.ReviewId = reviews.Id) AS FlagCount,
+        reviews.IsHidden,
+        reviews.CreatedAt
+    FROM dbo.ProductReviews reviews
+    WHERE reviews.ProductId = @ProductId
+      AND (
+          @IncludeHidden = 1
+          OR reviews.IsHidden = 0
+          OR (reviews.UserId IS NOT NULL AND @CurrentUserId IS NOT NULL AND reviews.UserId = @CurrentUserId)
+      )
+    ORDER BY
+        -- If current user review is hidden, float it to top so user sees their own review status
+        CASE WHEN reviews.UserId = @CurrentUserId AND reviews.IsHidden = 1 THEN 0 ELSE 1 END,
+        reviews.CreatedAt DESC;
+END;
+GO
+
+-- 2. STORED PROCEDURE: sp_ReportReview
+-- Prevents users from reporting their own reviews
+-- =====================================================================================
+CREATE OR ALTER PROCEDURE dbo.sp_ReportReview
+    @ReviewId INT,
+    @UserId INT = NULL,
+    @IpAddress NVARCHAR(45) = NULL,
+    @Reason NVARCHAR(50), -- 'SPAM', 'OFFENSIVE', 'IRRELEVANT', 'FAKE'
+    @Notes NVARCHAR(255) = NULL,
+    @Success BIT OUTPUT,
+    @ErrorMessage NVARCHAR(255) OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @ReviewAuthorId INT;
+
+        SELECT @ReviewAuthorId = UserId
+        FROM dbo.ProductReviews WITH (UPDLOCK, ROWLOCK)
+        WHERE Id = @ReviewId;
+
+        IF @ReviewAuthorId IS NULL AND NOT EXISTS (SELECT 1 FROM dbo.ProductReviews WHERE Id = @ReviewId)
+        BEGIN
+            SET @Success = 0;
+            SET @ErrorMessage = N'Review not found.';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        -- Disallow reporting own reviews
+        IF @UserId IS NOT NULL AND @ReviewAuthorId IS NOT NULL AND @UserId = @ReviewAuthorId
+        BEGIN
+            SET @Success = 0;
+            SET @ErrorMessage = N'You cannot report your own review.';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        -- Check duplicate report by user
+        IF @UserId IS NOT NULL AND EXISTS (SELECT 1 FROM dbo.ReviewReports WHERE ReviewId = @ReviewId AND UserId = @UserId)
+        BEGIN
+            SET @Success = 0;
+            SET @ErrorMessage = N'You have already reported this review.';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+        -- Check duplicate report by IP if guest
+        ELSE IF @UserId IS NULL AND @IpAddress IS NOT NULL AND EXISTS (SELECT 1 FROM dbo.ReviewReports WHERE ReviewId = @ReviewId AND IpAddress = @IpAddress)
+        BEGIN
+            SET @Success = 0;
+            SET @ErrorMessage = N'You have already reported this review.';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        INSERT INTO dbo.ReviewReports (ReviewId, UserId, IpAddress, Reason, Notes)
+        VALUES (@ReviewId, @UserId, @IpAddress, @Reason, @Notes);
+
+        -- Auto-hide after three stored reports.
+        UPDATE dbo.ProductReviews
+        SET
+            IsHidden = CASE WHEN (SELECT COUNT(*) FROM dbo.ReviewReports WHERE ReviewId = @ReviewId) >= 3 THEN 1 ELSE IsHidden END
+        WHERE Id = @ReviewId;
+
+        COMMIT TRANSACTION;
+
+        SET @Success = 1;
+        SET @ErrorMessage = NULL;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        SET @Success = 0;
+        SET @ErrorMessage = ERROR_MESSAGE();
+    END CATCH
+END;
+GO
+
+-- 3. STORED PROCEDURE: sp_GetUserOrders
+-- Returns order history with RMA summary columns (RmaCount, LatestRmaType, LatestRmaStatus, LatestRmaResolution)
+-- =====================================================================================
+CREATE OR ALTER PROCEDURE dbo.sp_GetUserOrders
+    @UserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @UserEmail NVARCHAR(256);
+    SELECT @UserEmail = Email FROM dbo.Users WHERE Id = @UserId;
+
+    SELECT
+        o.Id,
+        o.OrderNumber,
+        o.CustomerName,
+        o.CustomerEmail,
+        o.CustomerPhone,
+        o.Subtotal,
+        o.DiscountAmount,
+        o.VoucherCode,
+        o.ShippingFee,
+        o.TotalAmount,
+        o.Status AS OrderStatus,
+        o.OrderSource,
+        o.ShippingMethod,
+        o.ShippingRegion,
+        o.ShippingAddress,
+        o.ShippingBarangay,
+        o.ShippingCity,
+        o.ShippingProvince,
+        o.ShippingPostalCode,
+        o.Courier,
+        o.TrackingNumber,
+        o.DeliveryNotes,
+        o.Notes,
+        o.CreatedAt,
+        o.UpdatedAt,
+        ISNULL((SELECT TOP 1 p.PaymentGateway FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC), 'HitPay') AS PaymentGateway,
+        ISNULL((SELECT TOP 1 p.Status FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC), 'Pending') AS PaymentStatus,
+        (SELECT TOP 1 p.GatewayReference FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC) AS GatewayReference,
+        (SELECT COUNT(*) FROM dbo.OrderItems oi WHERE oi.OrderId = o.Id) AS ItemCount,
+        (SELECT COUNT(*) FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id) AS RmaCount,
+        (SELECT TOP 1 rr.RequestType FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id ORDER BY rr.Id DESC) AS LatestRmaType,
+        (SELECT TOP 1 rr.Status FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id ORDER BY rr.Id DESC) AS LatestRmaStatus,
+        (SELECT TOP 1 rr.ResolutionType FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id ORDER BY rr.Id DESC) AS LatestRmaResolution,
+        (SELECT STRING_AGG(p.MainImageUrl, ';')
+         FROM (
+             SELECT TOP 3 p.MainImageUrl
+             FROM dbo.OrderItems oi
+             JOIN dbo.ProductVariants pv ON oi.VariantId = pv.Id
+             JOIN dbo.ProductColors pc ON pv.ProductColorId = pc.Id
+             JOIN dbo.Products p ON pc.ProductId = p.Id
+             WHERE oi.OrderId = o.Id
+             ORDER BY oi.Id ASC
+         ) p) AS PreviewImages
+    FROM dbo.Orders o
+    WHERE o.UserId = @UserId OR (o.UserId IS NULL AND o.CustomerEmail = @UserEmail)
+    ORDER BY o.CreatedAt DESC;
+END;
+GO
+
+-- 4. STORED PROCEDURE: sp_GetOrderDetails
+-- Enhanced with ProductId and RMA status per item
+-- =====================================================================================
+CREATE OR ALTER PROCEDURE dbo.sp_GetOrderDetails
+    @OrderNumber NVARCHAR(50) = NULL,
+    @OrderId INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @ResolvedId INT;
+
+    IF @OrderId IS NOT NULL
+        SET @ResolvedId = @OrderId;
+    ELSE IF @OrderNumber IS NOT NULL
+        SELECT @ResolvedId = Id FROM dbo.Orders WHERE OrderNumber = @OrderNumber;
+
+    IF @ResolvedId IS NULL
+        THROW 51018, N'Order not found.', 1;
+
+    -- Result Set 1: Order Header
+    SELECT
+        o.Id,
+        o.OrderNumber,
+        o.UserId,
+        o.CustomerName,
+        o.CustomerEmail,
+        o.CustomerPhone,
+        o.OrderSource,
+        o.Status,
+        o.Subtotal,
+        o.DiscountAmount,
+        o.VoucherCode,
+        o.CashTendered,
+        o.TotalAmount,
+        o.ShippingMethod,
+        o.ShippingFee,
+        o.ShippingRegion,
+        o.ShippingAddress,
+        o.ShippingBarangay,
+        o.ShippingCity,
+        o.ShippingProvince,
+        o.ShippingPostalCode,
+        o.Courier,
+        o.TrackingNumber,
+        o.DeliveryNotes,
+        o.Notes,
+        o.CreatedAt,
+        o.UpdatedAt,
+        (SELECT COUNT(*) FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id) AS RmaCount,
+        (SELECT TOP 1 rr.RequestType FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id ORDER BY rr.Id DESC) AS LatestRmaType,
+        (SELECT TOP 1 rr.Status FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id ORDER BY rr.Id DESC) AS LatestRmaStatus,
+        (SELECT TOP 1 rr.ResolutionType FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id ORDER BY rr.Id DESC) AS LatestRmaResolution
+    FROM dbo.Orders o
+    WHERE o.Id = @ResolvedId;
+
+    -- Result Set 2: Order Items (With ProductId, RMA status, and Review indicator)
+    SELECT
+        oi.Id,
+        oi.OrderId,
+        oi.VariantId,
+        c.ProductId AS ProductId,
+        oi.Quantity,
+        oi.UnitPrice,
+        oi.TotalPrice,
+        ISNULL(NULLIF(oi.ProductName, N''), p.Name) AS ProductName,
+        p.Slug AS ProductSlug,
+        p.MainImageUrl,
+        ISNULL(NULLIF(oi.ColorName, N''), c.Color) AS Color,
+        ISNULL(NULLIF(oi.Size, N''), v.Size) AS Size,
+        ISNULL(NULLIF(oi.SKU, N''), v.SKU) AS SKU,
+        (SELECT TOP 1 rr.Id FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaId,
+        (SELECT TOP 1 rr.RmaNumber FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaNumber,
+        (SELECT TOP 1 rr.RequestType FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaType,
+        (SELECT TOP 1 rr.Status FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaStatus,
+        (SELECT TOP 1 rr.ResolutionType FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaResolution,
+        (SELECT TOP 1 pr.Id FROM dbo.ProductReviews pr WHERE pr.OrderId = oi.OrderId AND pr.ProductId = c.ProductId) AS ReviewId
+    FROM dbo.OrderItems oi
+    LEFT JOIN dbo.ProductVariants v ON oi.VariantId = v.Id
+    LEFT JOIN dbo.ProductColors c ON v.ProductColorId = c.Id
+    LEFT JOIN dbo.Products p ON c.ProductId = p.Id
+    WHERE oi.OrderId = @ResolvedId;
+
+    -- Result Set 3: Payments
+    SELECT
+        py.Id,
+        py.OrderId,
+        py.PaymentGateway,
+        py.GatewayReference,
+        py.Amount,
+        py.Status,
+        py.PaidAt,
+        py.CreatedAt
+    FROM dbo.Payments py
+    WHERE py.OrderId = @ResolvedId ORDER BY py.Id DESC;
+END;
+GO
+
+-- 5. STORED PROCEDURE: sp_GetUserOrderDetails
+-- =====================================================================================
+CREATE OR ALTER PROCEDURE dbo.sp_GetUserOrderDetails
+    @UserId INT,
+    @OrderId INT = NULL,
+    @OrderNumber NVARCHAR(50) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF @UserId IS NULL
+        THROW 52001, N'User identifier is required.', 1;
+
+    DECLARE @ResolvedId INT;
+
+    IF @OrderId IS NOT NULL
+        SELECT @ResolvedId = Id FROM dbo.Orders WHERE Id = @OrderId AND UserId = @UserId;
+    ELSE IF @OrderNumber IS NOT NULL
+        SELECT @ResolvedId = Id FROM dbo.Orders WHERE OrderNumber = @OrderNumber AND UserId = @UserId;
+
+    IF @ResolvedId IS NULL
+        THROW 52002, N'Order not found or access denied.', 1;
+
+    -- Result Set 1: Order Header
+    SELECT
+        o.Id,
+        o.OrderNumber,
+        o.UserId,
+        o.CustomerName,
+        o.CustomerEmail,
+        o.CustomerPhone,
+        o.OrderSource,
+        o.Status,
+        o.Subtotal,
+        o.DiscountAmount,
+        o.VoucherCode,
+        o.CashTendered,
+        o.ShippingFee,
+        o.TotalAmount,
+        o.ShippingMethod,
+        o.ShippingRegion,
+        o.ShippingAddress,
+        o.ShippingBarangay,
+        o.ShippingCity,
+        o.ShippingProvince,
+        o.ShippingPostalCode,
+        o.Courier,
+        o.TrackingNumber,
+        o.DeliveryNotes,
+        o.Notes,
+        o.CreatedAt,
+        o.UpdatedAt,
+        ISNULL((SELECT TOP 1 p.PaymentGateway FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC), 'HitPay') AS PaymentMethod,
+        ISNULL((SELECT TOP 1 p.Status FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC), 'Pending') AS PaymentStatus,
+        (SELECT TOP 1 p.GatewayReference FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC) AS GatewayReference,
+        (SELECT TOP 1 p.PaidAt FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC) AS PaidAt,
+        (SELECT COUNT(*) FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id) AS RmaCount,
+        (SELECT TOP 1 rr.RequestType FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id ORDER BY rr.Id DESC) AS LatestRmaType,
+        (SELECT TOP 1 rr.Status FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id ORDER BY rr.Id DESC) AS LatestRmaStatus,
+        (SELECT TOP 1 rr.ResolutionType FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id ORDER BY rr.Id DESC) AS LatestRmaResolution
+    FROM dbo.Orders o
+    WHERE o.Id = @ResolvedId;
+
+    -- Result Set 2: Order Items
+    SELECT
+        oi.Id,
+        oi.OrderId,
+        oi.VariantId,
+        c.ProductId AS ProductId,
+        oi.Quantity,
+        oi.UnitPrice,
+        oi.TotalPrice,
+        ISNULL(NULLIF(oi.ProductName, N''), p.Name) AS ProductName,
+        p.Slug AS ProductSlug,
+        p.MainImageUrl,
+        ISNULL(NULLIF(oi.ColorName, N''), c.Color) AS Color,
+        ISNULL(NULLIF(oi.Size, N''), v.Size) AS Size,
+        ISNULL(NULLIF(oi.SKU, N''), v.SKU) AS SKU,
+        (SELECT TOP 1 rr.Id FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaId,
+        (SELECT TOP 1 rr.RmaNumber FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaNumber,
+        (SELECT TOP 1 rr.RequestType FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaType,
+        (SELECT TOP 1 rr.Status FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaStatus,
+        (SELECT TOP 1 rr.ResolutionType FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaResolution,
+        (SELECT TOP 1 pr.Id FROM dbo.ProductReviews pr WHERE pr.OrderId = oi.OrderId AND pr.ProductId = c.ProductId) AS ReviewId
+    FROM dbo.OrderItems oi
+    LEFT JOIN dbo.ProductVariants v ON oi.VariantId = v.Id
+    LEFT JOIN dbo.ProductColors c ON v.ProductColorId = c.Id
+    LEFT JOIN dbo.Products p ON c.ProductId = p.Id
+    WHERE oi.OrderId = @ResolvedId;
+
+    -- Result Set 3: Payments
+    SELECT
+        py.Id,
+        py.OrderId,
+        py.PaymentGateway,
+        py.GatewayReference,
+        py.Amount,
+        py.Status,
+        py.PaidAt,
+        py.CreatedAt
+    FROM dbo.Payments py
+    WHERE py.OrderId = @ResolvedId ORDER BY py.Id DESC;
+END;
+GO
+
+-- 6. STORED PROCEDURE: sp_AdminRecentActivity (Scope All Activities)
+-- Comprehensive operations feed covering Orders, Stock, RMAs, Reviews/Reports, and Payments
+-- =====================================================================================
+CREATE OR ALTER PROCEDURE dbo.sp_AdminRecentActivity
+    @Limit INT = 8,
+    @Offset INT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT ActivityType, Reference, Detail, Actor, ActorRole, CreatedAt
+    FROM (
+        -- 1. Orders Placed & Status Updates
+        SELECT
+            N'Order' AS ActivityType,
+            o.OrderNumber AS Reference,
+            CONCAT(
+                CASE
+                    WHEN o.Status = N'PendingPayment' THEN N'Awaiting payment for '
+                    WHEN o.Status = N'Processing' THEN N'Placed order for '
+                    WHEN o.Status = N'ReadyForPickup' THEN N'Ready for pickup: '
+                    WHEN o.Status = N'Shipped' THEN N'Dispatched for delivery: '
+                    WHEN o.Status = N'Delivered' THEN N'Delivered to customer: '
+                    WHEN o.Status = N'Completed' THEN N'Completed order: '
+                    WHEN o.Status = N'Cancelled' THEN N'Cancelled order: '
+                    ELSE CONCAT(o.Status, N': ')
+                END,
+                ISNULL((
+                    SELECT STRING_AGG(CONCAT(p.Name, N' (', pc.Color, N', ', pv.Size, N') x', oi.Quantity), N', ')
+                    FROM dbo.OrderItems oi
+                    JOIN dbo.ProductVariants pv ON pv.Id = oi.VariantId
+                    JOIN dbo.ProductColors pc ON pc.Id = pv.ProductColorId
+                    JOIN dbo.Products p ON p.Id = pc.ProductId
+                    WHERE oi.OrderId = o.Id
+                ), N'Items'),
+                N' &bull; ',
+                CASE WHEN o.ShippingMethod = N'Pickup' THEN N'Store Pickup' ELSE N'Door-to-Door Delivery' END,
+                N' &bull; ',
+                CASE
+                    WHEN pay.Status = N'Completed' THEN CONCAT(N'Paid via ', ISNULL(pay.PaymentGateway, N'Online Payment'), N' (PHP ', FORMAT(o.TotalAmount, N'N2'), N')')
+                    WHEN pay.PaymentGateway = N'CashOnDelivery' THEN CONCAT(N'Cash on Delivery (Pending, PHP ', FORMAT(o.TotalAmount, N'N2'), N')')
+                    ELSE CONCAT(ISNULL(pay.PaymentGateway, N'Payment'), N' (PHP ', FORMAT(o.TotalAmount, N'N2'), N')')
+                END
+            ) AS Detail,
+            ISNULL(NULLIF(o.CustomerName, N''), N'Store Customer') AS Actor,
+            CASE
+                WHEN o.OrderSource IN (N'INSTORE_POS', N'IN_STORE') THEN N'Staff'
+                WHEN r.Name = N'Admin' THEN N'Admin'
+                WHEN r.Name = N'Staff' THEN N'Staff'
+                ELSE N'Customer'
+            END AS ActorRole,
+            COALESCE(o.UpdatedAt, o.CreatedAt) AS CreatedAt
+        FROM dbo.Orders o
+        LEFT JOIN dbo.Users u ON u.Id = o.UserId
+        LEFT JOIN dbo.Roles r ON r.Id = u.RoleId
+        LEFT JOIN (
+            SELECT OrderId, PaymentGateway, Status,
+                   ROW_NUMBER() OVER(PARTITION BY OrderId ORDER BY Id DESC) as rn
+            FROM dbo.Payments
+        ) pay ON pay.OrderId = o.Id AND pay.rn = 1
+
+        UNION ALL
+
+        -- 2. Stock Movements (Restocks, manual adjustments, damaged stock write-offs)
+        SELECT
+            N'Stock' AS ActivityType,
+            COALESCE(l.ReferenceNumber, v.SKU) AS Reference,
+            CONCAT(
+                CASE
+                    WHEN l.ChangeType = N'RESTOCK' THEN N'Restocked '
+                    WHEN l.ChangeType = N'ADJUSTMENT' AND l.QuantityChanged >= 0 THEN N'Stock increased (+ '
+                    WHEN l.ChangeType = N'ADJUSTMENT' AND l.QuantityChanged < 0 THEN N'Stock adjusted (- '
+                    WHEN l.ChangeType = N'DAMAGED' THEN N'Stock written off (- '
+                    WHEN l.ChangeType = N'RETURN' THEN N'Returned stock incremented (+ '
+                    ELSE CONCAT(l.ChangeType, N' ')
+                END,
+                p.Name, N' (', pc.Color, N', ', v.Size, N')',
+                N' &bull; Change: ',
+                CASE WHEN l.QuantityChanged > 0 THEN CONCAT(N'+', l.QuantityChanged) ELSE CAST(l.QuantityChanged AS NVARCHAR(10)) END,
+                N' &bull; Current Level: ',
+                l.PreviousStock + l.QuantityChanged, N' units'
+            ) AS Detail,
+            COALESCE(NULLIF(CONCAT(u.FirstName, N' ', u.LastName), N' '), N'Staff') AS Actor,
+            CASE
+                WHEN r.Name = N'Admin' THEN N'Admin'
+                WHEN r.Name = N'Customer' THEN N'Customer'
+                ELSE N'Staff'
+            END AS ActorRole,
+            l.CreatedAt
+        FROM dbo.StockAuditLogs l
+        JOIN dbo.ProductVariants v ON v.Id = l.VariantId
+        JOIN dbo.ProductColors pc ON pc.Id = v.ProductColorId
+        JOIN dbo.Products p ON p.Id = pc.ProductId
+        LEFT JOIN dbo.Users u ON u.Id = l.UserId
+        LEFT JOIN dbo.Roles r ON r.Id = u.RoleId
+        WHERE l.ChangeType IN (N'RESTOCK', N'ADJUSTMENT', N'DAMAGED', N'RETURN')
+
+        UNION ALL
+
+        -- 3. Return & Exchange RMAs (Submitted by Customer)
+        SELECT
+            N'RMA' AS ActivityType,
+            rma.RmaNumber AS Reference,
+            CONCAT(
+                N'Submitted ',
+                CASE WHEN rma.RequestType = N'RETURN' THEN N'Return request for refund' ELSE N'Exchange request' END,
+                N' on Order #', o.OrderNumber,
+                N' &bull; Item: ', p.Name, N' (', pc.Color, N', ', pv.Size, N')',
+                N' &bull; Reason: ', rma.Reason,
+                CASE WHEN rma.CustomerNotes IS NOT NULL AND LEN(rma.CustomerNotes) > 0 THEN CONCAT(N' &bull; Note: "', LEFT(rma.CustomerNotes, 50), N'..."') ELSE N'' END
+            ) AS Detail,
+            COALESCE(NULLIF(o.CustomerName, N''), NULLIF(CONCAT(u.FirstName, N' ', u.LastName), N' '), N'Customer') AS Actor,
+            N'Customer' AS ActorRole,
+            rma.CreatedAt
+        FROM dbo.ReturnRequests rma
+        JOIN dbo.Orders o ON o.Id = rma.OrderId
+        JOIN dbo.OrderItems oi ON oi.Id = rma.OrderItemId
+        JOIN dbo.ProductVariants pv ON pv.Id = oi.VariantId
+        JOIN dbo.ProductColors pc ON pc.Id = pv.ProductColorId
+        JOIN dbo.Products p ON p.Id = pc.ProductId
+        LEFT JOIN dbo.Users u ON u.Id = rma.UserId
+
+        UNION ALL
+
+        -- 4. Return & Exchange RMAs (Resolved by Staff/Admin)
+        SELECT
+            N'RMA' AS ActivityType,
+            rma.RmaNumber AS Reference,
+            CONCAT(
+                N'Processed RMA: ', rma.Status,
+                CASE
+                    WHEN rma.ResolutionType IS NOT NULL THEN CONCAT(N' (Resolution: ', rma.ResolutionType, N')')
+                    ELSE N''
+                END,
+                CASE
+                    WHEN rma.RefundAmount IS NOT NULL AND rma.RefundAmount > 0 THEN CONCAT(N' &bull; Refund: PHP ', FORMAT(rma.RefundAmount, N'N2'))
+                    ELSE N''
+                END,
+                N' on Order #', o.OrderNumber,
+                CASE WHEN rma.Restocked = 1 THEN N' &bull; Item Restocked' ELSE N'' END
+            ) AS Detail,
+            COALESCE(NULLIF(CONCAT(pb.FirstName, N' ', pb.LastName), N' '), N'Staff Member') AS Actor,
+            CASE WHEN pbr.Name = N'Admin' THEN N'Admin' ELSE N'Staff' END AS ActorRole,
+            rma.UpdatedAt AS CreatedAt
+        FROM dbo.ReturnRequests rma
+        JOIN dbo.Orders o ON o.Id = rma.OrderId
+        LEFT JOIN dbo.Users pb ON pb.Id = rma.ProcessedBy
+        LEFT JOIN dbo.Roles pbr ON pbr.Id = pb.RoleId
+        WHERE rma.Status IN (N'Approved', N'Rejected', N'Completed', N'Received')
+          AND rma.ProcessedBy IS NOT NULL
+
+        UNION ALL
+
+        -- 5. Customer Product Reviews
+        SELECT
+            N'Review' AS ActivityType,
+            CONCAT(pr.Rating, N'-Star Rating') AS Reference,
+            CONCAT(
+                N'Reviewed ', p.Name,
+                N' (', pr.Rating, N'/5 stars)',
+                CASE WHEN pr.Title IS NOT NULL AND LEN(pr.Title) > 0 THEN CONCAT(N' &bull; "', pr.Title, N'"') ELSE N'' END,
+                CASE WHEN pr.IsVerifiedPurchase = 1 THEN N' &bull; Verified Purchase' ELSE N'' END
+            ) AS Detail,
+            COALESCE(NULLIF(pr.ReviewerName, N''), N'Customer') AS Actor,
+            N'Customer' AS ActorRole,
+            pr.CreatedAt
+        FROM dbo.ProductReviews pr
+        JOIN dbo.Products p ON p.Id = pr.ProductId
+
+        UNION ALL
+
+        -- 6. Moderation Review Reports
+        SELECT
+            N'Review' AS ActivityType,
+            CONCAT(N'Report #', rep.Id) AS Reference,
+            CONCAT(
+                N'Flagged review on ', p.Name,
+                N' &bull; Reason: ', rep.Reason,
+                CASE WHEN rep.Notes IS NOT NULL AND LEN(rep.Notes) > 0 THEN CONCAT(N' &bull; "', LEFT(rep.Notes, 40), N'..."') ELSE N'' END
+            ) AS Detail,
+            COALESCE(NULLIF(CONCAT(u.FirstName, N' ', u.LastName), N' '), N'Community Member') AS Actor,
+            N'Customer' AS ActorRole,
+            rep.CreatedAt
+        FROM dbo.ReviewReports rep
+        JOIN dbo.ProductReviews pr ON pr.Id = rep.ReviewId
+        JOIN dbo.Products p ON p.Id = pr.ProductId
+        LEFT JOIN dbo.Users u ON u.Id = rep.UserId
+
+        UNION ALL
+
+        -- 7. Payment Transactions (Completed payments and refunds)
+        SELECT
+            N'Payment' AS ActivityType,
+            COALESCE(py.GatewayReference, o.OrderNumber) AS Reference,
+            CONCAT(
+                CASE
+                    WHEN py.Status = N'Completed' THEN N'Payment received via '
+                    WHEN py.Status = N'Refunded' THEN N'Refund issued via '
+                    WHEN py.Status = N'Failed' THEN N'Payment attempt failed on '
+                    ELSE CONCAT(py.Status, N' payment via ')
+                END,
+                ISNULL(py.PaymentGateway, N'Payment Gateway'),
+                N' &bull; Amount: PHP ', FORMAT(py.Amount, N'N2'),
+                N' &bull; Order #', o.OrderNumber
+            ) AS Detail,
+            COALESCE(NULLIF(o.CustomerName, N''), N'Customer') AS Actor,
+            N'Customer' AS ActorRole,
+            COALESCE(py.PaidAt, py.CreatedAt) AS CreatedAt
+        FROM dbo.Payments py
+        JOIN dbo.Orders o ON o.Id = py.OrderId
+        WHERE py.Status IN (N'Completed', N'Refunded')
+    ) activity
+    ORDER BY CreatedAt DESC
+    OFFSET @Offset ROWS
+    FETCH NEXT @Limit ROWS ONLY;
+END;
+GO
+
+PRINT N'Migration 44 applied successfully.';
+GO
+
+
+GO
+-- Source: schema/45_free_shipping_vouchers_and_activity_qrph.sql
+-- =====================================================================================
+-- Migration 45: Free Shipping Vouchers and Activity Feed QRPh Labeling
+-- =====================================================================================
+
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+
+PRINT N'Applying Migration 45: Free shipping voucher support & QRPh payment activity logging...';
+GO
+
+-- 1. Update constraint on dbo.Vouchers to permit FREE_SHIPPING
+IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_Vouchers_Discount' AND parent_object_id = OBJECT_ID(N'dbo.Vouchers'))
+BEGIN
+    ALTER TABLE dbo.Vouchers DROP CONSTRAINT CK_Vouchers_Discount;
+END;
+GO
+
+ALTER TABLE dbo.Vouchers ADD CONSTRAINT CK_Vouchers_Discount
+CHECK (
+    ([DiscountType] = N'FREE_SHIPPING' AND [DiscountValue] >= 0)
+    OR
+    ([DiscountValue] > 0 AND (
+        [DiscountType] = N'FIXED_AMOUNT'
+        OR ([DiscountType] = N'PERCENTAGE' AND [DiscountValue] <= 100)
+    ))
+);
+GO
+
+-- 2. Procedure: dbo.sp_AdminSaveVoucher
+CREATE OR ALTER PROCEDURE dbo.sp_AdminSaveVoucher
+    @Id INT = 0,
+    @Code NVARCHAR(30),
+    @DiscountType NVARCHAR(20),
+    @DiscountValue DECIMAL(18,2),
+    @MinimumSpend DECIMAL(18,2) = 0,
+    @ExpiresAt DATETIME2 = NULL,
+    @UsageLimit INT = NULL,
+    @IsActive BIT = 1
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    SET @Code = UPPER(LTRIM(RTRIM(@Code)));
+
+    IF @Code IS NULL OR LEN(@Code) NOT BETWEEN 3 AND 30 OR
+       @Code COLLATE Latin1_General_100_BIN2 LIKE N'%[^A-Z0-9-]%'
+        THROW 54001, N'Use 3-30 letters, numbers or hyphens for the voucher code.', 1;
+
+    IF @DiscountType IS NULL OR @DiscountType NOT IN (N'PERCENTAGE', N'FIXED_AMOUNT', N'FREE_SHIPPING') OR
+       @DiscountValue IS NULL OR
+       (@DiscountType <> N'FREE_SHIPPING' AND @DiscountValue <= 0) OR
+       (@DiscountType = N'FREE_SHIPPING' AND @DiscountValue < 0) OR
+       (@DiscountType = N'PERCENTAGE' AND @DiscountValue > 100) OR
+       @MinimumSpend IS NULL OR @MinimumSpend < 0 OR @UsageLimit <= 0
+        THROW 54002, N'Check the discount, minimum spend and usage limit.', 1;
+
+    -- Past dates are allowed only when retaining an existing expiry
+    IF @ExpiresAt <= SYSUTCDATETIME() AND NOT EXISTS
+        (SELECT 1 FROM dbo.Vouchers WHERE Id = @Id AND ExpiresAt = @ExpiresAt)
+        THROW 54003, N'Choose a future expiry date.', 1;
+
+    BEGIN TRANSACTION;
+    IF @Id <> 0 AND NOT EXISTS (SELECT 1 FROM dbo.Vouchers WITH (UPDLOCK, ROWLOCK) WHERE Id = @Id)
+        THROW 54004, N'Voucher not found.', 1;
+
+    IF EXISTS (SELECT 1 FROM dbo.Vouchers WHERE Code = @Code AND Id <> @Id)
+        THROW 54005, N'This voucher code already exists.', 1;
+
+    IF EXISTS (SELECT 1 FROM dbo.VoucherRedemptions WHERE VoucherId = @Id) AND
+       EXISTS (SELECT 1 FROM dbo.Vouchers WHERE Id = @Id AND Code <> @Code)
+        THROW 54006, N'A redeemed voucher code cannot be renamed.', 1;
+
+    IF @UsageLimit < (SELECT COUNT(*) FROM dbo.VoucherRedemptions WHERE VoucherId = @Id AND ReleasedAt IS NULL)
+        THROW 54007, N'Usage limit cannot be lower than current usage.', 1;
+
+    IF @Id = 0
+    BEGIN
+        INSERT dbo.Vouchers(Code, DiscountType, DiscountValue, MinimumSpend, ExpiresAt, UsageLimit, IsActive)
+        VALUES (@Code, @DiscountType, @DiscountValue, @MinimumSpend, @ExpiresAt, @UsageLimit, @IsActive);
+        SET @Id = CONVERT(INT, SCOPE_IDENTITY());
+    END
+    ELSE
+    BEGIN
+        UPDATE dbo.Vouchers
+        SET Code = @Code,
+            DiscountType = @DiscountType,
+            DiscountValue = @DiscountValue,
+            MinimumSpend = @MinimumSpend,
+            ExpiresAt = @ExpiresAt,
+            UsageLimit = @UsageLimit,
+            IsActive = @IsActive,
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE Id = @Id;
+    END
+
+    COMMIT TRANSACTION;
+    SELECT @Id AS Id;
+END;
+GO
+
+-- 3. Procedure: dbo.sp_CalculateVoucher
+CREATE OR ALTER PROCEDURE dbo.sp_CalculateVoucher
+    @Code NVARCHAR(30),
+    @Subtotal DECIMAL(18,2),
+    @ForRedemption BIT = 0,
+    @VoucherId INT OUTPUT,
+    @DiscountAmount DECIMAL(18,2) OUTPUT,
+    @DiscountType NVARCHAR(20) = NULL OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @ForRedemption = 1 AND @@TRANCOUNT = 0
+        THROW 54008, N'Voucher redemption requires an order transaction.', 1;
+
+    SET @VoucherId = NULL;
+    SET @Code = UPPER(LTRIM(RTRIM(@Code)));
+    DECLARE @Type NVARCHAR(20), @Value DECIMAL(18,2), @Minimum DECIMAL(18,2),
+        @Expiry DATETIME2, @Limit INT, @Active BIT;
+
+    IF @ForRedemption = 1
+        SELECT @VoucherId = Id, @Type = DiscountType, @Value = DiscountValue,
+            @Minimum = MinimumSpend, @Expiry = ExpiresAt, @Limit = UsageLimit, @Active = IsActive
+        FROM dbo.Vouchers WITH (UPDLOCK, ROWLOCK) WHERE Code = @Code;
+    ELSE
+        SELECT @VoucherId = Id, @Type = DiscountType, @Value = DiscountValue,
+            @Minimum = MinimumSpend, @Expiry = ExpiresAt, @Limit = UsageLimit, @Active = IsActive
+        FROM dbo.Vouchers WHERE Code = @Code;
+
+    IF @VoucherId IS NULL THROW 54009, N'Voucher code not found.', 1;
+    IF @Active = 0 THROW 54010, N'This voucher is inactive.', 1;
+    IF @Expiry <= SYSUTCDATETIME() THROW 54011, N'This voucher has expired.', 1;
+    IF @Subtotal IS NULL OR @Subtotal <= 0 OR @Subtotal < @Minimum
+        THROW 54012, N'Your merchandise subtotal does not meet the voucher minimum spend.', 1;
+    IF @Limit IS NOT NULL AND @Limit <=
+        (SELECT COUNT(*) FROM dbo.VoucherRedemptions WHERE VoucherId = @VoucherId AND ReleasedAt IS NULL)
+        THROW 54013, N'This voucher has reached its usage limit.', 1;
+
+    SET @DiscountType = @Type;
+
+    IF @Type = N'FREE_SHIPPING'
+    BEGIN
+        SET @DiscountAmount = 0.00;
+    END
+    ELSE IF @Type = N'PERCENTAGE'
+    BEGIN
+        SET @DiscountAmount = ROUND(@Subtotal * @Value / 100.0, 2);
+    END
+    ELSE
+    BEGIN
+        SET @DiscountAmount = @Value;
+    END
+
+    IF @DiscountAmount > @Subtotal SET @DiscountAmount = @Subtotal;
+END;
+GO
+
+-- 4. Procedure: dbo.sp_PreviewVoucher
+CREATE OR ALTER PROCEDURE dbo.sp_PreviewVoucher
+    @Code NVARCHAR(30),
+    @Items dbo.SaleLineInput READONLY
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT EXISTS (SELECT 1 FROM @Items) OR EXISTS (SELECT 1 FROM @Items WHERE Quantity <= 0) OR
+       EXISTS (SELECT VariantId FROM @Items GROUP BY VariantId HAVING COUNT(*) > 1)
+        THROW 54014, N'Choose valid, distinct merchandise items.', 1;
+
+    DECLARE @Subtotal DECIMAL(18,2), @Count INT;
+    SELECT @Subtotal = SUM(CONVERT(DECIMAL(18,2), dbo.fn_CalculateEffectivePrice(p.BasePrice, v.PriceAdjustment,
+        p.DiscountPercentage, p.DiscountType, p.DiscountAmount, p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive)) * l.Quantity),
+        @Count = COUNT(*)
+    FROM @Items l JOIN dbo.v_VisibleProductVariants v ON v.Id = l.VariantId
+    JOIN dbo.v_VisibleProductColors c ON c.Id = v.ProductColorId
+    JOIN dbo.v_VisibleProducts p ON p.Id = c.ProductId;
+
+    IF @Count <> (SELECT COUNT(*) FROM @Items) THROW 54014, N'An item is no longer available.', 1;
+
+    DECLARE @Id INT, @Discount DECIMAL(18,2), @Type NVARCHAR(20);
+    EXEC dbo.sp_CalculateVoucher @Code, @Subtotal, 0, @Id OUTPUT, @Discount OUTPUT, @Type OUTPUT;
+
+    SELECT
+        UPPER(LTRIM(RTRIM(@Code))) AS Code,
+        @Subtotal AS Subtotal,
+        @Discount AS DiscountAmount,
+        @Subtotal - @Discount AS DiscountedSubtotal,
+        @Type AS DiscountType;
+END;
+GO
+
+-- 5. Procedure: dbo.sp_ApplyOrderVoucher
+CREATE OR ALTER PROCEDURE dbo.sp_ApplyOrderVoucher
+    @OrderId INT,
+    @Code NVARCHAR(30)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @@TRANCOUNT = 0 THROW 54008, N'Voucher redemption requires an order transaction.', 1;
+
+    DECLARE @Subtotal DECIMAL(18,2), @Id INT, @Discount DECIMAL(18,2), @Type NVARCHAR(20);
+    IF NOT EXISTS (SELECT 1 FROM dbo.Orders WITH (UPDLOCK, ROWLOCK)
+        WHERE Id = @OrderId AND OrderSource = N'ONLINE' AND Status IN (N'PendingPayment', N'Processing'))
+        THROW 54015, N'This order cannot accept a voucher.', 1;
+
+    IF EXISTS (SELECT 1 FROM dbo.VoucherRedemptions WHERE OrderId = @OrderId)
+        THROW 54016, N'This order already has a voucher.', 1;
+
+    SELECT @Subtotal = SUM(TotalPrice) FROM dbo.OrderItems WHERE OrderId = @OrderId;
+
+    EXEC dbo.sp_CalculateVoucher @Code, @Subtotal, 1, @Id OUTPUT, @Discount OUTPUT, @Type OUTPUT;
+
+    IF @Type = N'FREE_SHIPPING'
+    BEGIN
+        DECLARE @SavedShippingFee DECIMAL(18,2) = 0.00;
+        SELECT @SavedShippingFee = ISNULL(ShippingFee, 0.00) FROM dbo.Orders WHERE Id = @OrderId;
+
+        -- Record the redemption with the value of the waived delivery fee
+        INSERT dbo.VoucherRedemptions(VoucherId, OrderId, DiscountAmount)
+        VALUES (@Id, @OrderId, @SavedShippingFee);
+
+        -- Set ShippingFee to 0.00 (TotalAmount is automatically recomputed)
+        UPDATE dbo.Orders
+        SET VoucherCode = UPPER(LTRIM(RTRIM(@Code))),
+            DiscountAmount = 0.00,
+            ShippingFee = 0.00,
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE Id = @OrderId;
+    END
+    ELSE
+    BEGIN
+        INSERT dbo.VoucherRedemptions(VoucherId, OrderId, DiscountAmount)
+        VALUES (@Id, @OrderId, @Discount);
+
+        UPDATE dbo.Orders
+        SET VoucherCode = UPPER(LTRIM(RTRIM(@Code))),
+            DiscountAmount = @Discount,
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE Id = @OrderId;
+    END
+
+    SELECT
+        VoucherCode AS Code,
+        Subtotal,
+        DiscountAmount,
+        Subtotal - DiscountAmount AS DiscountedSubtotal,
+        @Type AS DiscountType
+    FROM dbo.Orders
+    WHERE Id = @OrderId;
+END;
+GO
+
+-- 6. STORED PROCEDURE: sp_AdminRecentActivity
+-- Change "Payment received via HitPay" to "via QRPh"
+-- =====================================================================================
+CREATE OR ALTER PROCEDURE dbo.sp_AdminRecentActivity
+    @Limit INT = 8,
+    @Offset INT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT ActivityType, Reference, Detail, Actor, ActorRole, CreatedAt
+    FROM (
+        -- 1. Orders Placed & Status Updates
+        SELECT
+            N'Order' AS ActivityType,
+            o.OrderNumber AS Reference,
+            CONCAT(
+                CASE
+                    WHEN o.Status = N'PendingPayment' THEN N'Awaiting payment for '
+                    WHEN o.Status = N'Processing' THEN N'Placed order for '
+                    WHEN o.Status = N'ReadyForPickup' THEN N'Ready for pickup: '
+                    WHEN o.Status = N'Shipped' THEN N'Dispatched for delivery: '
+                    WHEN o.Status = N'Delivered' THEN N'Delivered to customer: '
+                    WHEN o.Status = N'Completed' THEN N'Completed order: '
+                    WHEN o.Status = N'Cancelled' THEN N'Cancelled order: '
+                    ELSE CONCAT(o.Status, N': ')
+                END,
+                ISNULL((
+                    SELECT STRING_AGG(CONCAT(p.Name, N' (', pc.Color, N', ', pv.Size, N') x', oi.Quantity), N', ')
+                    FROM dbo.OrderItems oi
+                    JOIN dbo.ProductVariants pv ON pv.Id = oi.VariantId
+                    JOIN dbo.ProductColors pc ON pc.Id = pv.ProductColorId
+                    JOIN dbo.Products p ON p.Id = pc.ProductId
+                    WHERE oi.OrderId = o.Id
+                ), N'Items'),
+                N' &bull; ',
+                CASE WHEN o.ShippingMethod = N'Pickup' THEN N'Store Pickup' ELSE N'Door-to-Door Delivery' END,
+                N' &bull; ',
+                CASE
+                    WHEN pay.Status = N'Completed' THEN CONCAT(N'Paid via ', CASE WHEN UPPER(ISNULL(pay.PaymentGateway, N'')) = N'HITPAY' THEN N'QRPh' ELSE ISNULL(pay.PaymentGateway, N'Online Payment') END, N' (PHP ', FORMAT(o.TotalAmount, N'N2'), N')')
+                    WHEN pay.PaymentGateway = N'CashOnDelivery' THEN CONCAT(N'Cash on Delivery (Pending, PHP ', FORMAT(o.TotalAmount, N'N2'), N')')
+                    ELSE CONCAT(CASE WHEN UPPER(ISNULL(pay.PaymentGateway, N'')) = N'HITPAY' THEN N'QRPh' ELSE ISNULL(pay.PaymentGateway, N'Payment') END, N' (PHP ', FORMAT(o.TotalAmount, N'N2'), N')')
+                END
+            ) AS Detail,
+            ISNULL(NULLIF(o.CustomerName, N''), N'Store Customer') AS Actor,
+            CASE
+                WHEN o.OrderSource IN (N'INSTORE_POS', N'IN_STORE') THEN N'Staff'
+                WHEN r.Name = N'Admin' THEN N'Admin'
+                WHEN r.Name = N'Staff' THEN N'Staff'
+                ELSE N'Customer'
+            END AS ActorRole,
+            COALESCE(o.UpdatedAt, o.CreatedAt) AS CreatedAt
+        FROM dbo.Orders o
+        LEFT JOIN dbo.Users u ON u.Id = o.UserId
+        LEFT JOIN dbo.Roles r ON r.Id = u.RoleId
+        LEFT JOIN (
+            SELECT OrderId, PaymentGateway, Status,
+                   ROW_NUMBER() OVER(PARTITION BY OrderId ORDER BY Id DESC) as rn
+            FROM dbo.Payments
+        ) pay ON pay.OrderId = o.Id AND pay.rn = 1
+
+        UNION ALL
+
+        -- 2. Stock Movements (Restocks, manual adjustments, damaged stock write-offs)
+        SELECT
+            N'Stock' AS ActivityType,
+            COALESCE(l.ReferenceNumber, v.SKU) AS Reference,
+            CONCAT(
+                CASE
+                    WHEN l.ChangeType = N'RESTOCK' THEN N'Restocked '
+                    WHEN l.ChangeType = N'ADJUSTMENT' AND l.QuantityChanged >= 0 THEN N'Stock increased (+ '
+                    WHEN l.ChangeType = N'ADJUSTMENT' AND l.QuantityChanged < 0 THEN N'Stock adjusted (- '
+                    WHEN l.ChangeType = N'DAMAGED' THEN N'Stock written off (- '
+                    WHEN l.ChangeType = N'RETURN' THEN N'Returned stock incremented (+ '
+                    ELSE CONCAT(l.ChangeType, N' ')
+                END,
+                p.Name, N' (', pc.Color, N', ', v.Size, N')',
+                N' &bull; Change: ',
+                CASE WHEN l.QuantityChanged > 0 THEN CONCAT(N'+', l.QuantityChanged) ELSE CAST(l.QuantityChanged AS NVARCHAR(10)) END,
+                N' &bull; Current Level: ',
+                l.PreviousStock + l.QuantityChanged, N' units'
+            ) AS Detail,
+            COALESCE(NULLIF(CONCAT(u.FirstName, N' ', u.LastName), N' '), N'Staff') AS Actor,
+            CASE
+                WHEN r.Name = N'Admin' THEN N'Admin'
+                WHEN r.Name = N'Customer' THEN N'Customer'
+                ELSE N'Staff'
+            END AS ActorRole,
+            l.CreatedAt
+        FROM dbo.StockAuditLogs l
+        JOIN dbo.ProductVariants v ON v.Id = l.VariantId
+        JOIN dbo.ProductColors pc ON pc.Id = v.ProductColorId
+        JOIN dbo.Products p ON p.Id = pc.ProductId
+        LEFT JOIN dbo.Users u ON u.Id = l.UserId
+        LEFT JOIN dbo.Roles r ON r.Id = u.RoleId
+        WHERE l.ChangeType IN (N'RESTOCK', N'ADJUSTMENT', N'DAMAGED', N'RETURN')
+
+        UNION ALL
+
+        -- 3. Return & Exchange RMAs (Submitted by Customer)
+        SELECT
+            N'RMA' AS ActivityType,
+            rma.RmaNumber AS Reference,
+            CONCAT(
+                N'Submitted ',
+                CASE WHEN rma.RequestType = N'RETURN' THEN N'Return request for refund' ELSE N'Exchange request' END,
+                N' on Order #', o.OrderNumber,
+                N' &bull; Item: ', p.Name, N' (', pc.Color, N', ', pv.Size, N')',
+                N' &bull; Reason: ', rma.Reason,
+                CASE WHEN rma.CustomerNotes IS NOT NULL AND LEN(rma.CustomerNotes) > 0 THEN CONCAT(N' &bull; Note: "', LEFT(rma.CustomerNotes, 50), N'..."') ELSE N'' END
+            ) AS Detail,
+            COALESCE(NULLIF(o.CustomerName, N''), NULLIF(CONCAT(u.FirstName, N' ', u.LastName), N' '), N'Customer') AS Actor,
+            N'Customer' AS ActorRole,
+            rma.CreatedAt
+        FROM dbo.ReturnRequests rma
+        JOIN dbo.Orders o ON o.Id = rma.OrderId
+        JOIN dbo.OrderItems oi ON oi.Id = rma.OrderItemId
+        JOIN dbo.ProductVariants pv ON pv.Id = oi.VariantId
+        JOIN dbo.ProductColors pc ON pc.Id = pv.ProductColorId
+        JOIN dbo.Products p ON p.Id = pc.ProductId
+        LEFT JOIN dbo.Users u ON u.Id = rma.UserId
+
+        UNION ALL
+
+        -- 4. Return & Exchange RMAs (Resolved by Staff/Admin)
+        SELECT
+            N'RMA' AS ActivityType,
+            rma.RmaNumber AS Reference,
+            CONCAT(
+                N'Processed RMA: ', rma.Status,
+                CASE
+                    WHEN rma.ResolutionType IS NOT NULL THEN CONCAT(N' (Resolution: ', rma.ResolutionType, N')')
+                    ELSE N''
+                END,
+                CASE
+                    WHEN rma.RefundAmount IS NOT NULL AND rma.RefundAmount > 0 THEN CONCAT(N' &bull; Refund: PHP ', FORMAT(rma.RefundAmount, N'N2'))
+                    ELSE N''
+                END,
+                N' on Order #', o.OrderNumber,
+                CASE WHEN rma.Restocked = 1 THEN N' &bull; Item Restocked' ELSE N'' END
+            ) AS Detail,
+            COALESCE(NULLIF(CONCAT(pb.FirstName, N' ', pb.LastName), N' '), N'Staff Member') AS Actor,
+            CASE WHEN pbr.Name = N'Admin' THEN N'Admin' ELSE N'Staff' END AS ActorRole,
+            rma.UpdatedAt AS CreatedAt
+        FROM dbo.ReturnRequests rma
+        JOIN dbo.Orders o ON o.Id = rma.OrderId
+        LEFT JOIN dbo.Users pb ON pb.Id = rma.ProcessedBy
+        LEFT JOIN dbo.Roles pbr ON pbr.Id = pb.RoleId
+        WHERE rma.Status IN (N'Approved', N'Rejected', N'Completed', N'Received')
+          AND rma.ProcessedBy IS NOT NULL
+
+        UNION ALL
+
+        -- 5. Customer Product Reviews
+        SELECT
+            N'Review' AS ActivityType,
+            CONCAT(pr.Rating, N'-Star Rating') AS Reference,
+            CONCAT(
+                N'Reviewed ', p.Name,
+                N' (', pr.Rating, N'/5 stars)',
+                CASE WHEN pr.Title IS NOT NULL AND LEN(pr.Title) > 0 THEN CONCAT(N' &bull; "', pr.Title, N'"') ELSE N'' END,
+                CASE WHEN pr.IsVerifiedPurchase = 1 THEN N' &bull; Verified Purchase' ELSE N'' END
+            ) AS Detail,
+            COALESCE(NULLIF(pr.ReviewerName, N''), N'Customer') AS Actor,
+            N'Customer' AS ActorRole,
+            pr.CreatedAt
+        FROM dbo.ProductReviews pr
+        JOIN dbo.Products p ON p.Id = pr.ProductId
+
+        UNION ALL
+
+        -- 6. Moderation Review Reports
+        SELECT
+            N'Review' AS ActivityType,
+            CONCAT(N'Report #', rep.Id) AS Reference,
+            CONCAT(
+                N'Flagged review on ', p.Name,
+                N' &bull; Reason: ', rep.Reason,
+                CASE WHEN rep.Notes IS NOT NULL AND LEN(rep.Notes) > 0 THEN CONCAT(N' &bull; "', LEFT(rep.Notes, 40), N'..."') ELSE N'' END
+            ) AS Detail,
+            COALESCE(NULLIF(CONCAT(u.FirstName, N' ', u.LastName), N' '), N'Community Member') AS Actor,
+            N'Customer' AS ActorRole,
+            rep.CreatedAt
+        FROM dbo.ReviewReports rep
+        JOIN dbo.ProductReviews pr ON pr.Id = rep.ReviewId
+        JOIN dbo.Products p ON p.Id = pr.ProductId
+        LEFT JOIN dbo.Users u ON u.Id = rep.UserId
+
+        UNION ALL
+
+        -- 7. Payment Transactions (Completed payments and refunds) - labeled QRPh instead of HitPay
+        SELECT
+            N'Payment' AS ActivityType,
+            COALESCE(py.GatewayReference, o.OrderNumber) AS Reference,
+            CONCAT(
+                CASE
+                    WHEN py.Status = N'Completed' THEN N'Payment received via '
+                    WHEN py.Status = N'Refunded' THEN N'Refund issued via '
+                    WHEN py.Status = N'Failed' THEN N'Payment attempt failed on '
+                    ELSE CONCAT(py.Status, N' payment via ')
+                END,
+                CASE
+                    WHEN UPPER(ISNULL(py.PaymentGateway, N'')) = N'HITPAY' THEN N'QRPh'
+                    ELSE ISNULL(py.PaymentGateway, N'Payment Gateway')
+                END,
+                N' &bull; Amount: PHP ', FORMAT(py.Amount, N'N2'),
+                N' &bull; Order #', o.OrderNumber
+            ) AS Detail,
+            COALESCE(NULLIF(o.CustomerName, N''), N'Customer') AS Actor,
+            N'Customer' AS ActorRole,
+            COALESCE(py.PaidAt, py.CreatedAt) AS CreatedAt
+        FROM dbo.Payments py
+        JOIN dbo.Orders o ON o.Id = py.OrderId
+        WHERE py.Status IN (N'Completed', N'Refunded')
+    ) activity
+    ORDER BY CreatedAt DESC
+    OFFSET @Offset ROWS
+    FETCH NEXT @Limit ROWS ONLY;
+END;
+GO
+
+PRINT N'Migration 45 applied successfully.';
+GO
+
+
+GO
+-- Source: schema/46_user_orders_items_json_optimization.sql
+-- =====================================================================================
+-- MIGRATION 46: OPTIMIZE USER ORDERS WITH PRELOADED ITEMS JSON
+-- Author: Helmet Cartel Engineering Team
+-- Date: 2026-10-04
+-- Purpose: Pre-load order items in dbo.sp_GetUserOrders as ItemsJson to allow instantaneous
+--          rendering of the Return / Exchange item checklist and expanded order drawer.
+-- =====================================================================================
+
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_GetUserOrders
+    @UserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @UserEmail NVARCHAR(256);
+    SELECT @UserEmail = Email FROM dbo.Users WHERE Id = @UserId;
+
+    SELECT
+        o.Id,
+        o.OrderNumber,
+        o.CustomerName,
+        o.CustomerEmail,
+        o.CustomerPhone,
+        o.Subtotal,
+        o.DiscountAmount,
+        o.VoucherCode,
+        o.ShippingFee,
+        o.TotalAmount,
+        o.Status AS OrderStatus,
+        o.OrderSource,
+        o.ShippingMethod,
+        o.ShippingRegion,
+        o.ShippingAddress,
+        o.ShippingBarangay,
+        o.ShippingCity,
+        o.ShippingProvince,
+        o.ShippingPostalCode,
+        o.Courier,
+        o.TrackingNumber,
+        o.DeliveryNotes,
+        o.Notes,
+        o.CreatedAt,
+        o.UpdatedAt,
+        ISNULL((SELECT TOP 1 p.PaymentGateway FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC), 'HitPay') AS PaymentGateway,
+        ISNULL((SELECT TOP 1 p.Status FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC), 'Pending') AS PaymentStatus,
+        (SELECT TOP 1 p.GatewayReference FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC) AS GatewayReference,
+        (SELECT COUNT(*) FROM dbo.OrderItems oi WHERE oi.OrderId = o.Id) AS ItemCount,
+        (SELECT COUNT(*) FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id) AS RmaCount,
+        (SELECT TOP 1 rr.RequestType FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id ORDER BY rr.Id DESC) AS LatestRmaType,
+        (SELECT TOP 1 rr.Status FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id ORDER BY rr.Id DESC) AS LatestRmaStatus,
+        (SELECT TOP 1 rr.ResolutionType FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id ORDER BY rr.Id DESC) AS LatestRmaResolution,
+        (SELECT STRING_AGG(p.MainImageUrl, ';')
+         FROM (
+             SELECT TOP 3 p.MainImageUrl
+             FROM dbo.OrderItems oi
+             JOIN dbo.ProductVariants pv ON oi.VariantId = pv.Id
+             JOIN dbo.ProductColors pc ON pv.ProductColorId = pc.Id
+             JOIN dbo.Products p ON pc.ProductId = p.Id
+             WHERE oi.OrderId = o.Id
+             ORDER BY oi.Id ASC
+         ) p) AS PreviewImages,
+        (SELECT
+            oi.Id AS Id,
+            oi.Id AS OrderItemId,
+            oi.OrderId,
+            oi.VariantId,
+            c.ProductId,
+            oi.Quantity,
+            oi.UnitPrice,
+            oi.TotalPrice,
+            ISNULL(NULLIF(oi.ProductName, N''), p.Name) AS ProductName,
+            p.Slug AS ProductSlug,
+            p.MainImageUrl,
+            ISNULL(NULLIF(oi.ColorName, N''), c.Color) AS Color,
+            ISNULL(NULLIF(oi.Size, N''), v.Size) AS Size,
+            ISNULL(NULLIF(oi.SKU, N''), v.SKU) AS SKU,
+            (SELECT TOP 1 rr.Id FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaId,
+            (SELECT TOP 1 rr.RmaNumber FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaNumber,
+            (SELECT TOP 1 rr.RequestType FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaType,
+            (SELECT TOP 1 rr.Status FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaStatus,
+            (SELECT TOP 1 rr.ResolutionType FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaResolution,
+            (SELECT TOP 1 pr.Id FROM dbo.ProductReviews pr WHERE pr.OrderId = oi.OrderId AND pr.ProductId = c.ProductId) AS ReviewId
+         FROM dbo.OrderItems oi
+         LEFT JOIN dbo.ProductVariants v ON oi.VariantId = v.Id
+         LEFT JOIN dbo.ProductColors c ON v.ProductColorId = c.Id
+         LEFT JOIN dbo.Products p ON c.ProductId = p.Id
+         WHERE oi.OrderId = o.Id
+         FOR JSON PATH) AS ItemsJson
+    FROM dbo.Orders o
+    WHERE o.UserId = @UserId OR (o.UserId IS NULL AND o.CustomerEmail = @UserEmail)
+    ORDER BY o.CreatedAt DESC;
+END;
+GO
+
+
+GO
+-- Source: schema/48_database_shopping_state.sql
+
+GO
+IF OBJECT_ID(N'dbo.CartItems', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.CartItems (
+        Id INT IDENTITY PRIMARY KEY,
+        UserId INT NOT NULL REFERENCES dbo.Users(Id),
+        VariantId INT NOT NULL REFERENCES dbo.ProductVariants(Id),
+        Quantity INT NOT NULL CHECK (Quantity BETWEEN 1 AND 9999),
+        IsSelected BIT NOT NULL DEFAULT 1,
+        CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt DATETIME2 NULL,
+        CONSTRAINT UQ_CartItems_UserVariant UNIQUE (UserId, VariantId)
+    );
+END;
+IF OBJECT_ID(N'dbo.Favorites', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Favorites (
+        Id INT IDENTITY PRIMARY KEY,
+        UserId INT NOT NULL REFERENCES dbo.Users(Id),
+        ProductId INT NOT NULL REFERENCES dbo.Products(Id),
+        CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt DATETIME2 NULL,
+        CONSTRAINT UQ_Favorites_UserProduct UNIQUE (UserId, ProductId)
+    );
+END;
+GO
+CREATE OR ALTER PROCEDURE dbo.sp_GetShoppingState @UserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    -- One round trip returns current prices, visibility, stock, and reviews for both collections.
+    SELECT (
+        SELECT JSON_QUERY((
+            SELECT ci.VariantId AS variantId, pc.ProductId AS productId,
+                ci.Quantity AS quantity, ci.IsSelected AS isSelected,
+                p.Name AS name, b.Name AS brand, v.Size AS size, pc.Color AS color,
+                p.MainImageUrl AS imageUrl,
+                dbo.fn_CalculateEffectivePrice(p.BasePrice, v.PriceAdjustment, p.DiscountPercentage,
+                    p.DiscountType, p.DiscountAmount, p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive) AS price,
+                CASE WHEN vp.Id IS NULL OR vv.Id IS NULL THEN 0
+                     ELSE ISNULL(i.CurrentStock - i.ReservedStock, 0) END AS availableStock
+            FROM dbo.CartItems ci
+            JOIN dbo.ProductVariants v ON v.Id = ci.VariantId
+            JOIN dbo.ProductColors pc ON pc.Id = v.ProductColorId
+            JOIN dbo.Products p ON p.Id = pc.ProductId
+            JOIN dbo.Brands b ON b.Id = p.BrandId
+            LEFT JOIN dbo.v_VisibleProducts vp ON vp.Id = p.Id
+            LEFT JOIN dbo.v_VisibleProductVariants vv ON vv.Id = v.Id
+            LEFT JOIN dbo.Inventories i ON i.VariantId = v.Id
+            WHERE ci.UserId = @UserId
+            ORDER BY ci.Id
+            FOR JSON PATH
+        )) AS cart,
+        JSON_QUERY((
+            SELECT f.ProductId AS productId, p.Name AS name, b.Name AS brand, c.Name AS category,
+                p.MainImageUrl AS imageUrl, p.BasePrice AS originalPrice,
+                dbo.fn_CalculateEffectivePrice(p.BasePrice, 0, p.DiscountPercentage,
+                    p.DiscountType, p.DiscountAmount, p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive) AS price,
+                p.DiscountPercentage AS discountPercentage,
+                review.Rating AS rating, review.ReviewCount AS reviewCount,
+                CAST(CASE WHEN NOT EXISTS (
+                    SELECT 1 FROM dbo.v_VisibleProductVariants v
+                    JOIN dbo.ProductColors pc ON pc.Id = v.ProductColorId
+                    JOIN dbo.Inventories i ON i.VariantId = v.Id
+                    WHERE pc.ProductId = p.Id AND i.CurrentStock > i.ReservedStock
+                ) THEN 1 ELSE 0 END AS BIT) AS isOutOfStock
+            FROM dbo.Favorites f
+            JOIN dbo.v_VisibleProducts p ON p.Id = f.ProductId
+            JOIN dbo.Brands b ON b.Id = p.BrandId
+            JOIN dbo.Categories c ON c.Id = p.CategoryId
+            OUTER APPLY (
+                SELECT CAST(ISNULL(AVG(CAST(r.Rating AS DECIMAL(9,2))), 0) AS DECIMAL(3,2)) AS Rating,
+                    COUNT(*) AS ReviewCount
+                FROM dbo.ProductReviews r WHERE r.ProductId = p.Id AND r.IsHidden = 0
+            ) review
+            WHERE f.UserId = @UserId
+            ORDER BY f.Id
+            FOR JSON PATH
+        )) AS favorites
+        FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
+    ) AS ShoppingState;
+END;
+GO
+CREATE OR ALTER PROCEDURE dbo.sp_ChangeShoppingState
+    @UserId INT, @Operation NVARCHAR(30), @Id INT = NULL,
+    @Quantity INT = NULL, @IsSelected BIT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        -- Serialize changes per account, including inserts into initially empty collections.
+        DECLARE @Owner INT;
+        SELECT @Owner = Id FROM dbo.Users WITH (UPDLOCK, ROWLOCK) WHERE Id = @UserId AND IsActive = 1;
+        IF @Owner IS NULL THROW 53048, 'Account is unavailable.', 1;
+
+        IF @Operation IN (N'AddCart', N'SetCart')
+        BEGIN
+            IF @Quantity IS NOT NULL AND (@Quantity < 0 OR @Quantity > 9999)
+                THROW 53048, 'Quantity must be between 0 and 9999.', 1;
+            IF @Operation = N'AddCart' AND (@Quantity IS NULL OR @Quantity = 0)
+                THROW 53048, 'Quantity must be positive.', 1;
+            DECLARE @Existing INT, @Next INT, @Stock INT;
+            SELECT @Existing = Quantity FROM dbo.CartItems WITH (UPDLOCK, ROWLOCK)
+                WHERE UserId = @UserId AND VariantId = @Id;
+            SET @Next = CASE WHEN @Operation = N'AddCart' THEN ISNULL(@Existing, 0) + @Quantity
+                             ELSE COALESCE(@Quantity, @Existing) END;
+            IF @Next IS NULL THROW 53048, 'Cart item no longer exists.', 1;
+            IF @Quantity IS NOT NULL AND @Next > 0
+            BEGIN
+                SELECT @Stock = i.CurrentStock - i.ReservedStock
+                FROM dbo.v_VisibleProductVariants v
+                JOIN dbo.Inventories i ON i.VariantId = v.Id
+                WHERE v.Id = @Id;
+                IF @Stock IS NULL OR @Next > @Stock OR @Next > 9999
+                    THROW 53048, 'Requested quantity is unavailable.', 1;
+            END;
+            IF @Next = 0 DELETE dbo.CartItems WHERE UserId = @UserId AND VariantId = @Id;
+            ELSE IF @Existing IS NULL
+                INSERT dbo.CartItems(UserId, VariantId, Quantity, IsSelected)
+                VALUES (@UserId, @Id, @Next, ISNULL(@IsSelected, 1));
+            ELSE UPDATE dbo.CartItems SET Quantity = @Next, IsSelected = COALESCE(@IsSelected, IsSelected),
+                UpdatedAt = SYSUTCDATETIME() WHERE UserId = @UserId AND VariantId = @Id;
+        END
+        ELSE IF @Operation = N'RemoveCart'
+            DELETE dbo.CartItems WHERE UserId = @UserId AND VariantId = @Id;
+        ELSE IF @Operation = N'ClearCart'
+            DELETE dbo.CartItems WHERE UserId = @UserId;
+        ELSE IF @Operation = N'SelectCart'
+            UPDATE dbo.CartItems SET IsSelected = ISNULL(@IsSelected, 0), UpdatedAt = SYSUTCDATETIME() WHERE UserId = @UserId;
+        ELSE IF @Operation = N'SaveFavorite'
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM dbo.v_VisibleProducts WHERE Id = @Id)
+                THROW 53048, 'Product is unavailable.', 1;
+            IF NOT EXISTS (SELECT 1 FROM dbo.Favorites WHERE UserId = @UserId AND ProductId = @Id)
+                INSERT dbo.Favorites(UserId, ProductId) VALUES (@UserId, @Id);
+        END
+        ELSE IF @Operation = N'RemoveFavorite'
+            DELETE dbo.Favorites WHERE UserId = @UserId AND ProductId = @Id;
+        ELSE IF @Operation = N'ClearFavorites'
+            DELETE dbo.Favorites WHERE UserId = @UserId;
+        ELSE THROW 53048, 'Unsupported shopping operation.', 1;
+        COMMIT;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK;
+        THROW;
+    END CATCH;
+    -- Cart changes never reserve or decrement inventory; checkout owns allocation.
+    EXEC dbo.sp_GetShoppingState @UserId;
+END;
+GO
+
+-- Existing SQL rows win; import retries cannot add quantity twice.
+CREATE OR ALTER PROCEDURE dbo.sp_ImportShoppingState
+    @UserId INT, @Cart NVARCHAR(MAX), @Favorites NVARCHAR(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        DECLARE @Owner INT;
+        SELECT @Owner = Id FROM dbo.Users WITH (UPDLOCK, ROWLOCK) WHERE Id = @UserId AND IsActive = 1;
+        IF @Owner IS NULL THROW 53048, 'Account is unavailable.', 1;
+        INSERT dbo.CartItems(UserId, VariantId, Quantity, IsSelected)
+        SELECT @UserId, saved.VariantId,
+            CASE WHEN saved.Quantity > i.CurrentStock - i.ReservedStock THEN i.CurrentStock - i.ReservedStock ELSE saved.Quantity END,
+            saved.IsSelected
+        FROM (
+            SELECT VariantId, MAX(Quantity) AS Quantity, CONVERT(BIT, MAX(CONVERT(INT, ISNULL(IsSelected, 1)))) AS IsSelected
+            FROM OPENJSON(@Cart) WITH (VariantId INT, Quantity INT, IsSelected BIT)
+            WHERE VariantId > 0 AND Quantity BETWEEN 1 AND 9999 GROUP BY VariantId
+        ) saved
+        JOIN dbo.v_VisibleProductVariants v ON v.Id = saved.VariantId
+        JOIN dbo.Inventories i ON i.VariantId = v.Id AND i.CurrentStock > i.ReservedStock
+        WHERE NOT EXISTS (SELECT 1 FROM dbo.CartItems WHERE UserId = @UserId AND VariantId = saved.VariantId);
+        INSERT dbo.Favorites(UserId, ProductId)
+        SELECT @UserId, p.Id FROM dbo.v_VisibleProducts p
+        WHERE p.Id IN (SELECT TRY_CONVERT(INT, value) FROM OPENJSON(@Favorites))
+            AND NOT EXISTS (SELECT 1 FROM dbo.Favorites WHERE UserId = @UserId AND ProductId = p.Id);
+        COMMIT;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK;
+        THROW;
+    END CATCH;
+    EXEC dbo.sp_GetShoppingState @UserId;
+END;
+GO
+
+
+GO
+-- Source: schema/48_fix_profile_vouchers_revenue_and_stepper.sql
+-- =====================================================================================
+-- 48_fix_profile_vouchers_revenue_and_stepper.sql
+-- Fixes:
+-- 1. dbo.sp_UpdateUserProfile: Make PhoneNumber optional/preserve existing, validate uniqueness only if changed
+-- 2. dbo.sp_PreviewVoucher & dbo.sp_ApplyOrderVoucher: Enforce single-use per customer (email/user)
+-- 3. dbo.sp_AdminProcessReturnRequest: Default RefundAmount to item total if null on approval
+-- 4. dbo.sp_AdminDashboard: Exclude ShippingFee from revenue, deduct approved return refunds
+-- 5. dbo.sp_AdminSalesDaily: Exclude ShippingFee, deduct approved return refunds
+-- 6. dbo.sp_AdminSalesHourly: Exclude ShippingFee, deduct approved return refunds
+-- 7. dbo.sp_AdminSalesPerformance: Deduct approved return items from units sold and revenue
+-- 8. dbo.sp_AdminSalesByBrandAndCategory: Deduct approved return items from units sold and revenue
+-- =====================================================================================
+
+GO
+
+-- 1. UPDATE STORED PROCEDURE: sp_UpdateUserProfile
+SET ANSI_NULLS ON;
+GO
+SET QUOTED_IDENTIFIER ON;
+GO
+IF OBJECT_ID(N'dbo.sp_UpdateUserProfile', N'P') IS NULL
+    EXEC(N'CREATE PROCEDURE dbo.sp_UpdateUserProfile AS BEGIN RETURN 0; END');
+GO
+
+ALTER PROCEDURE dbo.sp_UpdateUserProfile
+    @UserId INT,
+    @FirstName NVARCHAR(100),
+    @LastName NVARCHAR(100),
+    @PhoneNumber NVARCHAR(30) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Id = @UserId AND IsActive = 1)
+        THROW 53001, N'User account not found or inactive.', 1;
+
+    IF @FirstName IS NULL OR LEN(LTRIM(RTRIM(@FirstName))) = 0
+        THROW 53002, N'First name is required.', 1;
+
+    IF @LastName IS NULL OR LEN(LTRIM(RTRIM(@LastName))) = 0
+        THROW 53003, N'Last name is required.', 1;
+
+    IF @PhoneNumber IS NOT NULL AND LEN(LTRIM(RTRIM(@PhoneNumber))) > 0
+    BEGIN
+        SET @PhoneNumber = LTRIM(RTRIM(@PhoneNumber));
+        IF EXISTS (SELECT 1 FROM dbo.Users WHERE PhoneNumber = @PhoneNumber AND Id <> @UserId)
+            THROW 53005, N'This mobile phone number is already registered to another account.', 1;
+    END
+    ELSE
+    BEGIN
+        -- Preserve existing phone number if empty/null passed
+        SELECT @PhoneNumber = PhoneNumber FROM dbo.Users WHERE Id = @UserId;
+    END
+
+    UPDATE dbo.Users
+    SET FirstName = LTRIM(RTRIM(@FirstName)),
+        LastName = LTRIM(RTRIM(@LastName)),
+        PhoneNumber = @PhoneNumber,
+        UpdatedAt = SYSUTCDATETIME()
+    WHERE Id = @UserId;
+
+    SELECT
+        u.Id,
+        r.Name AS RoleName,
+        u.FirstName,
+        u.LastName,
+        CONCAT(u.FirstName, N' ', u.LastName) AS FullName,
+        u.Email,
+        u.PhoneNumber,
+        u.CreatedAt
+    FROM dbo.Users u
+    INNER JOIN dbo.Roles r ON u.RoleId = r.Id
+    WHERE u.Id = @UserId;
+END;
+GO
+
+-- 2. UPDATE STORED PROCEDURE: sp_PreviewVoucher (Enforce One-Time Use Per Customer)
+CREATE OR ALTER PROCEDURE dbo.sp_PreviewVoucher
+    @Code NVARCHAR(30),
+    @Items dbo.SaleLineInput READONLY,
+    @CustomerEmail NVARCHAR(255) = NULL,
+    @CustomerId INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT EXISTS (SELECT 1 FROM @Items) OR EXISTS (SELECT 1 FROM @Items WHERE Quantity <= 0) OR
+       EXISTS (SELECT VariantId FROM @Items GROUP BY VariantId HAVING COUNT(*) > 1)
+        THROW 54014, N'Choose valid, distinct merchandise items.', 1;
+
+    DECLARE @Subtotal DECIMAL(18,2), @Count INT;
+    SELECT @Subtotal = SUM(CONVERT(DECIMAL(18,2), dbo.fn_CalculateEffectivePrice(p.BasePrice, v.PriceAdjustment,
+        p.DiscountPercentage, p.DiscountType, p.DiscountAmount, p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive)) * l.Quantity),
+        @Count = COUNT(*)
+    FROM @Items l JOIN dbo.v_VisibleProductVariants v ON v.Id = l.VariantId
+    JOIN dbo.v_VisibleProductColors c ON c.Id = v.ProductColorId
+    JOIN dbo.v_VisibleProducts p ON p.Id = c.ProductId;
+
+    IF @Count <> (SELECT COUNT(*) FROM @Items) THROW 54014, N'An item is no longer available.', 1;
+
+    DECLARE @Id INT, @Discount DECIMAL(18,2), @Type NVARCHAR(20);
+    EXEC dbo.sp_CalculateVoucher @Code, @Subtotal, 0, @Id OUTPUT, @Discount OUTPUT, @Type OUTPUT;
+
+    -- Check if this customer has already used this voucher
+    IF (@CustomerId IS NOT NULL OR (@CustomerEmail IS NOT NULL AND LEN(LTRIM(RTRIM(@CustomerEmail))) > 0))
+    BEGIN
+        IF EXISTS (
+            SELECT 1
+            FROM dbo.VoucherRedemptions vr
+            JOIN dbo.Orders o ON vr.OrderId = o.Id
+            WHERE vr.VoucherId = @Id
+              AND vr.ReleasedAt IS NULL
+              AND o.Status <> N'Cancelled'
+              AND (
+                  (@CustomerId IS NOT NULL AND o.UserId = @CustomerId)
+                  OR (@CustomerEmail IS NOT NULL AND LEN(LTRIM(RTRIM(@CustomerEmail))) > 0
+                      AND LOWER(LTRIM(RTRIM(o.CustomerEmail))) = LOWER(LTRIM(RTRIM(@CustomerEmail))))
+              )
+        )
+        BEGIN
+            THROW 54017, N'You have already used this voucher code. Vouchers are limited to one use per customer.', 1;
+        END
+    END
+
+    SELECT
+        UPPER(LTRIM(RTRIM(@Code))) AS Code,
+        @Subtotal AS Subtotal,
+        @Discount AS DiscountAmount,
+        @Subtotal - @Discount AS DiscountedSubtotal,
+        @Type AS DiscountType;
+END;
+GO
+
+-- 3. UPDATE STORED PROCEDURE: sp_ApplyOrderVoucher (Enforce One-Time Use Per Customer)
+CREATE OR ALTER PROCEDURE dbo.sp_ApplyOrderVoucher
+    @OrderId INT,
+    @Code NVARCHAR(30)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @@TRANCOUNT = 0 THROW 54008, N'Voucher redemption requires an order transaction.', 1;
+
+    DECLARE @Subtotal DECIMAL(18,2), @Id INT, @Discount DECIMAL(18,2), @Type NVARCHAR(20);
+    DECLARE @CustomerId INT, @CustomerEmail NVARCHAR(255);
+
+    SELECT
+        @CustomerId = UserId,
+        @CustomerEmail = LTRIM(RTRIM(CustomerEmail))
+    FROM dbo.Orders WITH (UPDLOCK, ROWLOCK)
+    WHERE Id = @OrderId AND OrderSource = N'ONLINE' AND Status IN (N'PendingPayment', N'Processing');
+
+    IF @@ROWCOUNT = 0
+        THROW 54015, N'This order cannot accept a voucher.', 1;
+
+    IF EXISTS (SELECT 1 FROM dbo.VoucherRedemptions WHERE OrderId = @OrderId)
+        THROW 54016, N'This order already has a voucher.', 1;
+
+    SELECT @Subtotal = SUM(TotalPrice) FROM dbo.OrderItems WHERE OrderId = @OrderId;
+
+    EXEC dbo.sp_CalculateVoucher @Code, @Subtotal, 1, @Id OUTPUT, @Discount OUTPUT, @Type OUTPUT;
+
+    -- Strict One-Time Use Per Customer Check
+    IF EXISTS (
+        SELECT 1
+        FROM dbo.VoucherRedemptions vr
+        JOIN dbo.Orders o ON vr.OrderId = o.Id
+        WHERE vr.VoucherId = @Id
+          AND vr.OrderId <> @OrderId
+          AND vr.ReleasedAt IS NULL
+          AND o.Status <> N'Cancelled'
+          AND (
+              (@CustomerId IS NOT NULL AND o.UserId = @CustomerId)
+              OR (@CustomerEmail IS NOT NULL AND LEN(@CustomerEmail) > 0
+                  AND LOWER(LTRIM(RTRIM(o.CustomerEmail))) = LOWER(@CustomerEmail))
+          )
+    )
+    BEGIN
+        THROW 54017, N'You have already used this voucher code. Vouchers are limited to one use per customer.', 1;
+    END
+
+    IF @Type = N'FREE_SHIPPING'
+    BEGIN
+        DECLARE @SavedShippingFee DECIMAL(18,2) = 0.00;
+        SELECT @SavedShippingFee = ISNULL(ShippingFee, 0.00) FROM dbo.Orders WHERE Id = @OrderId;
+
+        INSERT dbo.VoucherRedemptions(VoucherId, OrderId, DiscountAmount)
+        VALUES (@Id, @OrderId, @SavedShippingFee);
+
+        UPDATE dbo.Orders
+        SET VoucherCode = UPPER(LTRIM(RTRIM(@Code))),
+            DiscountAmount = 0.00,
+            ShippingFee = 0.00,
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE Id = @OrderId;
+    END
+    ELSE
+    BEGIN
+        INSERT dbo.VoucherRedemptions(VoucherId, OrderId, DiscountAmount)
+        VALUES (@Id, @OrderId, @Discount);
+
+        UPDATE dbo.Orders
+        SET VoucherCode = UPPER(LTRIM(RTRIM(@Code))),
+            DiscountAmount = @Discount,
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE Id = @OrderId;
+    END
+
+    SELECT
+        VoucherCode AS Code,
+        Subtotal,
+        DiscountAmount,
+        Subtotal - DiscountAmount AS DiscountedSubtotal,
+        @Type AS DiscountType
+    FROM dbo.Orders
+    WHERE Id = @OrderId;
+END;
+GO
+
+-- 4. UPDATE STORED PROCEDURE: sp_AdminProcessReturnRequest (Default RefundAmount if null)
+CREATE OR ALTER PROCEDURE dbo.sp_AdminProcessReturnRequest
+    @RmaId INT,
+    @NewStatus NVARCHAR(30),
+    @ResolutionType NVARCHAR(30) = NULL,
+    @RefundAmount DECIMAL(18,2) = NULL,
+    @RestockItem BIT = 0,
+    @AdminNotes NVARCHAR(1000) = NULL,
+    @ProcessedBy INT = NULL,
+    @Success BIT OUTPUT,
+    @ErrorMessage NVARCHAR(255) OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @CurrentStatus NVARCHAR(30);
+        DECLARE @CurrentRestocked BIT;
+        DECLARE @OrderItemId INT;
+        DECLARE @RmaNumber NVARCHAR(30);
+        DECLARE @ItemTotalPrice DECIMAL(18,2);
+
+        SELECT
+            @CurrentStatus = Status,
+            @CurrentRestocked = Restocked,
+            @OrderItemId = OrderItemId,
+            @RmaNumber = RmaNumber
+        FROM dbo.ReturnRequests WITH (UPDLOCK, ROWLOCK)
+        WHERE Id = @RmaId;
+
+        IF @CurrentStatus IS NULL
+        BEGIN
+            SET @Success = 0;
+            SET @ErrorMessage = N'RMA Request not found.';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        SELECT @ItemTotalPrice = TotalPrice FROM dbo.OrderItems WHERE Id = @OrderItemId;
+
+        -- If approving or completing without explicit refund amount, default to item price
+        IF (@NewStatus IN (N'Approved', N'Completed')) AND @RefundAmount IS NULL
+        BEGIN
+            SET @RefundAmount = @ItemTotalPrice;
+        END
+
+        -- If restock is requested and not already restocked
+        IF @RestockItem = 1 AND @CurrentRestocked = 0
+        BEGIN
+            DECLARE @VariantId INT;
+            DECLARE @Quantity INT;
+
+            SELECT @VariantId = VariantId, @Quantity = Quantity
+            FROM dbo.OrderItems
+            WHERE Id = @OrderItemId;
+
+            IF @VariantId IS NOT NULL AND @Quantity > 0
+            BEGIN
+                DECLARE @PrevStock INT;
+                SELECT @PrevStock = CurrentStock
+                FROM dbo.Inventories WITH (UPDLOCK, ROWLOCK)
+                WHERE VariantId = @VariantId;
+
+                IF @PrevStock IS NOT NULL
+                BEGIN
+                    -- Increment inventory stock atomically
+                    UPDATE dbo.Inventories WITH (UPDLOCK, ROWLOCK)
+                    SET CurrentStock = CurrentStock + @Quantity,
+                        UpdatedAt = SYSUTCDATETIME()
+                    WHERE VariantId = @VariantId;
+
+                    -- Record in StockAuditLogs
+                    INSERT INTO dbo.StockAuditLogs (
+                        VariantId, UserId, ChangeType, PreviousStock, QuantityChanged, ReferenceNumber, Notes
+                    )
+                    VALUES (
+                        @VariantId, @ProcessedBy, N'RETURN', @PrevStock, @Quantity, @RmaNumber,
+                        CONCAT(N'Restocked from RMA: ', @RmaNumber)
+                    );
+
+                    SET @CurrentRestocked = 1;
+                END
+            END
+        END
+
+        -- Update ReturnRequest record
+        UPDATE dbo.ReturnRequests WITH (UPDLOCK, ROWLOCK)
+        SET Status = @NewStatus,
+            ResolutionType = ISNULL(@ResolutionType, ResolutionType),
+            RefundAmount = ISNULL(@RefundAmount, RefundAmount),
+            Restocked = @CurrentRestocked,
+            AdminNotes = ISNULL(@AdminNotes, AdminNotes),
+            ProcessedBy = ISNULL(@ProcessedBy, ProcessedBy),
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE Id = @RmaId;
+
+        SET @Success = 1;
+        SET @ErrorMessage = NULL;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        SET @Success = 0;
+        SET @ErrorMessage = ERROR_MESSAGE();
+    END CATCH
+END;
+GO
+
+-- 5. UPDATE STORED PROCEDURE: sp_AdminDashboard (Exclude Delivery Fee, Deduct Approved Returns)
+CREATE OR ALTER PROCEDURE dbo.sp_AdminDashboard
+    @IncludeRevenue BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @TodayStart DATETIME2 = CONVERT(DATETIME2, CONVERT(DATE, SYSUTCDATETIME()));
+    DECLARE @TomorrowStart DATETIME2 = DATEADD(DAY, 1, @TodayStart);
+    DECLARE @YesterdayStart DATETIME2 = DATEADD(DAY, -1, @TodayStart);
+
+    ;WITH StockAtTodayStart AS
+    (
+        SELECT
+            i.Id,
+            i.ReservedStock,
+            i.ReorderPoint,
+            CASE
+                WHEN v.CreatedAt >= @TodayStart THEN 0
+                ELSE i.CurrentStock - ISNULL(SUM(CASE WHEN l.CreatedAt >= @TodayStart THEN l.QuantityChanged ELSE 0 END), 0)
+            END AS PreviousStock
+        FROM dbo.v_VisibleInventories i
+        JOIN dbo.v_VisibleProductVariants v ON v.Id = i.VariantId
+        LEFT JOIN dbo.v_VisibleStockAuditLogs l ON l.VariantId = i.VariantId
+        GROUP BY i.Id, i.CurrentStock, i.ReservedStock, i.ReorderPoint, v.CreatedAt
+    ),
+    OrderSales AS (
+        SELECT
+            p.PaidAt,
+            -- Merchandise Sales = (Subtotal - DiscountAmount) - Approved Return Refunds
+            (o.Subtotal - o.DiscountAmount) - ISNULL(
+                (SELECT SUM(COALESCE(rr.RefundAmount, oi.TotalPrice, 0.00))
+                 FROM dbo.ReturnRequests rr
+                 JOIN dbo.OrderItems oi ON rr.OrderItemId = oi.Id
+                 WHERE rr.OrderId = o.Id AND rr.Status IN (N'Approved', N'Completed')), 0.00
+            ) AS NetRevenue
+        FROM dbo.Payments p
+        JOIN dbo.Orders o ON o.Id = p.OrderId
+        WHERE p.Status = N'Completed'
+          AND o.Status IN (N'Completed', N'Delivered')
+    )
+    SELECT
+        (SELECT ISNULL(SUM(CurrentStock), 0) FROM dbo.v_VisibleInventories) AS OnHandStock,
+        (SELECT ISNULL(SUM(CurrentStock - ReservedStock), 0) FROM dbo.v_VisibleInventories) AS AvailableStock,
+        (SELECT COUNT(*) FROM dbo.v_VisibleInventories WHERE IsLowStock = 1) AS LowStockCount,
+        (SELECT COUNT(*) FROM dbo.v_VisibleInventories WHERE CurrentStock - ReservedStock = 0) AS OutOfStockCount,
+        (SELECT COUNT(*) FROM dbo.Orders WHERE Status IN (N'PendingPayment', N'Processing', N'ReadyForPickup')) AS ActiveOrders,
+        (SELECT ISNULL(SUM(PreviousStock), 0) FROM StockAtTodayStart) AS YesterdayOnHandStock,
+        (SELECT ISNULL(SUM(CASE WHEN PreviousStock > ReservedStock THEN PreviousStock - ReservedStock ELSE 0 END), 0)
+         FROM StockAtTodayStart) AS YesterdayAvailableStock,
+        (SELECT COUNT(*) FROM StockAtTodayStart WHERE PreviousStock > 0 AND PreviousStock - ReservedStock <= ReorderPoint) AS YesterdayLowStockCount,
+        (SELECT COUNT(*) FROM dbo.Orders WHERE CreatedAt >= @YesterdayStart AND CreatedAt < @TodayStart) AS YesterdayOrdersCount,
+        CASE WHEN @IncludeRevenue = 1 THEN
+            ISNULL((SELECT SUM(CASE WHEN NetRevenue > 0 THEN NetRevenue ELSE 0.00 END)
+                    FROM OrderSales
+                    WHERE PaidAt >= @TodayStart AND PaidAt < @TomorrowStart), 0.00)
+        ELSE NULL END AS TodayRevenue,
+        CASE WHEN @IncludeRevenue = 1 THEN
+            ISNULL((SELECT SUM(CASE WHEN NetRevenue > 0 THEN NetRevenue ELSE 0.00 END)
+                    FROM OrderSales
+                    WHERE PaidAt >= @YesterdayStart AND PaidAt < @TodayStart), 0.00)
+        ELSE NULL END AS YesterdayRevenue;
+END;
+GO
+
+-- 6. UPDATE STORED PROCEDURE: sp_AdminSalesDaily (Exclude Delivery Fee, Deduct Approved Returns)
+CREATE OR ALTER PROCEDURE dbo.sp_AdminSalesDaily
+    @StartDate DATETIME2,
+    @EndDate DATETIME2
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    ;WITH OrderSales AS (
+        SELECT
+            CONVERT(DATE, p.PaidAt) AS SalesDate,
+            o.Id AS OrderId,
+            (o.Subtotal - o.DiscountAmount) - ISNULL(
+                (SELECT SUM(COALESCE(rr.RefundAmount, oi.TotalPrice, 0.00))
+                 FROM dbo.ReturnRequests rr
+                 JOIN dbo.OrderItems oi ON rr.OrderItemId = oi.Id
+                 WHERE rr.OrderId = o.Id AND rr.Status IN (N'Approved', N'Completed')), 0.00
+            ) AS NetMerchandiseRevenue
+        FROM dbo.Payments p
+        JOIN dbo.Orders o ON o.Id = p.OrderId
+        WHERE p.Status = N'Completed'
+          AND o.Status IN (N'Completed', N'Delivered')
+          AND p.PaidAt >= @StartDate AND p.PaidAt < @EndDate
+    )
+    SELECT
+        SalesDate,
+        COUNT(DISTINCT OrderId) AS PaymentCount,
+        SUM(CASE WHEN NetMerchandiseRevenue > 0 THEN NetMerchandiseRevenue ELSE 0.00 END) AS Revenue
+    FROM OrderSales
+    GROUP BY SalesDate
+    ORDER BY SalesDate;
+END;
+GO
+
+-- 7. UPDATE STORED PROCEDURE: sp_AdminSalesHourly (Exclude Delivery Fee, Deduct Approved Returns)
+CREATE OR ALTER PROCEDURE dbo.sp_AdminSalesHourly
+    @TargetDate DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @DayStart DATETIME2 = CONVERT(DATETIME2, @TargetDate);
+    DECLARE @DayEnd DATETIME2 = DATEADD(DAY, 1, @DayStart);
+
+    ;WITH OrderSales AS (
+        SELECT
+            DATEPART(HOUR, p.PaidAt) AS SaleHour,
+            o.Id AS OrderId,
+            (o.Subtotal - o.DiscountAmount) - ISNULL(
+                (SELECT SUM(COALESCE(rr.RefundAmount, oi.TotalPrice, 0.00))
+                 FROM dbo.ReturnRequests rr
+                 JOIN dbo.OrderItems oi ON rr.OrderItemId = oi.Id
+                 WHERE rr.OrderId = o.Id AND rr.Status IN (N'Approved', N'Completed')), 0.00
+            ) AS NetMerchandiseRevenue
+        FROM dbo.Payments p
+        JOIN dbo.Orders o ON o.Id = p.OrderId
+        WHERE p.Status = N'Completed'
+          AND o.Status IN (N'Completed', N'Delivered')
+          AND p.PaidAt >= @DayStart AND p.PaidAt < @DayEnd
+    )
+    SELECT
+        SaleHour,
+        COUNT(DISTINCT OrderId) AS OrderCount,
+        SUM(CASE WHEN NetMerchandiseRevenue > 0 THEN NetMerchandiseRevenue ELSE 0.00 END) AS Revenue
+    FROM OrderSales
+    GROUP BY SaleHour
+    ORDER BY SaleHour;
+END;
+GO
+
+-- 8. UPDATE STORED PROCEDURE: sp_AdminSalesPerformance (Deduct Approved Return Items)
+CREATE OR ALTER PROCEDURE dbo.sp_AdminSalesPerformance
+    @StartDate DATETIME2,
+    @EndDate DATETIME2
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    ;WITH LineSales AS (
+        SELECT
+            oi.Id AS OrderItemId,
+            p.Id AS ProductId,
+            p.Name AS ProductName,
+            b.Id AS BrandId,
+            b.Name AS BrandName,
+            c.Id AS CategoryId,
+            c.Name AS CategoryName,
+            o.Id AS OrderId,
+            CASE
+                WHEN EXISTS (SELECT 1 FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id AND rr.Status IN (N'Approved', N'Completed'))
+                THEN 0
+                ELSE oi.Quantity
+            END AS UnitsSold,
+            CASE
+                WHEN EXISTS (SELECT 1 FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id AND rr.Status IN (N'Approved', N'Completed'))
+                THEN 0.00
+                ELSE (oi.Quantity * oi.UnitPrice)
+            END AS LineRevenue
+        FROM dbo.OrderItems oi
+        INNER JOIN dbo.Orders o ON o.Id = oi.OrderId
+        INNER JOIN dbo.ProductVariants pv ON pv.Id = oi.VariantId
+        INNER JOIN dbo.ProductColors pc ON pc.Id = pv.ProductColorId
+        INNER JOIN dbo.Products p ON p.Id = pc.ProductId
+        INNER JOIN dbo.Brands b ON b.Id = p.BrandId
+        INNER JOIN dbo.Categories c ON c.Id = p.CategoryId
+        INNER JOIN
+        (
+            SELECT OrderId, MAX(PaidAt) AS PaidAt
+            FROM dbo.Payments
+            WHERE Status = N'Completed' AND PaidAt IS NOT NULL
+            GROUP BY OrderId
+        ) completed ON completed.OrderId = oi.OrderId
+        WHERE o.Status IN (N'Completed', N'Delivered')
+          AND completed.PaidAt >= @StartDate
+          AND completed.PaidAt < @EndDate
+    )
+    SELECT
+        ProductId,
+        ProductName,
+        BrandId,
+        BrandName,
+        CategoryId,
+        CategoryName,
+        SUM(UnitsSold) AS UnitsSold,
+        COUNT(DISTINCT OrderId) AS OrderCount,
+        CONVERT(DECIMAL(18, 2), SUM(LineRevenue)) AS Revenue,
+        CONVERT(DECIMAL(18, 2), SUM(LineRevenue) / NULLIF(SUM(UnitsSold), 0)) AS AverageSellingPrice
+    FROM LineSales
+    GROUP BY ProductId, ProductName, BrandId, BrandName, CategoryId, CategoryName
+    ORDER BY UnitsSold DESC, Revenue DESC;
+END;
+GO
+
+-- 9. UPDATE STORED PROCEDURE: sp_AdminSalesByBrandAndCategory (Deduct Approved Return Items)
+SET ANSI_NULLS ON;
+GO
+SET QUOTED_IDENTIFIER ON;
+GO
+CREATE OR ALTER PROCEDURE dbo.sp_AdminSalesByBrandAndCategory
+    @StartDate DATETIME2,
+    @EndDate DATETIME2
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @SalesLines TABLE
+    (
+        OrderId INT NOT NULL,
+        Quantity INT NOT NULL,
+        UnitPrice DECIMAL(18, 2) NOT NULL,
+        BrandName NVARCHAR(100) NOT NULL,
+        CategoryName NVARCHAR(100) NOT NULL
+    );
+
+    INSERT @SalesLines (OrderId, Quantity, UnitPrice, BrandName, CategoryName)
+    SELECT oi.OrderId,
+           CASE
+               WHEN EXISTS (SELECT 1 FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id AND rr.Status IN (N'Approved', N'Completed'))
+               THEN 0
+               ELSE oi.Quantity
+           END AS Quantity,
+           oi.UnitPrice,
+           b.Name,
+           c.Name
+    FROM dbo.OrderItems oi
+    INNER JOIN dbo.Orders o ON o.Id = oi.OrderId
+    INNER JOIN dbo.ProductVariants v ON v.Id = oi.VariantId
+    INNER JOIN dbo.ProductColors pc ON pc.Id = v.ProductColorId
+    INNER JOIN dbo.Products p ON p.Id = pc.ProductId
+    INNER JOIN dbo.Brands b ON b.Id = p.BrandId
+    INNER JOIN dbo.Categories c ON c.Id = p.CategoryId
+    INNER JOIN
+    (
+        SELECT OrderId, MAX(PaidAt) AS PaidAt
+        FROM dbo.Payments
+        WHERE Status = N'Completed'
+          AND PaidAt IS NOT NULL
+        GROUP BY OrderId
+    ) completed ON completed.OrderId = oi.OrderId
+    WHERE o.Status IN (N'Completed', N'Delivered')
+      AND completed.PaidAt >= @StartDate
+      AND completed.PaidAt < @EndDate;
+
+    SELECT BrandName AS DimensionName,
+           ISNULL(SUM(Quantity), 0) AS UnitsSold,
+           COUNT(DISTINCT OrderId) AS OrderCount,
+           ISNULL(CONVERT(DECIMAL(18, 2), SUM(Quantity * UnitPrice)), 0.00) AS Revenue,
+           ISNULL(CONVERT(DECIMAL(18, 2), SUM(Quantity * UnitPrice) / NULLIF(SUM(Quantity), 0)), 0.00) AS AverageUnitPrice
+    FROM @SalesLines
+    GROUP BY BrandName
+    ORDER BY UnitsSold DESC, Revenue DESC, BrandName;
+
+    SELECT CategoryName AS DimensionName,
+           ISNULL(SUM(Quantity), 0) AS UnitsSold,
+           COUNT(DISTINCT OrderId) AS OrderCount,
+           ISNULL(CONVERT(DECIMAL(18, 2), SUM(Quantity * UnitPrice)), 0.00) AS Revenue,
+           ISNULL(CONVERT(DECIMAL(18, 2), SUM(Quantity * UnitPrice) / NULLIF(SUM(Quantity), 0)), 0.00) AS AverageUnitPrice
+    FROM @SalesLines
+    GROUP BY CategoryName
+    ORDER BY UnitsSold DESC, Revenue DESC, CategoryName;
+END;
+GO
+
+
+GO
+-- Source: schema/49_settled_daily_orders.sql
+-- =========================================================================
+-- Migration 49: Procedure for Daily Settled Orders Drilldown
+-- Aligns with sp_AdminSalesDaily to return the exact settled transactions
+-- =========================================================================
+
+CREATE OR ALTER PROCEDURE dbo.sp_AdminDailySettledOrders
+    @TargetDate DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    ;WITH OrderSales AS (
+        SELECT
+            o.Id,
+            o.OrderNumber,
+            o.CustomerName,
+            o.CustomerEmail,
+            o.CustomerPhone,
+            o.OrderSource,
+            o.Status,
+            (o.Subtotal - o.DiscountAmount) - ISNULL(
+                (SELECT SUM(COALESCE(rr.RefundAmount, oi.TotalPrice, 0.00))
+                 FROM dbo.ReturnRequests rr
+                 JOIN dbo.OrderItems oi ON rr.OrderItemId = oi.Id
+                 WHERE rr.OrderId = o.Id AND rr.Status IN (N'Approved', N'Completed')), 0.00
+            ) AS NetMerchandiseRevenue,
+            o.CreatedAt,
+            o.ShippingMethod,
+            o.ShippingFee,
+            o.ShippingRegion,
+            o.ShippingAddress,
+            o.ShippingBarangay,
+            o.ShippingCity,
+            o.ShippingProvince,
+            o.ShippingPostalCode,
+            o.Courier,
+            o.TrackingNumber,
+            o.DeliveryNotes,
+            (SELECT COUNT(*) FROM dbo.OrderItems oi WHERE oi.OrderId = o.Id) AS ItemCount,
+            p.Status AS PaymentStatus,
+            p.PaymentGateway AS PaymentMethod,
+            p.PaidAt
+        FROM dbo.Payments p
+        JOIN dbo.Orders o ON o.Id = p.OrderId
+        WHERE p.Status = N'Completed'
+          AND o.Status IN (N'Completed', N'Delivered')
+          AND CONVERT(DATE, p.PaidAt) = @TargetDate
+    )
+    SELECT
+        Id,
+        OrderNumber,
+        CustomerName,
+        CustomerEmail,
+        CustomerPhone,
+        OrderSource,
+        Status,
+        NetMerchandiseRevenue AS TotalAmount,
+        CreatedAt,
+        ShippingMethod,
+        ShippingFee,
+        ShippingRegion,
+        ShippingAddress,
+        ShippingBarangay,
+        ShippingCity,
+        ShippingProvince,
+        ShippingPostalCode,
+        Courier,
+        TrackingNumber,
+        DeliveryNotes,
+        ItemCount,
+        PaymentStatus,
+        PaymentMethod
+    FROM OrderSales
+    ORDER BY PaidAt DESC, Id DESC;
+END;
+GO
+
+
+GO
+-- Source: schema/50_activity_redirects_and_order_hitpay_ref.sql
+-- =====================================================================================
+-- Migration 50: Activity Feed Redirects & HitPay Reference Resolution
+-- Updates:
+--  1. sp_GetOrderDetails: Resolves order by Id, OrderNumber, or Payment GatewayReference
+--  2. sp_AdminOrders: Adds searching by Payment GatewayReference (HitPay Reference)
+--  3. sp_AdminRecentActivity: Formats Review references as REV-<Id> for direct redirection
+-- =====================================================================================
+
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
+PRINT N'Applying Migration 50: Activity Feed Redirects & HitPay Reference Resolution...';
+GO
+
+-- 1. STORED PROCEDURE: sp_GetOrderDetails
+-- =====================================================================================
+CREATE OR ALTER PROCEDURE dbo.sp_GetOrderDetails
+    @OrderNumber NVARCHAR(100) = NULL,
+    @OrderId INT = NULL,
+    @PaymentReference NVARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @ResolvedId INT;
+
+    IF @OrderId IS NOT NULL
+        SET @ResolvedId = @OrderId;
+    ELSE IF @OrderNumber IS NOT NULL
+    BEGIN
+        SELECT @ResolvedId = Id FROM dbo.Orders WHERE OrderNumber = @OrderNumber;
+        -- Fallback: check if @OrderNumber is a HitPay / Payment GatewayReference
+        IF @ResolvedId IS NULL
+        BEGIN
+            SELECT TOP 1 @ResolvedId = p.OrderId
+            FROM dbo.Payments p
+            WHERE p.GatewayReference = @OrderNumber
+            ORDER BY p.Id DESC;
+        END
+    END
+    ELSE IF @PaymentReference IS NOT NULL
+    BEGIN
+        SELECT TOP 1 @ResolvedId = p.OrderId
+        FROM dbo.Payments p
+        WHERE p.GatewayReference = @PaymentReference
+        ORDER BY p.Id DESC;
+    END
+
+    IF @ResolvedId IS NULL
+        THROW 51018, N'Order not found.', 1;
+
+    -- Result Set 1: Order Header
+    SELECT
+        o.Id,
+        o.OrderNumber,
+        o.UserId,
+        o.CustomerName,
+        o.CustomerEmail,
+        o.CustomerPhone,
+        o.OrderSource,
+        o.Status,
+        o.Subtotal,
+        o.DiscountAmount,
+        o.VoucherCode,
+        o.CashTendered,
+        o.TotalAmount,
+        o.ShippingMethod,
+        o.ShippingFee,
+        o.ShippingRegion,
+        o.ShippingAddress,
+        o.ShippingBarangay,
+        o.ShippingCity,
+        o.ShippingProvince,
+        o.ShippingPostalCode,
+        o.Courier,
+        o.TrackingNumber,
+        o.DeliveryNotes,
+        o.Notes,
+        o.CreatedAt,
+        o.UpdatedAt,
+        (SELECT COUNT(*) FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id) AS RmaCount,
+        (SELECT TOP 1 rr.RequestType FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id ORDER BY rr.Id DESC) AS LatestRmaType,
+        (SELECT TOP 1 rr.Status FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id ORDER BY rr.Id DESC) AS LatestRmaStatus,
+        (SELECT TOP 1 rr.ResolutionType FROM dbo.ReturnRequests rr WHERE rr.OrderId = o.Id ORDER BY rr.Id DESC) AS LatestRmaResolution
+    FROM dbo.Orders o
+    WHERE o.Id = @ResolvedId;
+
+    -- Result Set 2: Order Items
+    SELECT
+        oi.Id,
+        oi.OrderId,
+        oi.VariantId,
+        c.ProductId AS ProductId,
+        oi.Quantity,
+        oi.UnitPrice,
+        oi.TotalPrice,
+        ISNULL(NULLIF(oi.ProductName, N''), p.Name) AS ProductName,
+        p.Slug AS ProductSlug,
+        p.MainImageUrl,
+        ISNULL(NULLIF(oi.ColorName, N''), c.Color) AS Color,
+        ISNULL(NULLIF(oi.Size, N''), v.Size) AS Size,
+        ISNULL(NULLIF(oi.SKU, N''), v.SKU) AS SKU,
+        (SELECT TOP 1 rr.Id FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaId,
+        (SELECT TOP 1 rr.RmaNumber FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaNumber,
+        (SELECT TOP 1 rr.RequestType FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaType,
+        (SELECT TOP 1 rr.Status FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaStatus,
+        (SELECT TOP 1 rr.ResolutionType FROM dbo.ReturnRequests rr WHERE rr.OrderItemId = oi.Id ORDER BY rr.Id DESC) AS RmaResolution,
+        (SELECT TOP 1 pr.Id FROM dbo.ProductReviews pr WHERE pr.OrderId = oi.OrderId AND pr.ProductId = c.ProductId) AS ReviewId
+    FROM dbo.OrderItems oi
+    LEFT JOIN dbo.ProductVariants v ON oi.VariantId = v.Id
+    LEFT JOIN dbo.ProductColors c ON v.ProductColorId = c.Id
+    LEFT JOIN dbo.Products p ON c.ProductId = p.Id
+    WHERE oi.OrderId = @ResolvedId;
+
+    -- Result Set 3: Payments
+    SELECT
+        py.Id,
+        py.OrderId,
+        py.PaymentGateway,
+        py.GatewayReference,
+        py.Amount,
+        py.Status,
+        py.PaidAt,
+        py.CreatedAt
+    FROM dbo.Payments py
+    WHERE py.OrderId = @ResolvedId
+    ORDER BY py.Id DESC;
+END;
+GO
+
+-- 2. STORED PROCEDURE: sp_AdminOrders
+-- Enhanced with Payment GatewayReference searching
+-- =====================================================================================
+CREATE OR ALTER PROCEDURE dbo.sp_AdminOrders
+    @Search NVARCHAR(100) = NULL,
+    @Status NVARCHAR(50) = NULL,
+    @Source NVARCHAR(30) = NULL,
+    @Limit INT = 100,
+    @OrderDate DATE = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT TOP (@Limit)
+        o.Id,
+        o.OrderNumber,
+        o.CustomerName,
+        o.CustomerEmail,
+        o.CustomerPhone,
+        o.OrderSource,
+        o.Status,
+        o.TotalAmount,
+        o.CreatedAt,
+        o.ShippingMethod,
+        o.ShippingFee,
+        o.ShippingRegion,
+        o.ShippingAddress,
+        o.ShippingBarangay,
+        o.ShippingCity,
+        o.ShippingProvince,
+        o.ShippingPostalCode,
+        o.Courier,
+        o.TrackingNumber,
+        o.DeliveryNotes,
+        (SELECT COUNT(*) FROM dbo.OrderItems oi WHERE oi.OrderId = o.Id) AS ItemCount,
+        (SELECT TOP 1 p.Status FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC) AS PaymentStatus,
+        (SELECT TOP 1 p.PaymentGateway FROM dbo.Payments p WHERE p.OrderId = o.Id ORDER BY p.Id DESC) AS PaymentMethod
+    FROM dbo.Orders o
+    WHERE (@Status IS NULL OR o.Status = @Status)
+      AND (@Source IS NULL OR o.OrderSource = @Source)
+      AND (@OrderDate IS NULL OR (o.CreatedAt >= @OrderDate AND o.CreatedAt < DATEADD(DAY, 1, @OrderDate)))
+      AND (@Search IS NULL OR o.OrderNumber LIKE N'%' + @Search + N'%'
+           OR o.CustomerName LIKE N'%' + @Search + N'%'
+           OR o.CustomerEmail LIKE N'%' + @Search + N'%'
+           OR o.TrackingNumber LIKE N'%' + @Search + N'%'
+           OR o.ShippingCity LIKE N'%' + @Search + N'%'
+           OR EXISTS (SELECT 1 FROM dbo.Payments py WHERE py.OrderId = o.Id AND py.GatewayReference LIKE N'%' + @Search + N'%'))
+    ORDER BY o.CreatedAt DESC, o.Id DESC;
+END;
+GO
+
+-- 3. STORED PROCEDURE: sp_AdminRecentActivity
+-- Updates Review reference format to REV-<ReviewId> for targeted modal redirection
+-- =====================================================================================
+CREATE OR ALTER PROCEDURE dbo.sp_AdminRecentActivity
+    @Limit INT = 8,
+    @Offset INT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT ActivityType, Reference, Detail, Actor, ActorRole, CreatedAt
+    FROM (
+        -- 1. Orders Placed & Status Updates
+        SELECT
+            N'Order' AS ActivityType,
+            o.OrderNumber AS Reference,
+            CONCAT(
+                CASE
+                    WHEN o.Status = N'PendingPayment' THEN N'Awaiting payment for '
+                    WHEN o.Status = N'Processing' THEN N'Placed order for '
+                    WHEN o.Status = N'ReadyForPickup' THEN N'Ready for pickup: '
+                    WHEN o.Status = N'Shipped' THEN N'Dispatched for delivery: '
+                    WHEN o.Status = N'Delivered' THEN N'Delivered to customer: '
+                    WHEN o.Status = N'Completed' THEN N'Completed order: '
+                    WHEN o.Status = N'Cancelled' THEN N'Cancelled order: '
+                    ELSE CONCAT(o.Status, N': ')
+                END,
+                ISNULL((
+                    SELECT STRING_AGG(CONCAT(p.Name, N' (', pc.Color, N', ', pv.Size, N') x', oi.Quantity), N', ')
+                    FROM dbo.OrderItems oi
+                    JOIN dbo.ProductVariants pv ON pv.Id = oi.VariantId
+                    JOIN dbo.ProductColors pc ON pc.Id = pv.ProductColorId
+                    JOIN dbo.Products p ON p.Id = pc.ProductId
+                    WHERE oi.OrderId = o.Id
+                ), N'Items'),
+                N' &bull; ',
+                CASE WHEN o.ShippingMethod = N'Pickup' THEN N'Store Pickup' ELSE N'Door-to-Door Delivery' END,
+                N' &bull; ',
+                CASE
+                    WHEN pay.Status = N'Completed' THEN CONCAT(N'Paid via ', CASE WHEN UPPER(ISNULL(pay.PaymentGateway, N'')) = N'HITPAY' THEN N'QRPh' ELSE ISNULL(pay.PaymentGateway, N'Online Payment') END, N' (PHP ', FORMAT(o.TotalAmount, N'N2'), N')')
+                    WHEN pay.PaymentGateway = N'CashOnDelivery' THEN CONCAT(N'Cash on Delivery (Pending, PHP ', FORMAT(o.TotalAmount, N'N2'), N')')
+                    ELSE CONCAT(CASE WHEN UPPER(ISNULL(pay.PaymentGateway, N'')) = N'HITPAY' THEN N'QRPh' ELSE ISNULL(pay.PaymentGateway, N'Payment') END, N' (PHP ', FORMAT(o.TotalAmount, N'N2'), N')')
+                END
+            ) AS Detail,
+            ISNULL(NULLIF(o.CustomerName, N''), N'Store Customer') AS Actor,
+            CASE
+                WHEN o.OrderSource IN (N'INSTORE_POS', N'IN_STORE') THEN N'Staff'
+                WHEN r.Name = N'Admin' THEN N'Admin'
+                WHEN r.Name = N'Staff' THEN N'Staff'
+                ELSE N'Customer'
+            END AS ActorRole,
+            COALESCE(o.UpdatedAt, o.CreatedAt) AS CreatedAt
+        FROM dbo.Orders o
+        LEFT JOIN dbo.Users u ON u.Id = o.UserId
+        LEFT JOIN dbo.Roles r ON r.Id = u.RoleId
+        LEFT JOIN (
+            SELECT OrderId, PaymentGateway, Status,
+                   ROW_NUMBER() OVER(PARTITION BY OrderId ORDER BY Id DESC) as rn
+            FROM dbo.Payments
+        ) pay ON pay.OrderId = o.Id AND pay.rn = 1
+
+        UNION ALL
+
+        -- 2. Stock Movements (Restocks, manual adjustments, damaged stock write-offs)
+        SELECT
+            N'Stock' AS ActivityType,
+            COALESCE(l.ReferenceNumber, v.SKU) AS Reference,
+            CONCAT(
+                CASE
+                    WHEN l.ChangeType = N'RESTOCK' THEN N'Restocked '
+                    WHEN l.ChangeType = N'ADJUSTMENT' AND l.QuantityChanged >= 0 THEN N'Stock increased (+ '
+                    WHEN l.ChangeType = N'ADJUSTMENT' AND l.QuantityChanged < 0 THEN N'Stock adjusted (- '
+                    WHEN l.ChangeType = N'DAMAGED' THEN N'Stock written off (- '
+                    WHEN l.ChangeType = N'RETURN' THEN N'Returned stock incremented (+ '
+                    ELSE CONCAT(l.ChangeType, N' ')
+                END,
+                p.Name, N' (', pc.Color, N', ', v.Size, N')',
+                N' &bull; Change: ',
+                CASE WHEN l.QuantityChanged > 0 THEN CONCAT(N'+', l.QuantityChanged) ELSE CAST(l.QuantityChanged AS NVARCHAR(10)) END,
+                N' &bull; Current Level: ',
+                l.PreviousStock + l.QuantityChanged, N' units'
+            ) AS Detail,
+            COALESCE(NULLIF(CONCAT(u.FirstName, N' ', u.LastName), N' '), N'Staff') AS Actor,
+            CASE
+                WHEN r.Name = N'Admin' THEN N'Admin'
+                WHEN r.Name = N'Customer' THEN N'Customer'
+                ELSE N'Staff'
+            END AS ActorRole,
+            l.CreatedAt
+        FROM dbo.StockAuditLogs l
+        JOIN dbo.ProductVariants v ON v.Id = l.VariantId
+        JOIN dbo.ProductColors pc ON pc.Id = v.ProductColorId
+        JOIN dbo.Products p ON p.Id = pc.ProductId
+        LEFT JOIN dbo.Users u ON u.Id = l.UserId
+        LEFT JOIN dbo.Roles r ON r.Id = u.RoleId
+        WHERE l.ChangeType IN (N'RESTOCK', N'ADJUSTMENT', N'DAMAGED', N'RETURN')
+
+        UNION ALL
+
+        -- 3. Return & Exchange RMAs (Submitted by Customer)
+        SELECT
+            N'RMA' AS ActivityType,
+            rma.RmaNumber AS Reference,
+            CONCAT(
+                N'Submitted ',
+                CASE WHEN rma.RequestType = N'RETURN' THEN N'Return request for refund' ELSE N'Exchange request' END,
+                N' on Order #', o.OrderNumber,
+                N' &bull; Item: ', p.Name, N' (', pc.Color, N', ', pv.Size, N')',
+                N' &bull; Reason: ', rma.Reason,
+                CASE WHEN rma.CustomerNotes IS NOT NULL AND LEN(rma.CustomerNotes) > 0 THEN CONCAT(N' &bull; Note: "', LEFT(rma.CustomerNotes, 50), N'..."') ELSE N'' END
+            ) AS Detail,
+            COALESCE(NULLIF(o.CustomerName, N''), NULLIF(CONCAT(u.FirstName, N' ', u.LastName), N' '), N'Customer') AS Actor,
+            N'Customer' AS ActorRole,
+            rma.CreatedAt
+        FROM dbo.ReturnRequests rma
+        JOIN dbo.Orders o ON o.Id = rma.OrderId
+        JOIN dbo.OrderItems oi ON oi.Id = rma.OrderItemId
+        JOIN dbo.ProductVariants pv ON pv.Id = oi.VariantId
+        JOIN dbo.ProductColors pc ON pc.Id = pv.ProductColorId
+        JOIN dbo.Products p ON p.Id = pc.ProductId
+        LEFT JOIN dbo.Users u ON u.Id = rma.UserId
+
+        UNION ALL
+
+        -- 4. Return & Exchange RMAs (Resolved by Staff/Admin)
+        SELECT
+            N'RMA' AS ActivityType,
+            rma.RmaNumber AS Reference,
+            CONCAT(
+                N'Processed RMA: ', rma.Status,
+                CASE
+                    WHEN rma.ResolutionType IS NOT NULL THEN CONCAT(N' (Resolution: ', rma.ResolutionType, N')')
+                    ELSE N''
+                END,
+                CASE
+                    WHEN rma.RefundAmount IS NOT NULL AND rma.RefundAmount > 0 THEN CONCAT(N' &bull; Refund: PHP ', FORMAT(rma.RefundAmount, N'N2'))
+                    ELSE N''
+                END,
+                N' on Order #', o.OrderNumber,
+                CASE WHEN rma.Restocked = 1 THEN N' &bull; Item Restocked' ELSE N'' END
+            ) AS Detail,
+            COALESCE(NULLIF(CONCAT(pb.FirstName, N' ', pb.LastName), N' '), N'Staff Member') AS Actor,
+            CASE WHEN pbr.Name = N'Admin' THEN N'Admin' ELSE N'Staff' END AS ActorRole,
+            rma.UpdatedAt AS CreatedAt
+        FROM dbo.ReturnRequests rma
+        JOIN dbo.Orders o ON o.Id = rma.OrderId
+        LEFT JOIN dbo.Users pb ON pb.Id = rma.ProcessedBy
+        LEFT JOIN dbo.Roles pbr ON pbr.Id = pb.RoleId
+        WHERE rma.Status IN (N'Approved', N'Rejected', N'Completed', N'Received')
+          AND rma.ProcessedBy IS NOT NULL
+
+        UNION ALL
+
+        -- 5. Customer Product Reviews (Reference explicitly formatted as REV-<Id>)
+        SELECT
+            N'Review' AS ActivityType,
+            CONCAT(N'REV-', pr.Id) AS Reference,
+            CONCAT(
+                N'Reviewed ', p.Name,
+                N' (', pr.Rating, N'/5 stars)',
+                CASE WHEN pr.Title IS NOT NULL AND LEN(pr.Title) > 0 THEN CONCAT(N' &bull; "', pr.Title, N'"') ELSE N'' END,
+                CASE WHEN pr.IsVerifiedPurchase = 1 THEN N' &bull; Verified Purchase' ELSE N'' END
+            ) AS Detail,
+            COALESCE(NULLIF(pr.ReviewerName, N''), N'Customer') AS Actor,
+            N'Customer' AS ActorRole,
+            pr.CreatedAt
+        FROM dbo.ProductReviews pr
+        JOIN dbo.Products p ON p.Id = pr.ProductId
+
+        UNION ALL
+
+        -- 6. Moderation Review Reports (Reference explicitly includes review id)
+        SELECT
+            N'Review' AS ActivityType,
+            CONCAT(N'Report #', rep.Id, N' (REV-', pr.Id, N')') AS Reference,
+            CONCAT(
+                N'Flagged review on ', p.Name,
+                N' &bull; Reason: ', rep.Reason,
+                CASE WHEN rep.Notes IS NOT NULL AND LEN(rep.Notes) > 0 THEN CONCAT(N' &bull; "', LEFT(rep.Notes, 40), N'..."') ELSE N'' END
+            ) AS Detail,
+            COALESCE(NULLIF(CONCAT(u.FirstName, N' ', u.LastName), N' '), N'Community Member') AS Actor,
+            N'Customer' AS ActorRole,
+            rep.CreatedAt
+        FROM dbo.ReviewReports rep
+        JOIN dbo.ProductReviews pr ON pr.Id = rep.ReviewId
+        JOIN dbo.Products p ON p.Id = pr.ProductId
+        LEFT JOIN dbo.Users u ON u.Id = rep.UserId
+
+        UNION ALL
+
+        -- 7. Payment Transactions (Completed payments and refunds) - labeled QRPh instead of HitPay
+        SELECT
+            N'Payment' AS ActivityType,
+            COALESCE(py.GatewayReference, o.OrderNumber) AS Reference,
+            CONCAT(
+                CASE
+                    WHEN py.Status = N'Completed' THEN N'Payment received via '
+                    WHEN py.Status = N'Refunded' THEN N'Refund issued via '
+                    WHEN py.Status = N'Failed' THEN N'Payment attempt failed on '
+                    ELSE N'Payment updated on '
+                END,
+                CASE WHEN UPPER(ISNULL(py.PaymentGateway, N'')) = N'HITPAY' THEN N'QRPh' ELSE ISNULL(py.PaymentGateway, N'Payment Gateway') END,
+                N' for Order #', o.OrderNumber,
+                N' &bull; PHP ', FORMAT(py.Amount, N'N2'),
+                N' &bull; Status: ', py.Status
+            ) AS Detail,
+            ISNULL(NULLIF(o.CustomerName, N''), N'Store Customer') AS Actor,
+            CASE
+                WHEN o.OrderSource IN (N'INSTORE_POS', N'IN_STORE') THEN N'Staff'
+                WHEN r.Name = N'Admin' THEN N'Admin'
+                WHEN r.Name = N'Staff' THEN N'Staff'
+                ELSE N'Customer'
+            END AS ActorRole,
+            COALESCE(py.PaidAt, py.CreatedAt) AS CreatedAt
+        FROM dbo.Payments py
+        JOIN dbo.Orders o ON o.Id = py.OrderId
+        LEFT JOIN dbo.Users u ON u.Id = o.UserId
+        LEFT JOIN dbo.Roles r ON r.Id = u.RoleId
+    ) act
+    ORDER BY act.CreatedAt DESC
+    OFFSET @Offset ROWS
+    FETCH NEXT @Limit ROWS ONLY;
+END;
+GO
+
+PRINT N'Migration 50 successfully applied.';
+GO
+
+
+GO
+-- Source: schema/51_academic_business_integrity.sql
+-- Academic business-process corrections. Payment gateway and simulation handlers are unchanged.
+SET ANSI_NULLS ON;
+GO
+SET QUOTED_IDENTIFIER ON;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_RefreshOrderStockAlerts @OrderId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRANSACTION;
+    UPDATE a SET IsDismissed = 1, DismissedAt = SYSUTCDATETIME()
+    FROM dbo.RestockAlerts a JOIN dbo.Inventories i ON i.Id = a.InventoryId
+    WHERE a.IsDismissed = 0 AND i.IsLowStock = 0
+      AND EXISTS (SELECT 1 FROM dbo.OrderItems oi WHERE oi.OrderId = @OrderId AND oi.VariantId = i.VariantId);
+    INSERT dbo.RestockAlerts(InventoryId, Severity)
+    SELECT i.Id, CASE WHEN i.CurrentStock - i.ReservedStock = 0 THEN N'CRITICAL_ZERO' ELSE N'LOW_STOCK' END
+    FROM dbo.Inventories i WITH (UPDLOCK, ROWLOCK)
+    WHERE i.IsLowStock = 1
+      AND EXISTS (SELECT 1 FROM dbo.OrderItems oi WHERE oi.OrderId = @OrderId AND oi.VariantId = i.VariantId)
+      AND NOT EXISTS (SELECT 1 FROM dbo.RestockAlerts a WITH (UPDLOCK, HOLDLOCK) WHERE a.InventoryId = i.Id AND a.IsDismissed = 0);
+    COMMIT TRANSACTION;
+END;
+GO
+
+-- Call only while the owning order is locked inside a transaction.
+CREATE OR ALTER PROCEDURE dbo.sp_ChangeOrderInventory
+    @OrderId INT, @Action NVARCHAR(20), @ActorId INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @@TRANCOUNT = 0 THROW 55001, N'Order inventory changes require a transaction.', 1;
+    IF @Action NOT IN (N'COMMIT', N'RELEASE', N'RESTORE') THROW 55002, N'Invalid inventory action.', 1;
+    DECLARE @OrderNumber NVARCHAR(50) = (SELECT OrderNumber FROM dbo.Orders WHERE Id = @OrderId);
+    DECLARE @VariantId INT, @Quantity INT, @OldStock INT, @Reserved INT;
+    DECLARE lines CURSOR LOCAL FAST_FORWARD FOR
+        SELECT VariantId, SUM(Quantity) FROM dbo.OrderItems WHERE OrderId = @OrderId GROUP BY VariantId ORDER BY VariantId;
+    OPEN lines;
+    FETCH NEXT FROM lines INTO @VariantId, @Quantity;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SET @OldStock = NULL;
+        SELECT @OldStock = CurrentStock, @Reserved = ReservedStock
+        FROM dbo.Inventories WITH (UPDLOCK, ROWLOCK) WHERE VariantId = @VariantId;
+        IF @OldStock IS NULL THROW 55003, N'Order inventory is missing.', 1;
+        IF @Action IN (N'COMMIT', N'RELEASE') AND @Reserved < @Quantity
+            THROW 55004, N'Order reservation is inconsistent; reconcile before processing.', 1;
+        IF @Action = N'COMMIT'
+        BEGIN
+            UPDATE dbo.Inventories WITH (UPDLOCK, ROWLOCK)
+            SET CurrentStock = CurrentStock - @Quantity, ReservedStock = ReservedStock - @Quantity, UpdatedAt = SYSUTCDATETIME()
+            WHERE VariantId = @VariantId AND CurrentStock >= @Quantity AND ReservedStock >= @Quantity;
+            IF @@ROWCOUNT <> 1 THROW 55005, N'Insufficient stock for fulfillment.', 1;
+            INSERT dbo.StockAuditLogs(VariantId, UserId, ChangeType, PreviousStock, QuantityChanged, ReferenceNumber, Notes)
+            VALUES(@VariantId, @ActorId, N'ONLINE_SALE', @OldStock, -@Quantity, @OrderNumber, N'Cash/COD reservation converted to physical sale.');
+        END;
+        IF @Action = N'RELEASE'
+            UPDATE dbo.Inventories WITH (UPDLOCK, ROWLOCK)
+            SET ReservedStock = ReservedStock - @Quantity, UpdatedAt = SYSUTCDATETIME() WHERE VariantId = @VariantId;
+        IF @Action = N'RESTORE'
+        BEGIN
+            -- A paid order has already consumed its reservation. Never release another order's units.
+            UPDATE dbo.Inventories WITH (UPDLOCK, ROWLOCK)
+            SET CurrentStock = CurrentStock + @Quantity, UpdatedAt = SYSUTCDATETIME() WHERE VariantId = @VariantId;
+            INSERT dbo.StockAuditLogs(VariantId, UserId, ChangeType, PreviousStock, QuantityChanged, ReferenceNumber, Notes)
+            VALUES(@VariantId, @ActorId, N'RETURN', @OldStock, @Quantity, @OrderNumber, N'Cancelled order returned to stock; refund requires separate confirmation.');
+        END;
+        FETCH NEXT FROM lines INTO @VariantId, @Quantity;
+    END;
+    CLOSE lines;
+    DEALLOCATE lines;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_AdminUpdateOrderStatus
+    @OrderId INT, @NewStatus NVARCHAR(50), @Notes NVARCHAR(500) = NULL,
+    @Courier NVARCHAR(100) = NULL, @TrackingNumber NVARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        DECLARE @OldStatus NVARCHAR(50), @Method NVARCHAR(50), @Number NVARCHAR(50), @UserId INT, @Committed BIT;
+        SELECT @OldStatus = Status, @Method = ShippingMethod, @Number = OrderNumber, @UserId = UserId
+        FROM dbo.Orders WITH (UPDLOCK, ROWLOCK) WHERE Id = @OrderId;
+        IF @OldStatus IS NULL THROW 52001, N'Order not found.', 1;
+        IF NOT (
+            (@OldStatus = N'Processing' AND @NewStatus = N'ReadyForPickup' AND @Method = N'Pickup') OR
+            (@OldStatus = N'Processing' AND @NewStatus = N'Shipped' AND @Method = N'Delivery') OR
+            (@OldStatus = N'ReadyForPickup' AND @NewStatus = N'Completed' AND @Method = N'Pickup') OR
+            (@OldStatus = N'Shipped' AND @NewStatus IN (N'Delivered', N'Completed') AND @Method = N'Delivery') OR
+            (@OldStatus = N'Delivered' AND @NewStatus = N'Completed' AND @Method = N'Delivery') OR
+            (@OldStatus IN (N'PendingPayment', N'Processing') AND @NewStatus = N'Cancelled'))
+            THROW 52002, N'Invalid transition for this fulfillment method.', 1;
+        IF @NewStatus = N'Shipped' AND (NULLIF(LTRIM(RTRIM(@Courier)), N'') IS NULL OR NULLIF(LTRIM(RTRIM(@TrackingNumber)), N'') IS NULL)
+            THROW 55006, N'Courier and tracking number are required.', 1;
+        IF @NewStatus <> N'Cancelled' AND NOT EXISTS (
+            SELECT 1 FROM dbo.Payments WHERE OrderId = @OrderId AND
+            (Status = N'Completed' OR (Status = N'Pending' AND PaymentGateway IN (N'Cash', N'CashOnDelivery'))))
+            THROW 52003, N'Order requires a valid payment record.', 1;
+        SET @Committed = CASE WHEN EXISTS (SELECT 1 FROM dbo.StockAuditLogs WHERE ReferenceNumber = @Number AND ChangeType = N'ONLINE_SALE' AND QuantityChanged < 0) THEN 1 ELSE 0 END;
+        IF @NewStatus IN (N'Shipped', N'Completed') AND @Committed = 0
+            EXEC dbo.sp_ChangeOrderInventory @OrderId, N'COMMIT', @UserId;
+        IF @NewStatus = N'Cancelled'
+        BEGIN
+            IF @Committed = 1 EXEC dbo.sp_ChangeOrderInventory @OrderId, N'RESTORE', @UserId;
+            ELSE EXEC dbo.sp_ChangeOrderInventory @OrderId, N'RELEASE', @UserId;
+            UPDATE dbo.Payments SET Status = N'Cancelled' WHERE OrderId = @OrderId AND Status IN (N'Pending', N'Failed');
+            IF EXISTS (SELECT 1 FROM dbo.Payments WHERE OrderId = @OrderId AND Status = N'Completed')
+                SET @Notes = LEFT(CONCAT(@Notes, N' | Refund pending manual confirmation.'), 500);
+        END;
+        IF @NewStatus IN (N'Completed', N'Delivered')
+            UPDATE dbo.Payments SET Status = N'Completed', PaidAt = SYSUTCDATETIME()
+            WHERE OrderId = @OrderId AND Status = N'Pending' AND PaymentGateway IN (N'Cash', N'CashOnDelivery');
+        UPDATE dbo.Orders SET Status = @NewStatus, Notes = COALESCE(@Notes, Notes),
+            Courier = COALESCE(@Courier, Courier), TrackingNumber = COALESCE(@TrackingNumber, TrackingNumber), UpdatedAt = SYSUTCDATETIME()
+        WHERE Id = @OrderId;
+        EXEC dbo.sp_RefreshOrderStockAlerts @OrderId;
+        COMMIT TRANSACTION;
+        SELECT @OrderId AS Id, @NewStatus AS Status, @Courier AS Courier, @TrackingNumber AS TrackingNumber;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_CustomerCancelOrder
+    @OrderId INT, @UserId INT = NULL, @UserEmail NVARCHAR(256) = NULL,
+    @Reason NVARCHAR(255) = N'Customer requested cancellation', @Success BIT OUTPUT, @ErrorMessage NVARCHAR(255) OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        DECLARE @OwnerId INT, @Status NVARCHAR(50), @Number NVARCHAR(50), @Committed BIT;
+        SELECT @OwnerId = UserId, @Status = Status, @Number = OrderNumber
+        FROM dbo.Orders WITH (UPDLOCK, ROWLOCK) WHERE Id = @OrderId;
+        IF @UserId IS NULL OR @OwnerId IS NULL OR @OwnerId <> @UserId
+            THROW 52302, N'You are not authorized to cancel this order.', 1;
+        IF @Status NOT IN (N'PendingPayment', N'Processing') THROW 52303, N'This order can no longer be cancelled.', 1;
+        SET @Committed = CASE WHEN EXISTS (SELECT 1 FROM dbo.StockAuditLogs WHERE ReferenceNumber = @Number AND ChangeType = N'ONLINE_SALE' AND QuantityChanged < 0) THEN 1 ELSE 0 END;
+        IF @Committed = 1 EXEC dbo.sp_ChangeOrderInventory @OrderId, N'RESTORE', @UserId;
+        ELSE EXEC dbo.sp_ChangeOrderInventory @OrderId, N'RELEASE', @UserId;
+        UPDATE dbo.Orders SET Status = N'Cancelled',
+            Notes = LEFT(CONCAT(Notes, N' | Cancelled by customer: ', @Reason,
+                CASE WHEN EXISTS (SELECT 1 FROM dbo.Payments WHERE OrderId = @OrderId AND Status = N'Completed') THEN N' | Refund pending manual confirmation.' ELSE N'' END), 500),
+            UpdatedAt = SYSUTCDATETIME() WHERE Id = @OrderId;
+        -- Keep completed payment history intact. Cancellation alone does not prove a refund.
+        UPDATE dbo.Payments SET Status = N'Cancelled' WHERE OrderId = @OrderId AND Status IN (N'Pending', N'Failed');
+        EXEC dbo.sp_RefreshOrderStockAlerts @OrderId;
+        COMMIT TRANSACTION;
+        SET @Success = 1; SET @ErrorMessage = NULL;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        SET @Success = 0; SET @ErrorMessage = ERROR_MESSAGE();
+    END CATCH;
+END;
+GO
+
+
+GO
+-- Source: schema/52_returns_and_report_integrity.sql
+SET ANSI_NULLS ON;
+GO
+SET QUOTED_IDENTIFIER ON;
+GO
+
+CREATE OR ALTER VIEW dbo.v_SettledOrderRevenue AS
+SELECT o.Id AS OrderId, o.OrderSource, paid.PaidAt,
+    CONVERT(DECIMAL(18,2), CASE WHEN o.Subtotal - o.DiscountAmount > ISNULL(refunds.Amount, 0)
+        THEN o.Subtotal - o.DiscountAmount - ISNULL(refunds.Amount, 0) ELSE 0 END) AS Revenue
+FROM dbo.Orders o
+JOIN (SELECT OrderId, MAX(PaidAt) AS PaidAt FROM dbo.Payments WHERE Status = N'Completed' GROUP BY OrderId) paid ON paid.OrderId = o.Id
+OUTER APPLY (SELECT SUM(rr.RefundAmount) AS Amount FROM dbo.ReturnRequests rr
+    WHERE rr.OrderId = o.Id AND rr.RequestType = N'RETURN' AND rr.ResolutionType = N'REFUND' AND rr.Status = N'Completed') refunds
+WHERE o.Status IN (N'Completed', N'Delivered');
+GO
+
+CREATE OR ALTER VIEW dbo.v_SettledSalesLines AS
+SELECT oi.OrderId, pv.Id AS VariantId, p.Id AS ProductId, p.Name AS ProductName,
+    b.Id AS BrandId, b.Name AS BrandName, c.Id AS CategoryId, c.Name AS CategoryName, settled.PaidAt,
+    CASE WHEN refunds.HasReturn = 1 THEN 0 ELSE oi.Quantity END AS UnitsSold,
+    CONVERT(DECIMAL(28,8), CASE WHEN allocation.Amount > ISNULL(refunds.Amount, 0)
+        THEN allocation.Amount - ISNULL(refunds.Amount, 0) ELSE 0 END) AS Revenue
+FROM dbo.OrderItems oi JOIN dbo.Orders o ON o.Id = oi.OrderId
+JOIN dbo.v_SettledOrderRevenue settled ON settled.OrderId = o.Id
+JOIN dbo.ProductVariants pv ON pv.Id = oi.VariantId
+JOIN dbo.ProductColors pc ON pc.Id = pv.ProductColorId
+JOIN dbo.Products p ON p.Id = pc.ProductId
+JOIN dbo.Brands b ON b.Id = p.BrandId JOIN dbo.Categories c ON c.Id = p.CategoryId
+CROSS APPLY (SELECT CONVERT(DECIMAL(28,8), oi.TotalPrice) * (o.Subtotal - o.DiscountAmount) / NULLIF(o.Subtotal, 0) AS Amount) allocation
+OUTER APPLY (SELECT SUM(rr.RefundAmount) AS Amount, MAX(1) AS HasReturn FROM dbo.ReturnRequests rr
+    WHERE rr.OrderItemId = oi.Id AND rr.RequestType = N'RETURN' AND rr.ResolutionType = N'REFUND' AND rr.Status = N'Completed') refunds;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_AdminSalesReport @StartDate DATETIME2, @EndDate DATETIME2
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT COUNT(*) AS PaymentCount, ISNULL(SUM(Revenue), 0) AS Revenue,
+        ISNULL(SUM(CASE WHEN OrderSource = N'ONLINE' THEN Revenue ELSE 0 END), 0) AS OnlineRevenue,
+        ISNULL(SUM(CASE WHEN OrderSource = N'INSTORE_POS' THEN Revenue ELSE 0 END), 0) AS InStoreRevenue
+    FROM dbo.v_SettledOrderRevenue WHERE PaidAt >= @StartDate AND PaidAt < @EndDate;
+END;
+GO
+CREATE OR ALTER PROCEDURE dbo.sp_AdminSalesDaily @StartDate DATETIME2, @EndDate DATETIME2
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT CONVERT(DATE, PaidAt) AS SalesDate, COUNT(*) AS PaymentCount, SUM(Revenue) AS Revenue
+    FROM dbo.v_SettledOrderRevenue WHERE PaidAt >= @StartDate AND PaidAt < @EndDate
+    GROUP BY CONVERT(DATE, PaidAt) ORDER BY SalesDate;
+END;
+GO
+CREATE OR ALTER PROCEDURE dbo.sp_AdminSalesHourly @TargetDate DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT DATEPART(HOUR, PaidAt) AS SaleHour, COUNT(*) AS OrderCount, SUM(Revenue) AS Revenue
+    FROM dbo.v_SettledOrderRevenue WHERE PaidAt >= @TargetDate AND PaidAt < DATEADD(DAY, 1, @TargetDate)
+    GROUP BY DATEPART(HOUR, PaidAt) ORDER BY SaleHour;
+END;
+GO
+CREATE OR ALTER PROCEDURE dbo.sp_AdminSalesPerformance @StartDate DATETIME2, @EndDate DATETIME2
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ProductId, ProductName, BrandId, BrandName, CategoryId, CategoryName,
+        SUM(UnitsSold) AS UnitsSold, COUNT(DISTINCT OrderId) AS OrderCount,
+        CONVERT(DECIMAL(18,2), SUM(Revenue)) AS Revenue,
+        CONVERT(DECIMAL(18,2), SUM(Revenue) / NULLIF(SUM(UnitsSold), 0)) AS AverageSellingPrice
+    FROM dbo.v_SettledSalesLines WHERE PaidAt >= @StartDate AND PaidAt < @EndDate
+    GROUP BY ProductId, ProductName, BrandId, BrandName, CategoryId, CategoryName
+    ORDER BY UnitsSold DESC, Revenue DESC;
+END;
+GO
+CREATE OR ALTER PROCEDURE dbo.sp_AdminSalesByBrandAndCategory @StartDate DATETIME2, @EndDate DATETIME2
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT BrandName AS DimensionName, SUM(UnitsSold) AS UnitsSold, COUNT(DISTINCT OrderId) AS OrderCount,
+        CONVERT(DECIMAL(18,2), SUM(Revenue)) AS Revenue,
+        ISNULL(CONVERT(DECIMAL(18,2), SUM(Revenue) / NULLIF(SUM(UnitsSold), 0)), 0) AS AverageUnitPrice
+    FROM dbo.v_SettledSalesLines WHERE PaidAt >= @StartDate AND PaidAt < @EndDate
+    GROUP BY BrandName ORDER BY UnitsSold DESC, Revenue DESC;
+    SELECT CategoryName AS DimensionName, SUM(UnitsSold) AS UnitsSold, COUNT(DISTINCT OrderId) AS OrderCount,
+        CONVERT(DECIMAL(18,2), SUM(Revenue)) AS Revenue,
+        ISNULL(CONVERT(DECIMAL(18,2), SUM(Revenue) / NULLIF(SUM(UnitsSold), 0)), 0) AS AverageUnitPrice
+    FROM dbo.v_SettledSalesLines WHERE PaidAt >= @StartDate AND PaidAt < @EndDate
+    GROUP BY CategoryName ORDER BY UnitsSold DESC, Revenue DESC;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_AdminProcessReturnRequest
+    @RmaId INT, @NewStatus NVARCHAR(30), @ResolutionType NVARCHAR(30) = NULL,
+    @RefundAmount DECIMAL(18,2) = NULL, @RestockItem BIT = 0, @AdminNotes NVARCHAR(1000) = NULL,
+    @ProcessedBy INT = NULL, @Success BIT OUTPUT, @ErrorMessage NVARCHAR(255) OUTPUT,
+    @ExchangeVariantId INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        IF NOT EXISTS (SELECT 1 FROM dbo.Users u JOIN dbo.Roles r ON r.Id = u.RoleId
+            WHERE u.Id = @ProcessedBy AND u.IsActive = 1 AND r.Name IN (N'Admin', N'Staff'))
+            THROW 55010, N'Staff authorization is required.', 1;
+        DECLARE @OldStatus NVARCHAR(30), @Type NVARCHAR(20), @ItemId INT, @OrderId INT, @Restocked BIT,
+            @Number NVARCHAR(30), @VariantId INT, @ReplacementId INT, @Quantity INT, @OldStock INT, @NetItem DECIMAL(18,2);
+        SELECT @OldStatus = Status, @Type = RequestType, @ItemId = OrderItemId, @OrderId = OrderId,
+            @Restocked = Restocked, @Number = RmaNumber, @ReplacementId = ExchangeVariantId
+        FROM dbo.ReturnRequests WITH (UPDLOCK, ROWLOCK) WHERE Id = @RmaId;
+        IF @OldStatus IS NULL THROW 55011, N'Return request not found.', 1;
+        SET @ReplacementId = COALESCE(@ExchangeVariantId, @ReplacementId);
+        IF NOT ((@OldStatus = N'Pending' AND @NewStatus IN (N'Approved', N'Rejected', N'Cancelled')) OR
+            (@OldStatus = N'Approved' AND @NewStatus IN (N'Received', N'Rejected', N'Cancelled')) OR
+            (@OldStatus = N'Received' AND @NewStatus IN (N'Completed', N'Rejected', N'Cancelled')))
+            THROW 55012, N'Approve and receive the item before completing its resolution.', 1;
+        SELECT @VariantId = oi.VariantId, @Quantity = oi.Quantity,
+            @NetItem = ROUND(oi.TotalPrice * (o.Subtotal - o.DiscountAmount) / NULLIF(o.Subtotal, 0), 2)
+        FROM dbo.OrderItems oi JOIN dbo.Orders o ON o.Id = oi.OrderId WHERE oi.Id = @ItemId;
+        SET @ResolutionType = COALESCE(@ResolutionType, CASE WHEN @Type = N'EXCHANGE' THEN N'REPLACEMENT' ELSE N'REFUND' END);
+        IF (@Type = N'EXCHANGE' AND @ResolutionType <> N'REPLACEMENT') OR (@Type = N'RETURN' AND @ResolutionType <> N'REFUND')
+            THROW 55013, N'Use replacement for exchanges and refund for returns.', 1;
+        SET @RefundAmount = CASE WHEN @Type = N'EXCHANGE' THEN 0 ELSE COALESCE(@RefundAmount, @NetItem, 0) END;
+        IF @RefundAmount < 0 OR @RefundAmount > ISNULL(@NetItem, 0)
+            THROW 55014, N'Refund cannot exceed the discounted item amount.', 1;
+        IF @RestockItem = 1 AND @NewStatus <> N'Completed'
+            THROW 55015, N'Restock only after inspection when completing the resolution.', 1;
+        IF @NewStatus = N'Completed' AND NULLIF(LTRIM(RTRIM(@AdminNotes)), N'') IS NULL
+            THROW 55016, N'Record manual refund or replacement handover confirmation in notes.', 1;
+        IF @NewStatus = N'Completed'
+        BEGIN
+            -- Lock both variants in a stable order for concurrent exchanges.
+            SELECT @OldStock = CurrentStock FROM dbo.Inventories WITH (UPDLOCK, ROWLOCK)
+            WHERE VariantId = CASE WHEN @ReplacementId < @VariantId THEN @ReplacementId ELSE @VariantId END;
+            IF @ReplacementId IS NOT NULL
+                SELECT @OldStock = CurrentStock FROM dbo.Inventories WITH (UPDLOCK, ROWLOCK)
+                WHERE VariantId = CASE WHEN @ReplacementId < @VariantId THEN @VariantId ELSE @ReplacementId END;
+            IF @RestockItem = 1 AND @Restocked = 0
+            BEGIN
+                SELECT @OldStock = CurrentStock FROM dbo.Inventories WITH (UPDLOCK, ROWLOCK) WHERE VariantId = @VariantId;
+                IF @OldStock IS NULL THROW 55017, N'Return inventory is missing.', 1;
+                UPDATE dbo.Inventories WITH (UPDLOCK, ROWLOCK) SET CurrentStock = CurrentStock + @Quantity, UpdatedAt = SYSUTCDATETIME() WHERE VariantId = @VariantId;
+                INSERT dbo.StockAuditLogs(VariantId, UserId, ChangeType, PreviousStock, QuantityChanged, ReferenceNumber, Notes)
+                VALUES(@VariantId, @ProcessedBy, N'RETURN', @OldStock, @Quantity, @Number, N'Inspected merchandise returned to sellable inventory.');
+                SET @Restocked = 1;
+            END;
+            IF @Type = N'EXCHANGE'
+            BEGIN
+                IF @ReplacementId IS NULL THROW 55018, N'Choose a replacement variant before completing the exchange.', 1;
+                IF NOT EXISTS (SELECT 1 FROM dbo.v_VisibleProductVariants v JOIN dbo.v_VisibleProductColors pc ON pc.Id = v.ProductColorId
+                    JOIN dbo.v_VisibleProducts p ON p.Id = pc.ProductId JOIN dbo.OrderItems oi ON oi.Id = @ItemId
+                    WHERE v.Id = @ReplacementId AND dbo.fn_CalculateEffectivePrice(p.BasePrice, v.PriceAdjustment, p.DiscountPercentage,
+                        p.DiscountType, p.DiscountAmount, p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive) = oi.UnitPrice
+                    AND p.Id = (SELECT originalColor.ProductId FROM dbo.ProductVariants original
+                        JOIN dbo.ProductColors originalColor ON originalColor.Id = original.ProductColorId WHERE original.Id = @VariantId))
+                    THROW 55019, N'This academic workflow supports equal-price replacements only.', 1;
+                SELECT @OldStock = CurrentStock FROM dbo.Inventories WITH (UPDLOCK, ROWLOCK) WHERE VariantId = @ReplacementId;
+                UPDATE dbo.Inventories WITH (UPDLOCK, ROWLOCK) SET CurrentStock = CurrentStock - @Quantity, UpdatedAt = SYSUTCDATETIME()
+                WHERE VariantId = @ReplacementId AND CurrentStock - ReservedStock >= @Quantity;
+                IF @@ROWCOUNT <> 1 THROW 55020, N'Replacement has insufficient available stock.', 1;
+                INSERT dbo.StockAuditLogs(VariantId, UserId, ChangeType, PreviousStock, QuantityChanged, ReferenceNumber, Notes)
+                VALUES(@ReplacementId, @ProcessedBy, N'ADJUSTMENT', @OldStock, -@Quantity, @Number, N'Equal-price exchange replacement handed over.');
+            END;
+        END;
+        UPDATE dbo.ReturnRequests SET Status = @NewStatus, ResolutionType = @ResolutionType, RefundAmount = @RefundAmount,
+            ExchangeVariantId = CASE WHEN @Type = N'EXCHANGE' THEN @ReplacementId ELSE NULL END,
+            Restocked = @Restocked, AdminNotes = @AdminNotes, ProcessedBy = @ProcessedBy, UpdatedAt = SYSUTCDATETIME() WHERE Id = @RmaId;
+        IF @NewStatus = N'Completed' AND @ReplacementId IS NOT NULL
+        BEGIN
+            UPDATE a SET IsDismissed = 1, DismissedAt = SYSUTCDATETIME()
+            FROM dbo.RestockAlerts a JOIN dbo.Inventories i ON i.Id = a.InventoryId
+            WHERE i.VariantId = @ReplacementId AND a.IsDismissed = 0 AND i.IsLowStock = 0;
+            INSERT dbo.RestockAlerts(InventoryId, Severity)
+            SELECT i.Id, CASE WHEN i.CurrentStock - i.ReservedStock <= 0 THEN N'CRITICAL_ZERO' ELSE N'LOW_STOCK' END
+            FROM dbo.Inventories i WITH (UPDLOCK, ROWLOCK) WHERE i.VariantId = @ReplacementId AND i.IsLowStock = 1
+                AND NOT EXISTS (SELECT 1 FROM dbo.RestockAlerts a WITH (UPDLOCK, HOLDLOCK) WHERE a.InventoryId = i.Id AND a.IsDismissed = 0);
+        END;
+        EXEC dbo.sp_RefreshOrderStockAlerts @OrderId;
+        COMMIT TRANSACTION;
+        SET @Success = 1; SET @ErrorMessage = NULL;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        SET @Success = 0; SET @ErrorMessage = ERROR_MESSAGE();
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_AdminReturnReplacements @RmaId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT v.Id AS variantId, v.SKU AS sku, pc.Color AS color, v.Size AS size,
+        i.CurrentStock - i.ReservedStock AS availableStock
+    FROM dbo.ReturnRequests rr JOIN dbo.OrderItems oi ON oi.Id = rr.OrderItemId
+    JOIN dbo.ProductVariants original ON original.Id = oi.VariantId
+    JOIN dbo.ProductColors originalColor ON originalColor.Id = original.ProductColorId
+    JOIN dbo.v_VisibleProducts p ON p.Id = originalColor.ProductId
+    JOIN dbo.v_VisibleProductColors pc ON pc.ProductId = p.Id
+    JOIN dbo.v_VisibleProductVariants v ON v.ProductColorId = pc.Id
+    JOIN dbo.v_VisibleInventories i ON i.VariantId = v.Id
+    WHERE rr.Id = @RmaId AND rr.RequestType = N'EXCHANGE'
+        AND dbo.fn_CalculateEffectivePrice(p.BasePrice, v.PriceAdjustment, p.DiscountPercentage,
+            p.DiscountType, p.DiscountAmount, p.DiscountStartDate, p.DiscountEndDate, p.DiscountIsActive) = oi.UnitPrice
+    ORDER BY pc.Color, v.Size;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_AdminDashboard
+    @IncludeRevenue BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @TodayStart DATETIME2 = CONVERT(DATETIME2, CONVERT(DATE, SYSUTCDATETIME()));
+    DECLARE @TomorrowStart DATETIME2 = DATEADD(DAY, 1, @TodayStart);
+    DECLARE @YesterdayStart DATETIME2 = DATEADD(DAY, -1, @TodayStart);
+
+    ;WITH StockAtTodayStart AS
+    (
+        SELECT
+            i.Id,
+            i.ReservedStock,
+            i.ReorderPoint,
+            CASE
+                WHEN v.CreatedAt >= @TodayStart THEN 0
+                ELSE i.CurrentStock - ISNULL(SUM(CASE WHEN l.CreatedAt >= @TodayStart THEN l.QuantityChanged ELSE 0 END), 0)
+            END AS PreviousStock
+        FROM dbo.v_VisibleInventories i
+        JOIN dbo.v_VisibleProductVariants v ON v.Id = i.VariantId
+        LEFT JOIN dbo.v_VisibleStockAuditLogs l ON l.VariantId = i.VariantId
+        GROUP BY i.Id, i.CurrentStock, i.ReservedStock, i.ReorderPoint, v.CreatedAt
+    ),
+    OrderSales AS (
+        SELECT
+            p.PaidAt,
+            -- Merchandise sales exclude shipping and completed manual refunds.
+            (o.Subtotal - o.DiscountAmount) - ISNULL(
+                (SELECT SUM(ISNULL(rr.RefundAmount, 0.00))
+                 FROM dbo.ReturnRequests rr
+                 JOIN dbo.OrderItems oi ON rr.OrderItemId = oi.Id
+                 WHERE rr.OrderId = o.Id AND rr.RequestType = N'RETURN' AND rr.ResolutionType = N'REFUND' AND rr.Status = N'Completed'), 0.00
+            ) AS NetRevenue
+        FROM (SELECT OrderId, MAX(PaidAt) AS PaidAt FROM dbo.Payments WHERE Status = N'Completed' GROUP BY OrderId) p
+        JOIN dbo.Orders o ON o.Id = p.OrderId
+        WHERE 1 = 1
+          AND o.Status IN (N'Completed', N'Delivered')
+    )
+    SELECT
+        (SELECT ISNULL(SUM(CurrentStock), 0) FROM dbo.v_VisibleInventories) AS OnHandStock,
+        (SELECT ISNULL(SUM(CurrentStock - ReservedStock), 0) FROM dbo.v_VisibleInventories) AS AvailableStock,
+        (SELECT COUNT(*) FROM dbo.v_VisibleInventories WHERE IsLowStock = 1) AS LowStockCount,
+        (SELECT COUNT(*) FROM dbo.v_VisibleInventories WHERE CurrentStock - ReservedStock = 0) AS OutOfStockCount,
+        (SELECT COUNT(*) FROM dbo.Orders WHERE Status IN (N'PendingPayment', N'Processing', N'ReadyForPickup')) AS ActiveOrders,
+        (SELECT ISNULL(SUM(PreviousStock), 0) FROM StockAtTodayStart) AS YesterdayOnHandStock,
+        (SELECT ISNULL(SUM(CASE WHEN PreviousStock > ReservedStock THEN PreviousStock - ReservedStock ELSE 0 END), 0)
+         FROM StockAtTodayStart) AS YesterdayAvailableStock,
+        (SELECT COUNT(*) FROM StockAtTodayStart WHERE PreviousStock > 0 AND PreviousStock - ReservedStock <= ReorderPoint) AS YesterdayLowStockCount,
+        (SELECT COUNT(*) FROM dbo.Orders WHERE CreatedAt >= @YesterdayStart AND CreatedAt < @TodayStart) AS YesterdayOrdersCount,
+        CASE WHEN @IncludeRevenue = 1 THEN
+            ISNULL((SELECT SUM(CASE WHEN NetRevenue > 0 THEN NetRevenue ELSE 0.00 END)
+                    FROM OrderSales
+                    WHERE PaidAt >= @TodayStart AND PaidAt < @TomorrowStart), 0.00)
+        ELSE NULL END AS TodayRevenue,
+        CASE WHEN @IncludeRevenue = 1 THEN
+            ISNULL((SELECT SUM(CASE WHEN NetRevenue > 0 THEN NetRevenue ELSE 0.00 END)
+                    FROM OrderSales
+                    WHERE PaidAt >= @YesterdayStart AND PaidAt < @TodayStart), 0.00)
+        ELSE NULL END AS YesterdayRevenue;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_AdminDailySettledOrders
+    @TargetDate DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    ;WITH OrderSales AS (
+        SELECT
+            o.Id,
+            o.OrderNumber,
+            o.CustomerName,
+            o.CustomerEmail,
+            o.CustomerPhone,
+            o.OrderSource,
+            o.Status,
+            (o.Subtotal - o.DiscountAmount) - ISNULL(
+                (SELECT SUM(ISNULL(rr.RefundAmount, 0.00))
+                 FROM dbo.ReturnRequests rr
+                 JOIN dbo.OrderItems oi ON rr.OrderItemId = oi.Id
+                 WHERE rr.OrderId = o.Id AND rr.RequestType = N'RETURN' AND rr.ResolutionType = N'REFUND' AND rr.Status = N'Completed'), 0.00
+            ) AS NetMerchandiseRevenue,
+            o.CreatedAt,
+            o.ShippingMethod,
+            o.ShippingFee,
+            o.ShippingRegion,
+            o.ShippingAddress,
+            o.ShippingBarangay,
+            o.ShippingCity,
+            o.ShippingProvince,
+            o.ShippingPostalCode,
+            o.Courier,
+            o.TrackingNumber,
+            o.DeliveryNotes,
+            (SELECT COUNT(*) FROM dbo.OrderItems oi WHERE oi.OrderId = o.Id) AS ItemCount,
+            p.Status AS PaymentStatus,
+            p.PaymentGateway AS PaymentMethod,
+            p.PaidAt
+        FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY OrderId ORDER BY PaidAt DESC, Id DESC) AS PaymentRank
+            FROM dbo.Payments WHERE Status = N'Completed') p
+        JOIN dbo.Orders o ON o.Id = p.OrderId
+        WHERE p.PaymentRank = 1
+          AND o.Status IN (N'Completed', N'Delivered')
+          AND CONVERT(DATE, p.PaidAt) = @TargetDate
+    )
+    SELECT
+        Id,
+        OrderNumber,
+        CustomerName,
+        CustomerEmail,
+        CustomerPhone,
+        OrderSource,
+        Status,
+        NetMerchandiseRevenue AS TotalAmount,
+        CreatedAt,
+        ShippingMethod,
+        ShippingFee,
+        ShippingRegion,
+        ShippingAddress,
+        ShippingBarangay,
+        ShippingCity,
+        ShippingProvince,
+        ShippingPostalCode,
+        Courier,
+        TrackingNumber,
+        DeliveryNotes,
+        ItemCount,
+        PaymentStatus,
+        PaymentMethod
+    FROM OrderSales
+    ORDER BY PaidAt DESC, Id DESC;
+END;
+GO
+
 
 
 GO

@@ -18,8 +18,9 @@ namespace HelmetCartelOrderingAndManagementSys.Hubs
             GlobalHost.ConnectionManager.GetHubContext<OrderHub>().Clients.All.newOrderReceived(order);
         }
 
-        public static void NotifyOrderStatusChanged(int orderId, string orderNumber, string newStatus)
+        public static void NotifyOrderStatusChanged(int orderId, string orderNumber, string newStatus, int? userId = null)
         {
+            CustomerOrderHub.NotifyStatus(userId, orderId, orderNumber, newStatus);
             GlobalHost.ConnectionManager.GetHubContext<OrderHub>().Clients.All.orderStatusChanged(new
             {
                 orderId,

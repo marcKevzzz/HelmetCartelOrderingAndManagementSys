@@ -55,7 +55,8 @@ namespace HelmetCartelOrderingAndManagementSys.Models.DTOs
     public class ProcessReturnRequestDto
     {
         public string NewStatus { get; set; } // 'Approved', 'Rejected', 'Received', 'Completed', 'Cancelled'
-        public string ResolutionType { get; set; } // 'REFUND', 'REPLACEMENT', 'STORE_CREDIT'
+        public string ResolutionType { get; set; } // 'REFUND', 'REPLACEMENT'
+        public int? ExchangeVariantId { get; set; }
         public decimal? RefundAmount { get; set; }
         public bool RestockItem { get; set; }
         public string AdminNotes { get; set; }

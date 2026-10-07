@@ -5,6 +5,7 @@
  */
 
 import { ApiClient } from "../api.js";
+import { APP_CONSTANTS } from "../constants.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   initAdminReturns();
@@ -49,6 +50,8 @@ function initAdminReturns() {
   const rmaDecisionNotes = document.getElementById("rma-decision-notes");
   const rmaErrorMsg = document.getElementById("rma-error-msg");
   const restockGroup = document.getElementById("rma-restock-group");
+  const replacementGroup = document.getElementById("rma-replacement-group");
+  const replacementSelect = document.getElementById("rma-decision-replacement");
 
   loadReturns();
 
@@ -190,23 +193,54 @@ function initAdminReturns() {
             `;
     }
 
-    if (rmaDecisionStatus)
-      rmaDecisionStatus.value =
-        rma.status !== "Pending" ? rma.status : "Approved";
+    const states = APP_CONSTANTS.RETURN_STATUS;
+    const nextState = { [states.PENDING]: states.APPROVED, [states.APPROVED]: states.RECEIVED, [states.RECEIVED]: states.COMPLETED }[rma.status];
+    if (rmaDecisionStatus) {
+      [...rmaDecisionStatus.options].forEach(option => {
+        option.disabled = !nextState || ![nextState, states.REJECTED, states.CANCELLED].includes(option.value);
+      });
+      rmaDecisionStatus.value = nextState || rma.status;
+      rmaDecisionStatus.disabled = !nextState;
+    }
+    if (btnSaveDecision) btnSaveDecision.disabled = !nextState;
     if (rmaDecisionResolution)
       rmaDecisionResolution.value =
         rma.resolutionType ||
         (rma.requestType === "EXCHANGE" ? "REPLACEMENT" : "REFUND");
     if (rmaDecisionRefund)
-      rmaDecisionRefund.value = rma.refundAmount
-        ? rma.refundAmount.toString()
-        : (rma.quantity * rma.unitPrice).toFixed(2);
+      rmaDecisionRefund.value = rma.requestType === APP_CONSTANTS.RETURN_TYPE.EXCHANGE ? "0" : (rma.refundAmount ?? "");
     if (rmaDecisionNotes) rmaDecisionNotes.value = rma.adminNotes || "";
+    const isExchange = rma.requestType === APP_CONSTANTS.RETURN_TYPE.EXCHANGE;
+    if (rmaDecisionResolution) rmaDecisionResolution.disabled = true;
+    if (rmaDecisionRefund) rmaDecisionRefund.disabled = isExchange || !nextState;
+    replacementGroup?.classList.toggle("is-hidden", !isExchange);
+    if (replacementSelect) {
+      replacementSelect.innerHTML = '<option value="">Choose replacement</option>';
+      replacementSelect.disabled = true;
+    }
+    if (isExchange) {
+      ApiClient.adminGetReturnReplacements(rma.id).then(response => {
+        if (selectedRma?.id !== rma.id || !replacementSelect) return;
+        const variants = response?.data || response || [];
+        variants.forEach(variant => {
+          const option = document.createElement("option");
+          option.value = variant.variantId;
+          option.textContent = `${variant.color} / ${variant.size} (${variant.availableStock} available)`;
+          replacementSelect.appendChild(option);
+        });
+        replacementSelect.value = rma.exchangeVariantId || "";
+        replacementSelect.disabled = !nextState;
+      }).catch(error => {
+        if (selectedRma?.id !== rma.id || !rmaErrorMsg) return;
+        rmaErrorMsg.textContent = error.message || "Unable to load replacements.";
+        rmaErrorMsg.classList.remove("is-hidden");
+      });
+    }
 
     // Restock checkbox handling
     if (rmaDecisionRestock) {
       rmaDecisionRestock.checked = false;
-      rmaDecisionRestock.disabled = rma.restocked;
+      rmaDecisionRestock.disabled = rma.restocked || nextState !== states.COMPLETED;
     }
     if (restockGroup) {
       if (rma.restocked) {
@@ -232,6 +266,12 @@ function initAdminReturns() {
   }
 
   btnCloseModal?.addEventListener("click", closeModal);
+  rmaDecisionStatus?.addEventListener("change", () => {
+    if (!rmaDecisionRestock) return;
+    const completing = rmaDecisionStatus.value === APP_CONSTANTS.RETURN_STATUS.COMPLETED;
+    rmaDecisionRestock.disabled = !completing || !!selectedRma?.restocked;
+    if (!completing) rmaDecisionRestock.checked = false;
+  });
   btnCancelModal?.addEventListener("click", closeModal);
   modal?.addEventListener("click", (e) => {
     if (e.target === modal) closeModal();
@@ -242,9 +282,18 @@ function initAdminReturns() {
 
     const newStatus = rmaDecisionStatus?.value || "Approved";
     const resolution = rmaDecisionResolution?.value || "REFUND";
-    const refundVal = parseFloat(rmaDecisionRefund?.value || "0");
+    const refundVal = parseFloat(rmaDecisionRefund?.value ?? "");
     const restockVal = rmaDecisionRestock ? rmaDecisionRestock.checked : false;
     const notes = rmaDecisionNotes?.value?.trim() || "";
+    const exchangeVariantId = Number(replacementSelect?.value) || null;
+    if (newStatus === APP_CONSTANTS.RETURN_STATUS.COMPLETED &&
+        (!notes || (selectedRma.requestType === APP_CONSTANTS.RETURN_TYPE.EXCHANGE && !exchangeVariantId))) {
+      if (rmaErrorMsg) {
+        rmaErrorMsg.textContent = !notes ? "Record manual refund or handover confirmation in notes." : "Choose a replacement variant.";
+        rmaErrorMsg.classList.remove("is-hidden");
+      }
+      return;
+    }
 
     if (btnSaveDecision) {
       btnSaveDecision.disabled = true;
@@ -255,9 +304,10 @@ function initAdminReturns() {
       const res = await ApiClient.adminProcessReturn(selectedRma.id, {
         NewStatus: newStatus,
         ResolutionType: resolution,
-        RefundAmount: isNaN(refundVal) ? null : refundVal,
+        RefundAmount: selectedRma.requestType === "EXCHANGE" ? 0 : (isNaN(refundVal) ? null : refundVal),
         RestockItem: restockVal,
         AdminNotes: notes,
+        ExchangeVariantId: exchangeVariantId,
       });
 
       if (res && res.success) {

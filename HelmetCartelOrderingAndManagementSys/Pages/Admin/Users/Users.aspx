@@ -39,13 +39,13 @@
         <div class="admin-table-wrapper">
             <table class="admin-table admin-table-users">
                 <colgroup>
-                    <col style="width: 8%; min-width: 70px;" />
+                    <col class="users-table-column-1" />
                     <col class="col-user-details" />
                     <col class="col-email" />
-                    <col style="min-width: 130px;" />
-                    <col style="min-width: 100px;" />
+                    <col class="users-table-column-2" />
+                    <col class="users-table-column-3" />
                     <col class="col-status" />
-                    <col class="col-actions" />
+                    <col class="col-actions users" />
                 </colgroup>
                 <thead>
                     <tr>
@@ -83,13 +83,22 @@
                                     <%# Convert.ToBoolean(Eval("IsActive")) ? "<span class=\"admin-badge admin-badge--active\">Active</span>" : "<span class=\"admin-badge admin-badge--inactive\">Disabled</span>" %>
                                 </td>
                                 <td class="admin-table-align-right">
-                                    <div class="admin-actions-cell" style="justify-content: flex-end;">
+                                    <div class="users-admin-actions-cell-presentation admin-actions-cell">
                                         <asp:PlaceHolder ID="phCurrentUser" runat="server" Visible='<%# Convert.ToInt32(Eval("Id")) == CurrentActorUserId %>'>
                                             <span class="admin-badge--current-user" title="You are currently signed in with this account. Self-deactivation is disabled.">
                                                 <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                                                 Current User
                                             </span>
                                         </asp:PlaceHolder>
+                                        <button type="button" class="btn-pill-sm btn-pill--outline" 
+                                            onclick='openEditRoleModal(<%# Eval("Id") %>, <%# Newtonsoft.Json.JsonConvert.SerializeObject(Eval("FullName")) %>, <%# Newtonsoft.Json.JsonConvert.SerializeObject(Eval("Email")) %>, <%# Newtonsoft.Json.JsonConvert.SerializeObject(Eval("Role")) %>, <%# Convert.ToInt32(Eval("Id")) == CurrentActorUserId ? "true" : "false" %>)' 
+                                            title="Change System Role">
+                                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M12 20h9"></path>
+                                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                                            </svg>
+                                            <span>Edit Role</span>
+                                        </button>
                                         <asp:LinkButton ID="btnToggleActive" runat="server" 
                                             CommandName="ToggleStatus" 
                                             CommandArgument='<%# Eval("Id") + ":" + Eval("IsActive") %>'
@@ -146,4 +155,106 @@
             </div>
         </asp:Panel>
     </div>
+
+    <!-- Edit User Role Modal -->
+    <div id="modalEditRole" class="admin-modal-backdrop is-hidden" role="dialog" aria-modal="true" aria-labelledby="modalEditRoleTitle">
+        <div class="admin-modal">
+            <div class="admin-modal-header">
+                <div>
+                    <h2 id="modalEditRoleTitle" class="admin-modal-title">Edit System Role</h2>
+                    <div class="admin-modal-desc-subtle">Update permissions and access level for this account.</div>
+                </div>
+                <button type="button" class="admin-modal-close-btn" onclick="closeEditRoleModal()" aria-label="Close dialog">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <div class="edit-role-user-summary">
+                    <div class="edit-role-avatar" id="modalRoleInitials">U</div>
+                    <div class="edit-role-user-info">
+                        <div class="edit-role-user-name" id="modalRoleUserName">User Name</div>
+                        <div class="edit-role-user-email" id="modalRoleUserEmail">user@example.com</div>
+                    </div>
+                </div>
+
+                <div class="edit-role-form-group">
+                    <label for="ddlSelectRole" class="form-label">Assign System Role</label>
+                    <select id="ddlSelectRole" class="form-control admin-select">
+                        <option value="Customer">Customer &mdash; Storefront shopper &amp; personal order history</option>
+                        <option value="Staff">Staff &mdash; Store operations, Orders, Inventory, POS, Returns, Catalog</option>
+                        <option value="Admin">Admin &mdash; Full administrative access &amp; Access Control</option>
+                    </select>
+                    <span class="inline-hint-msg" id="modalRoleNote">Changes take effect immediately on next request or token refresh.</span>
+                </div>
+
+                <div id="modalRoleSelfWarn" class="modal-alert modal-alert--warning is-hidden" style="margin-top: 12px;">
+                    <strong>Self-demotion protection:</strong> You are currently signed in with this account. You cannot remove your own Admin access.
+                </div>
+            </div>
+            <div class="admin-modal-footer">
+                <button type="button" class="btn-pill btn-pill--outline" onclick="closeEditRoleModal()">Cancel</button>
+                <asp:Button ID="btnConfirmRoleChange" runat="server" CssClass="btn-pill btn-pill--primary" Text="Save Role Changes" OnClick="btnConfirmRoleChange_Click" />
+            </div>
+        </div>
+    </div>
+    <asp:HiddenField ID="hfSelectedUserId" runat="server" />
+    <asp:HiddenField ID="hfSelectedNewRole" runat="server" />
+
+    <script>
+        function openEditRoleModal(userId, fullName, email, currentRole, isCurrentUser) {
+            document.getElementById('<%= hfSelectedUserId.ClientID %>').value = userId;
+            document.getElementById('modalRoleUserName').textContent = fullName;
+            document.getElementById('modalRoleUserEmail').textContent = email;
+
+            var initials = 'U';
+            if (fullName) {
+                var parts = fullName.trim().split(' ');
+                initials = parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : fullName.substring(0, Math.min(2, fullName.length)).toUpperCase();
+            }
+            document.getElementById('modalRoleInitials').textContent = initials;
+
+            var ddl = document.getElementById('ddlSelectRole');
+            ddl.value = currentRole;
+            document.getElementById('<%= hfSelectedNewRole.ClientID %>').value = currentRole;
+
+            var selfWarn = document.getElementById('modalRoleSelfWarn');
+            var saveBtn = document.getElementById('<%= btnConfirmRoleChange.ClientID %>');
+
+            if (isCurrentUser) {
+                if (currentRole === 'Admin') {
+                    // Current admin can stay admin, but if dropdown changes, disable
+                    selfWarn.classList.remove('is-hidden');
+                } else {
+                    selfWarn.classList.add('is-hidden');
+                }
+            } else {
+                selfWarn.classList.add('is-hidden');
+            }
+
+            ddl.onchange = function () {
+                document.getElementById('<%= hfSelectedNewRole.ClientID %>').value = this.value;
+                if (isCurrentUser && this.value !== 'Admin') {
+                    saveBtn.disabled = true;
+                    selfWarn.classList.remove('is-hidden');
+                } else {
+                    saveBtn.disabled = false;
+                    if (!isCurrentUser) selfWarn.classList.add('is-hidden');
+                }
+            };
+
+            var modal = document.getElementById('modalEditRole');
+            if (modal) modal.classList.remove('is-hidden');
+            document.body.classList.add('modal-open');
+        }
+
+        function closeEditRoleModal() {
+            var modal = document.getElementById('modalEditRole');
+            if (modal) modal.classList.add('is-hidden');
+            document.body.classList.remove('modal-open');
+        }
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeEditRoleModal();
+            }
+        });
+    </script>
 </asp:Content>

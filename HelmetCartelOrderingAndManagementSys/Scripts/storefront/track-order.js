@@ -190,45 +190,43 @@ export const TrackOrderController = {
     if (rmaBanner) {
       const isRefunded =
         (order.latestRmaType === "RETURN" &&
-          (order.latestRmaStatus === "Completed" ||
-            order.latestRmaStatus === "Approved")) ||
+          order.latestRmaStatus === "Completed") ||
         this.existingRmas.some(
           (r) =>
             r.requestType === "RETURN" &&
-            (r.status === "Completed" || r.status === "Approved"),
+            r.status === "Completed",
         );
       const isExchanged =
         (order.latestRmaType === "EXCHANGE" &&
-          (order.latestRmaStatus === "Completed" ||
-            order.latestRmaStatus === "Approved")) ||
+          order.latestRmaStatus === "Completed") ||
         this.existingRmas.some(
           (r) =>
             r.requestType === "EXCHANGE" &&
-            (r.status === "Completed" || r.status === "Approved"),
+            r.status === "Completed",
         );
       const isPendingRma =
-        order.latestRmaStatus === "Pending" ||
-        this.existingRmas.some((r) => r.status === "Pending");
+        ["Pending", "Approved", "Received"].includes(order.latestRmaStatus) ||
+        this.existingRmas.some((r) => ["Pending", "Approved", "Received"].includes(r.status));
 
       if (isRefunded) {
         rmaBanner.className = "track-rma-banner banner--refunded";
         rmaBanner.innerHTML = `
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
-          <span><strong>Return &bull; Refunded:</strong> A return request has been completed and payment refunded.</span>
+          <span><strong>Return &bull; Completed:</strong> Staff recorded completion of your manual refund.</span>
         `;
         rmaBanner.classList.remove("is-hidden");
       } else if (isExchanged) {
         rmaBanner.className = "track-rma-banner banner--exchanged";
         rmaBanner.innerHTML = `
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
-          <span><strong>Exchange &bull; Completed:</strong> An exchange has been processed and replacement resolved.</span>
+          <span><strong>Exchange &bull; Completed:</strong> Staff recorded handover of your replacement.</span>
         `;
         rmaBanner.classList.remove("is-hidden");
       } else if (isPendingRma) {
         rmaBanner.className = "track-rma-banner banner--pending";
         rmaBanner.innerHTML = `
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-          <span><strong>Return / Exchange Pending:</strong> Your return/exchange request is under review by our operations staff.</span>
+          <span><strong>Return / Exchange In Progress:</strong> Staff are reviewing or inspecting your item. Resolution is not yet complete.</span>
         `;
         rmaBanner.classList.remove("is-hidden");
       } else {
@@ -1221,7 +1219,7 @@ export const TrackOrderController = {
   initSignalRListener() {
     try {
       RealtimeManager.init();
-      window.addEventListener("orderStatusChanged", (e) => {
+      window.addEventListener(APP_CONSTANTS.SIGNALR_EVENTS.ORDER_STATUS_CHANGED, async (e) => {
         const data = e.detail;
         if (!data || !this.currentOrder) return;
 
@@ -1235,7 +1233,7 @@ export const TrackOrderController = {
           if (data.trackingNumber)
             this.currentOrder.trackingNumber = data.trackingNumber;
 
-          this.renderOrder(this.currentOrder);
+          await this.loadOrderById(this.currentOrder.id);
           RealtimeManager.showToast(
             `Order status updated to: ${this.formatStatusLabel(this.currentOrder.orderStatus)}!`,
             "info",

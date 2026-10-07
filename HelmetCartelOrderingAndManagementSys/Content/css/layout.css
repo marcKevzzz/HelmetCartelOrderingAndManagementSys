@@ -1177,12 +1177,6 @@
   color: var(--color-text-muted);
 }
 
-.payment-badges {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .payment-badge {
   font-weight: var(--weight-bold);
   font-size: 0.7rem;

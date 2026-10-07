@@ -211,7 +211,7 @@
                 <button type="button" class="admin-modal-close-btn" id="btnCloseDeleteModal" aria-label="Close delete modal">&times;</button>
             </header>
             <div class="admin-quick-modal-body">
-                <p class="admin-modal-description" style="margin:0;font-size:var(--text-body-sm);color:var(--color-text-secondary);line-height:1.5;">
+                <p class="catalog-admin-modal-description-presentation admin-modal-description">
                     Are you sure you want to delete this product? If historical orders exist, it will be safely deactivated and archived.
                 </p>
 

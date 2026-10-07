@@ -252,19 +252,29 @@ document.addEventListener('DOMContentLoaded', function () {
     const getActivityInspectUrl = (type, ref) => {
       type = (type || '').toLowerCase();
       const refEnc = encodeURIComponent(ref || '');
+      const refUpper = (ref || '').toUpperCase();
+
       if (type.includes('stock') || type.includes('inventory')) {
-        return ref ? `/Admin/Inventory.aspx?search=${refEnc}` : '/Admin/Inventory.aspx';
+        if (!ref) return '/Pages/Admin/Inventory/Inventory.aspx';
+        if (refUpper.startsWith('PO-') || refUpper.includes('RESTOCK')) {
+          return `/Pages/Admin/Inventory/Inventory.aspx?view=audit&search=${refEnc}`;
+        }
+        return `/Pages/Admin/Inventory/Inventory.aspx?search=${refEnc}`;
       }
-      if (type.includes('order') || type.includes('payment')) {
-        return ref ? `/Admin/Orders.aspx?search=${refEnc}` : '/Admin/Orders.aspx';
+      if (type.includes('payment')) {
+        return ref ? `/Pages/Admin/Orders/OrderDetail.aspx?paymentRef=${refEnc}` : '/Pages/Admin/Orders/Orders.aspx';
+      }
+      if (type.includes('order')) {
+        return ref ? `/Pages/Admin/Orders/OrderDetail.aspx?orderNumber=${refEnc}` : '/Pages/Admin/Orders/Orders.aspx';
       }
       if (type.includes('rma') || type.includes('return') || type.includes('exchange')) {
-        return ref ? `/Admin/Returns.aspx?search=${refEnc}` : '/Admin/Returns.aspx';
+        return ref ? `/Pages/Admin/Returns/Returns.aspx?search=${refEnc}` : '/Pages/Admin/Returns/Returns.aspx';
       }
       if (type.includes('review') || type.includes('rating')) {
-        return '/Admin/Reviews.aspx';
+        const match = (ref || '').match(/\d+/);
+        return match ? `/Pages/Admin/Reviews/Reviews.aspx?reviewId=${match[0]}` : '/Pages/Admin/Reviews/Reviews.aspx';
       }
-      return ref ? `/Admin/Orders.aspx?search=${refEnc}` : '/Admin/Orders.aspx';
+      return ref ? `/Pages/Admin/Orders/Orders.aspx?search=${refEnc}` : '/Pages/Admin/Orders/Orders.aspx';
     };
 
     btnLoadMore.addEventListener('click', async function () {

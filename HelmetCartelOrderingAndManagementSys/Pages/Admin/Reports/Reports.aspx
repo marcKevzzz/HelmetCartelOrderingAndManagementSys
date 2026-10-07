@@ -131,18 +131,12 @@
             </div>
         </div>
 
-        <!-- 2. Daily Sales Performance Log with Dual-Axis Velocity Chart & Table -->
+        <!-- 2. Daily Sales Performance Log with Dual-Axis Velocity Chart -->
         <div class="admin-chart-card" id="dailySalesPerformanceCard">
             <div class="admin-chart-header">
                 <div>
                     <h2 class="admin-chart-title">Daily Sales Performance Log</h2>
-                    <span class="admin-chart-subtitle">Itemized daily settlement records and revenue/order velocity</span>
-                </div>
-                <!-- View Switcher Tabs -->
-                <div class="admin-segmented-tabs" id="dailySalesViewTabs">
-                    <button type="button" class="admin-tab-btn active" data-view="chart">Velocity Chart</button>
-                    <button type="button" class="admin-tab-btn" data-view="split">Split View</button>
-                    <button type="button" class="admin-tab-btn" data-view="table">Table Log</button>
+                    <span class="admin-chart-subtitle">Daily gross revenue and transaction velocity across selected period</span>
                 </div>
             </div>
 
@@ -152,80 +146,11 @@
                  data-revenue='<%= Server.HtmlEncode(ChartRevenueJson) %>'
                  data-orders='<%= Server.HtmlEncode(ChartOrdersJson) %>'
                  data-daily-sales='<%= Server.HtmlEncode(DailySalesDetailsJson) %>'>
-                <div class="admin-chart-body" style="height: 300px; position: relative;">
+                <div class="reports-admin-chart-body-presentation admin-chart-body">
                     <canvas id="dailySalesVelocityChart"></canvas>
                 </div>
             </div>
 
-            <!-- Historical Breakdown Table Container -->
-            <div id="dailySalesTableWrapper" class="admin-table-wrapper admin-table-wrapper--bounded admin-daily-sales-table-wrapper">
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Sales Date</th>
-                            <th>Completed Transactions</th>
-                            <th>Gross Revenue</th>
-                            <th class="admin-table-align-right">Average Order Value</th>
-                            <th class="admin-table-align-right">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <asp:Repeater ID="rptDailySales" runat="server">
-                            <ItemTemplate>
-                                <tr class="admin-clickable-row js-daily-sales-row" data-date='<%# Convert.ToDateTime(Eval("SalesDate")).ToString("yyyy-MM-dd") %>' data-display='<%# Convert.ToDateTime(Eval("SalesDate")).ToString("MMMM dd, yyyy (dddd)") %>'>
-                                    <td>
-                                        <span class="admin-cell-sku admin-cell-bold">
-                                            <%# Convert.ToDateTime(Eval("SalesDate")).ToString("MMMM dd, yyyy (dddd)") %>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="admin-size-badge"><%# Eval("PaymentCount") %> orders</span>
-                                    </td>
-                                    <td>
-                                        <span class="admin-cell-price">&#8369;<%# Convert.ToDecimal(Eval("Revenue")).ToString("N2") %></span>
-                                    </td>
-                                    <td class="admin-table-align-right">
-                                        <span class="admin-cell-mono-muted">
-                                            &#8369;<%# (Convert.ToDecimal(Eval("Revenue")) / Math.Max(1, Convert.ToInt32(Eval("PaymentCount")))).ToString("N2") %>
-                                        </span>
-                                    </td>
-                                    <td class="admin-table-align-right">
-                                        <button type="button" class="admin-row-action-btn js-daily-sales-inspect-btn" data-date='<%# Convert.ToDateTime(Eval("SalesDate")).ToString("yyyy-MM-dd") %>' data-display='<%# Convert.ToDateTime(Eval("SalesDate")).ToString("MMMM dd, yyyy (dddd)") %>' title="Inspect itemized orders for this day">
-                                            <span>Inspect</span> &rarr;
-                                        </button>
-                                    </td>
-                                </tr>
-                            </ItemTemplate>
-                            <FooterTemplate>
-                                <%# rptDailySales.Items.Count == 0 ? "<tr><td colspan='5'><div class='admin-empty-state'><div class='admin-empty-title'>No Sales Recorded</div><p class='admin-empty-desc'>No transactions found for the selected reporting period.</p></div></td></tr>" : "" %>
-                            </FooterTemplate>
-                        </asp:Repeater>
-                    </tbody>
-                </table>
-            </div>
-
-            <asp:Panel ID="pnlDailySalesPagination" runat="server" CssClass="admin-pagination-container" Visible="false">
-                <div class="admin-pagination">
-                    <asp:LinkButton ID="lnkDailySalesPrev" runat="server" CssClass="admin-pagination-btn" CommandArgument="prev" OnClick="DailySalesPage_Change">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline></svg>
-                        <span>Previous</span>
-                    </asp:LinkButton>
-                    <div class="admin-pagination-pages">
-                        <asp:Repeater ID="rptDailySalesPages" runat="server">
-                            <ItemTemplate>
-                                <asp:LinkButton ID="btnDailySalesPage" runat="server" CommandArgument='<%# Eval("PageNumber") %>'
-                                    CssClass='<%# "admin-pagination-page" + ((bool)Eval("IsCurrent") ? " active" : "") %>'
-                                    Visible='<%# !(bool)Eval("IsEllipsis") %>' OnClick="DailySalesPage_Change"><%# Eval("PageNumber") %></asp:LinkButton>
-                                <asp:Literal ID="litDailySalesPageEllipsis" runat="server" Text="&hellip;" Visible='<%# (bool)Eval("IsEllipsis") %>' />
-                            </ItemTemplate>
-                        </asp:Repeater>
-                    </div>
-                    <asp:LinkButton ID="lnkDailySalesNext" runat="server" CssClass="admin-pagination-btn" CommandArgument="next" OnClick="DailySalesPage_Change">
-                        <span>Next</span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                    </asp:LinkButton>
-                </div>
-            </asp:Panel>
         </div>
 
         <!-- 3. Brand Inventory Breakdown Section with Stacked Health Bar -->
@@ -250,7 +175,7 @@
                             <th>Manufacturer / Brand</th>
                             <th>Variants (SKUs)</th>
                             <th>Total Units</th>
-                            <th style="min-width: 240px;">Stock Health Distribution</th>
+                            <th class="reports-stock-health-column">Stock Health Distribution</th>
                             <th>Alert Status</th>
                             <th class="admin-table-align-right">Drilldown</th>
                         </tr>
@@ -274,9 +199,9 @@
                                         <!-- Stacked Health Progress Bar (Bullet Chart) -->
                                         <div class="stock-health-bar-container">
                                             <div class="stock-health-bar" title='On-hand: <%# Eval("OnHandStock") %> | Available: <%# Eval("AvailableStock") %> | Low Stock: <%# Eval("LowStockCount") %>'>
-                                                <div class="stock-health-bar__segment stock-health-bar__segment--healthy" style='width: <%# GetHealthyPercent(Convert.ToInt32(Eval("OnHandStock")), Convert.ToInt32(Eval("AvailableStock")), Convert.ToInt32(Eval("LowStockCount"))).ToString("F1", System.Globalization.CultureInfo.InvariantCulture) %>%;'></div>
-                                                <div class="stock-health-bar__segment stock-health-bar__segment--low" style='width: <%# GetLowStockPercent(Convert.ToInt32(Eval("OnHandStock")), Convert.ToInt32(Eval("LowStockCount"))).ToString("F1", System.Globalization.CultureInfo.InvariantCulture) %>%;'></div>
-                                                <div class="stock-health-bar__segment stock-health-bar__segment--reserved" style='width: <%# GetReservedPercent(Convert.ToInt32(Eval("OnHandStock")), Convert.ToInt32(Eval("AvailableStock"))).ToString("F1", System.Globalization.CultureInfo.InvariantCulture) %>%;'></div>
+                                                <div class='stock-health-bar__segment stock-health-bar__segment--healthy stock-health-width-<%# GetHealthyPercent(Convert.ToInt32(Eval("OnHandStock")), Convert.ToInt32(Eval("AvailableStock")), Convert.ToInt32(Eval("LowStockCount"))).ToString("F0", System.Globalization.CultureInfo.InvariantCulture) %>'></div>
+                                                <div class='stock-health-bar__segment stock-health-bar__segment--low stock-health-width-<%# GetLowStockPercent(Convert.ToInt32(Eval("OnHandStock")), Convert.ToInt32(Eval("LowStockCount"))).ToString("F0", System.Globalization.CultureInfo.InvariantCulture) %>'></div>
+                                                <div class='stock-health-bar__segment stock-health-bar__segment--reserved stock-health-width-<%# GetReservedPercent(Convert.ToInt32(Eval("OnHandStock")), Convert.ToInt32(Eval("AvailableStock"))).ToString("F0", System.Globalization.CultureInfo.InvariantCulture) %>'></div>
                                             </div>
                                             <div class="stock-health-bar__labels">
                                                 <span class="stock-health-bar__stat"><strong class="admin-text-success"><%# Convert.ToInt32(Eval("AvailableStock")).ToString("N0") %></strong> Avail</span>

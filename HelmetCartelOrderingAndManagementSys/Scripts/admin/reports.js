@@ -442,30 +442,42 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // View Switcher Tabs (Velocity Chart / Split View / Table Log)
+  // View Switcher Tabs (Guarded if present)
   const viewTabs = document.querySelectorAll('#dailySalesViewTabs button');
-  viewTabs.forEach(btn => {
-    btn.addEventListener('click', function () {
-      viewTabs.forEach(b => b.classList.remove('active'));
-      this.classList.add('active');
-      const viewMode = this.getAttribute('data-view');
+  if (viewTabs && viewTabs.length > 0) {
+    viewTabs.forEach(btn => {
+      btn.addEventListener('click', function () {
+        viewTabs.forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const viewMode = this.getAttribute('data-view');
 
-      if (viewMode === 'chart') {
-        if (chartWrapper) chartWrapper.style.display = 'block';
-        if (tableWrapper) tableWrapper.style.display = 'none';
-        if (paginationWrapper) paginationWrapper.style.display = 'none';
-        if (dailySalesChartInstance) dailySalesChartInstance.resize();
-      } else if (viewMode === 'split') {
-        if (chartWrapper) chartWrapper.style.display = 'block';
-        if (tableWrapper) tableWrapper.style.display = 'block';
-        if (paginationWrapper) paginationWrapper.style.display = 'flex';
-        if (dailySalesChartInstance) dailySalesChartInstance.resize();
-      } else if (viewMode === 'table') {
-        if (chartWrapper) chartWrapper.style.display = 'none';
-        if (tableWrapper) tableWrapper.style.display = 'block';
-        if (paginationWrapper) paginationWrapper.style.display = 'flex';
-      }
+        if (viewMode === 'chart') {
+          if (chartWrapper) chartWrapper.style.display = 'block';
+          if (tableWrapper) tableWrapper.style.display = 'none';
+          if (paginationWrapper) paginationWrapper.style.display = 'none';
+          if (dailySalesChartInstance) dailySalesChartInstance.resize();
+        } else if (viewMode === 'split') {
+          if (chartWrapper) chartWrapper.style.display = 'block';
+          if (tableWrapper) tableWrapper.style.display = 'block';
+          if (paginationWrapper) paginationWrapper.style.display = 'flex';
+          if (dailySalesChartInstance) dailySalesChartInstance.resize();
+        } else if (viewMode === 'table') {
+          if (chartWrapper) chartWrapper.style.display = 'none';
+          if (tableWrapper) tableWrapper.style.display = 'block';
+          if (paginationWrapper) paginationWrapper.style.display = 'flex';
+        }
+      });
     });
+  }
+
+  // Daily Sales Velocity Chart: Ensure chart is always visible and responsive
+  if (chartWrapper) {
+    chartWrapper.style.display = 'block';
+  }
+  window.addEventListener('resize', () => {
+    if (dailySalesChartInstance) {
+      dailySalesChartInstance.resize();
+    }
   });
 
   // Table Row & Inspect Button Click -> Open Daily Sales Drawer

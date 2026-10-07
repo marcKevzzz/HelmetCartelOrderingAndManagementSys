@@ -117,9 +117,9 @@ namespace HelmetCartelOrderingAndManagementSys
             }
 
             // Fallback display
-            litBrandsCount.Text = "5";
-            litHelmetsCount.Text = "37";
-            litRidersCount.Text = "9";
+            litBrandsCount.Text = "&mdash;";
+            litHelmetsCount.Text = "&mdash;";
+            litRidersCount.Text = "&mdash;";
         }
 
         public string RenderStars(decimal rating)

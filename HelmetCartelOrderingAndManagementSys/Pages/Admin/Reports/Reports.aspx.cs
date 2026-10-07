@@ -326,15 +326,15 @@ namespace HelmetCartelOrderingAndManagementSys.Admin
                     .Take(PageSize)
                     .ToList();
 
-                rptDailySales.DataSource = pagedDailySales;
-                rptDailySales.DataBind();
-                pnlDailySalesPagination.Visible = dailySalesTotalPages > 1;
-                BindReportPagination(
-                    rptDailySalesPages,
-                    lnkDailySalesPrev,
-                    lnkDailySalesNext,
-                    CurrentDailySalesPage,
-                    dailySalesTotalPages);
+                if (rptDailySales != null)
+                {
+                    rptDailySales.DataSource = pagedDailySales;
+                    rptDailySales.DataBind();
+                }
+                if (pnlDailySalesPagination != null)
+                {
+                    pnlDailySalesPagination.Visible = false;
+                }
 
                 // 5. Update UI labels
                 litRevenueSubtitle.Text = Server.HtmlEncode($"Settled revenue ({startDate:MMM dd} - {endDate:MMM dd})");

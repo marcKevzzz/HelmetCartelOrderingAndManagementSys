@@ -98,37 +98,45 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                 return BadRequest("Payment simulation is only enabled when HitPay:SimulationMode is true.");
             }
 
-            string channel = string.IsNullOrWhiteSpace(request.PaymentChannel) ? AppConstants.PaymentChannels.QrPh : request.PaymentChannel.ToUpperInvariant();
-            string outcome = string.IsNullOrWhiteSpace(request.Outcome) ? "SUCCESS" : request.Outcome.ToUpperInvariant();
-
-            if (outcome == "SUCCESS")
+            try
             {
-                string simGatewayRef = $"SIM-{channel}-{Guid.NewGuid().ToString("N").Substring(0, 8).ToUpperInvariant()}";
-                bool confirmed = await _orderService.ConfirmOnlinePaymentAsync(request.OrderNumber, simGatewayRef).ConfigureAwait(false);
+                string channel = string.IsNullOrWhiteSpace(request.PaymentChannel) ? AppConstants.PaymentChannels.QrPh : request.PaymentChannel.ToUpperInvariant();
+                string outcome = string.IsNullOrWhiteSpace(request.Outcome) ? "SUCCESS" : request.Outcome.ToUpperInvariant();
 
-                if (!confirmed)
+                if (outcome == "SUCCESS")
                 {
-                    return Ok(ApiResponse<object>.Fail("Order has already been processed or cannot accept payment.", AppConstants.ErrorCodes.OrderNotFound));
+                    string simGatewayRef = $"SIM-{channel}-{Guid.NewGuid().ToString("N").Substring(0, 8).ToUpperInvariant()}";
+                    bool confirmed = await _orderService.ConfirmOnlinePaymentAsync(request.OrderNumber, simGatewayRef).ConfigureAwait(false);
+
+                    if (!confirmed)
+                    {
+                        return Ok(ApiResponse<object>.Fail("Order has already been processed or cannot accept payment.", AppConstants.ErrorCodes.OrderNotFound));
+                    }
+
+                    return Ok(ApiResponse<object>.Ok(new
+                    {
+                        orderNumber = request.OrderNumber,
+                        paymentId = simGatewayRef,
+                        channel = channel,
+                        status = AppConstants.OrderStatus.Processing,
+                        paymentStatus = AppConstants.PaymentStatus.Completed
+                    }, "Simulated payment completed successfully."));
                 }
-
-                return Ok(ApiResponse<object>.Ok(new
+                else
                 {
-                    orderNumber = request.OrderNumber,
-                    paymentId = simGatewayRef,
-                    channel = channel,
-                    status = AppConstants.OrderStatus.Processing,
-                    paymentStatus = AppConstants.PaymentStatus.Completed
-                }, "Simulated payment completed successfully."));
-            }
-            else
-            {
-                // Record failed payment attempt in database using stored procedure
-                await _adminData.QueryAsync(
-                    "dbo.sp_RecordPaymentFailure",
-                    AdminDataRepository.Param("@OrderNumber", request.OrderNumber)
-                ).ConfigureAwait(false);
+                    // Record failed payment attempt in database using stored procedure
+                    await _adminData.QueryAsync(
+                        "dbo.sp_RecordPaymentFailure",
+                        AdminDataRepository.Param("@OrderNumber", request.OrderNumber)
+                    ).ConfigureAwait(false);
 
-                return Ok(ApiResponse<object>.Fail("Payment simulation failed: Insufficient funds or card declined.", "SIMULATED_PAYMENT_DECLINED"));
+                    return Ok(ApiResponse<object>.Fail("Payment simulation failed: Insufficient funds or card declined.", "SIMULATED_PAYMENT_DECLINED"));
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError($"[PaymentsController.SimulatePayment] Error simulating payment for {request.OrderNumber}: {ex}");
+                return InternalServerError(ex);
             }
         }
 

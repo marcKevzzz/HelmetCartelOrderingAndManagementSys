@@ -86,7 +86,7 @@
                     </div>
                     <div class="track-info-card__body">
                         <strong class="track-info-card__value" id="track-fulfillment-method">Door-to-Door Delivery</strong>
-                        <div class="track-courier-row" id="track-courier-row" style="display: none;">
+                        <div class="orders-dispatchmodalbackdrop-presentation track-courier-row" id="track-courier-row">
                             <span class="track-courier-name" id="track-courier-name">J&amp;T Express</span>
                             <span class="order-tracking-num-tag" id="track-tracking-num">TRK12345678</span>
                             <button type="button" class="btn-copy-tracking" id="btn-track-copy" title="Copy tracking number">
@@ -129,7 +129,7 @@
                     <div class="track-info-card__body">
                         <strong class="track-recipient-name" id="track-recipient-name">Recipient Name</strong>
                         <p class="track-destination-text" id="track-delivery-destination">Emerald street, Nova Proper, Quezon City, Metro Manila</p>
-                        <span class="track-landmark-text" id="track-delivery-landmark" style="display: none;"></span>
+                        <span class="orders-dispatchmodalbackdrop-presentation track-landmark-text" id="track-delivery-landmark"></span>
                     </div>
                 </div>
             </div>

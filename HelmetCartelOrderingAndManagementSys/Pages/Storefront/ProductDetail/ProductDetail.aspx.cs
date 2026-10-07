@@ -87,9 +87,11 @@ namespace HelmetCartelOrderingAndManagementSys.Pages
                 if (ProductItem.Variants != null && ProductItem.Variants.Count > 0)
                 {
                     UniqueSizes = ProductItem.Variants
-                        .Select(v => v.Size)
+                        .Select(v => NormalizeDisplaySize(v.Size))
                         .Where(s => !string.IsNullOrEmpty(s))
-                        .Distinct()
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(GetSizeOrder)
+                        .ThenBy(s => s)
                         .ToList();
 
                     UniqueColors = ProductItem.Variants
@@ -246,6 +248,37 @@ namespace HelmetCartelOrderingAndManagementSys.Pages
         public int GetExtraImagesCount()
         {
             return GalleryImages != null && GalleryImages.Count > 5 ? GalleryImages.Count - 5 : 0;
+        }
+
+        private static readonly Dictionary<string, int> SizeOrderMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "XXS", 1 }, { "2XS", 1 },
+            { "XS", 2 },  { "Extra Small", 2 },
+            { "S", 3 },   { "Small", 3 },
+            { "M", 4 },   { "Medium", 4 },
+            { "L", 5 },   { "Large", 5 },
+            { "XL", 6 },  { "X-Large", 6 }, { "Extra Large", 6 },
+            { "2XL", 7 }, { "XXL", 7 },
+            { "3XL", 8 }, { "XXXL", 8 },
+            { "4XL", 9 }, { "XXXXL", 9 },
+            { "5XL", 10 }
+        };
+
+        private static int GetSizeOrder(string size)
+        {
+            if (string.IsNullOrWhiteSpace(size)) return 999;
+            string key = size.Trim();
+            return SizeOrderMap.TryGetValue(key, out int order) ? order : 100;
+        }
+
+        private static string NormalizeDisplaySize(string size)
+        {
+            if (string.IsNullOrWhiteSpace(size)) return size;
+            string trimmed = size.Trim();
+            if (string.Equals(trimmed, "XXL", StringComparison.OrdinalIgnoreCase)) return "2XL";
+            if (string.Equals(trimmed, "XXXL", StringComparison.OrdinalIgnoreCase)) return "3XL";
+            if (string.Equals(trimmed, "XXXXL", StringComparison.OrdinalIgnoreCase)) return "4XL";
+            return trimmed;
         }
     }
 }

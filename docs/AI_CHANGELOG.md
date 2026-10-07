@@ -1,5 +1,148 @@
 # AI Change Log & Architectural Evolution: Helmet Cartel
 
+## [2026-10-07] — Reviews Moderation: Admin-Only Permanent Review Deletion & Confirmation Modal
+
+- **Review Deletion Architecture & Security Barrier:**
+  - **Stored Procedure (`54_admin_delete_review.sql`):** Added `dbo.sp_AdminDeleteReview @ReviewId INT` with transactional isolation to permanently remove reviews and cascade-delete any related reports in `dbo.ReviewReports`.
+  - **Repository Layer (`IReviewRepository.cs`, `ReviewRepository.cs`):** Implemented `DeleteReviewAsync(int reviewId)` executing `dbo.sp_AdminDeleteReview` via ADO.NET `CommandType.StoredProcedure`.
+  - **API Controller Endpoint (`ReviewsController.cs`):** Added `DELETE /api/v1/reviews/admin/{id}` strictly secured by `[StaffAuthorize(adminOnly: true)]`. Staff users receive HTTP 403 Forbidden; only authenticated Admins can execute deletion.
+  - **Frontend UI & Modal Confirmation (`Reviews.aspx`, `reviews.js`, `constants.js`, `api.js`, `admin.css`):**
+    - **Admin-Only UI Enforcement:** Dynamically renders the red Delete button in the table actions cell and in the review inspect modal exclusively when the authenticated user holds the `Admin` role (`window.HC_IS_ADMIN`).
+    - **Dedicated Confirmation Modal (`#adminDeleteReviewModal`):** Built accessible modal dialog displaying danger icon, warning message, product/brand, reviewer name, rating stars, and review comment snippet.
+    - **Tactile Feedback & State Management:** Features loading state (`"Deleting..."`), success toast notifications via `AdminToast`, automatic list reload, and smooth modal closing.
+  - **End-to-End Verification:** Automated tests verified Staff rejection with HTTP 403 Forbidden and Admin success with HTTP 200 OK and database confirmation.
+
+## [2026-10-07] — Standalone Complete Database Script Generation for Multi-Device Setup
+
+- **Self-Contained Database Deployment Script (`database/setup/HelmetCartelDB_Complete.sql`):**
+  - **Purpose & Scope:** Created a comprehensive, self-contained SQL deployment script that builds the complete `HelmetCartelDB` schema and populates all active seed and catalog data on any new machine with a single execution in SSMS or Visual Studio.
+  - **Unnecessary Objects Excluded:**
+    - Omitted 14 obsolete and one-time seed stored procedures (`sp_SeedCatalogContent`, `sp_SeedDashboardAuditSamples`, `sp_SeedHelmetCatalog`, `sp_SeedSampleCatalogAvailability`, `sp_SeedShoeiRf1400Specifications`, `sp_AddProductGalleryImage`, `sp_CalculateVoucher`, `sp_ChangeOrderInventory`, `sp_GetFaqs`, `sp_GetInventoryByVariantId`, `sp_GetSalesSummaryReport`, `sp_UpdateOrderStatus`, `sp_UpsertCategorySpecification`, `sp_UpsertSpecificationDefinition`).
+    - Excluded non-application/orphaned tables (0 exist; preserved all 28 legitimate application tables).
+  - **Topological Ordering & Foreign Key Isolation:**
+    - Structured execution sequence: Table Types (`SaleLineInput`) -> Scalar Functions (`fn_BaseColorFromHex`, `fn_CalculateEffectivePrice`) -> 28 Tables with primary keys, unique constraints, and indexes -> Data Inserts with `IDENTITY_INSERT` -> 37 Foreign Key constraints -> 7 Views (`v_VisibleProducts`, `v_VisibleProductVariants`, etc.) -> Triggers (`tr_Orders_ReleaseVoucher`) -> 105 Active Stored Procedures (`CREATE OR ALTER PROCEDURE`, including `sp_AdminDeleteReview`).
+    - Handled computed columns (`Inventories.IsLowStock`, `OrderItems.TotalPrice`, `Orders.TotalAmount`, `StockAuditLogs.NewStock`) by excluding them from insert column targets.
+  - **Automated Verification:**
+    - Tested end-to-end execution against a fresh scratch database (`HelmetCartelDB_TestVerify`). All batches executed cleanly with 0 errors, validating 28 tables, 37 foreign keys, 105 stored procedures, 8 users, 36 products, and 440 variants/inventory records.
+
+
+- **Return to Checkout Workflow (`Checkout.aspx`, `Checkout.aspx.cs`, `checkout.js`, `Profile.aspx`, `profile.js`, `profile.css`):**
+  - **Issue Resolved:** When a customer on Checkout did not have an address configured, clicking the address component redirected to the profile addresses tab (`Profile.aspx?tab=addresses`), but there was no action or clear way to return to Checkout once in the Profile page or after saving their address.
+  - **Checkout Address Component Return URL (`Checkout.aspx.cs`, `checkout.js`):**
+    - Configured server-side `NavigateUrl` in `Checkout.aspx.cs` to pass `?tab=addresses&returnUrl={rawUrl}`.
+    - Updated `checkout.js` on client load to dynamically bind `returnUrl` (including `mode=buynow` when applicable) and store `hc_checkout_return_url` in `sessionStorage`.
+  - **Return to Checkout Alert Banner (`Profile.aspx`, `profile.css`, `profile.js`):**
+    - Added a sleek dark gradient card (`.checkout-return-banner`) at the top of the Saved Delivery Addresses section in `Profile.aspx` with a high-contrast `Back to Checkout` action button.
+    - Added a secondary `Back to Checkout` outline button in the address section header next to `Add New Address`.
+    - Both elements automatically appear whenever the user navigates from Checkout or has items in their cart / buy-now session.
+  - **One-Click Address Selection for Checkout (`profile.js`, `profile.css`):**
+    - Added a primary `Use for Checkout` button on each address card when return to checkout is active. Clicking it selects the address for delivery and immediately redirects the customer back to Checkout.
+  - **Automatic Return on Address Save (`profile.js`):**
+    - After successfully saving a new or edited address, if a checkout return intent exists, `profile.js` automatically sets the newly added address for checkout, displays a status toast (`"Delivery address saved! Returning to checkout..."`), and seamlessly redirects back to the checkout page.
+
+## [2026-10-07] — Toast Hover Column Expansion & Order Items Total Quantity Fix
+
+- **Toast Hover Expand Into Column (`components.css`, `admin.css`, `realtime.js`, `admin.js`):**
+  - **Stack to Column Transition on Hover:** When user hovers the toast stack (`.toast-container:hover`, `#adminToastContainer:hover`, `.admin-toast-container:hover`), the container expands dynamically from stacked deck layout (`grid-area: 1 / 1`) into a vertical column (`display: flex; flex-direction: column-reverse; gap: var(--space-2, 8px)`).
+  - **Reveals All Active Toasts:** All toasts (including 4th+ cards) become fully visible (`transform: translateY(0) scale(1)`, `opacity: 1`, `visibility: visible`) with fluid `toastUnfold` entrance keyframes, arranged cleanly in reverse chronological order (newest on top, older below).
+  - **Tactile Item Hover Feedback:** Hovering any individual toast in the column elevates it subtly (`transform: translateY(-2px) scale(1.01)`) with enhanced box-shadow.
+  - **Smart Dismissal Timer Pause:** Added `dataset.isHovered` tracking on the container. When hovered, automatic dismissal timeouts pause so toasts do not vanish while the user is reading or clicking. Upon mouse leave, toasts smoothly resume dismiss timers after a grace period.
+  - **Smooth Collapsible Exit:** Updated `.toast--exit` / `.is-fading` styles to smoothly collapse `max-height` and `padding` to zero, allowing remaining column items to flow upward seamlessly.
+
+- **Orders Table Items Column Total Quantity Calculation (`53_order_items_quantity_count_fix.sql`, `OrderDetail.aspx`, `OrderDetail.aspx.cs`):**
+  - **Root Cause:** In stored procedures `dbo.sp_AdminOrders`, `dbo.sp_AdminDailySettledOrders`, and `dbo.sp_GetUserOrders`, the `ItemCount` column was queried using `(SELECT COUNT(*) FROM dbo.OrderItems oi WHERE oi.OrderId = o.Id) AS ItemCount`. For an order containing 1 helmet line item with a quantity of 2 (or more), this returned `1` (distinct line count) rather than `2` (actual ordered units).
+  - **Database Migration 53 (`53_order_items_quantity_count_fix.sql`):** Altered `dbo.sp_AdminOrders`, `dbo.sp_AdminDailySettledOrders`, and `dbo.sp_GetUserOrders` to use `ISNULL((SELECT SUM(oi.Quantity) FROM dbo.OrderItems oi WHERE oi.OrderId = o.Id), 0) AS ItemCount`.
+  - **Verified Query Results:** Verified against live SQL Server: orders with Qty 2 (such as `HC-20261007-F09017DA15` and `HC-20261007-BD1B48AA68`) now accurately return `Items: 2`, and orders with Qty 3 (such as `HC-20261007-5CCE19001A`) return `Items: 3`.
+  - **Order Detail Header Consistency (`OrderDetail.aspx`, `OrderDetail.aspx.cs`):** Updated `litItemCount` in `OrderDetail.aspx.cs` to reflect `totalUnits` (the sum of `item.Quantity`) and renamed the card header to `Order Items (<asp:Literal ID="litItemCount" runat="server" />)`.
+
+## [2026-10-07] — Catalog Item Variant Reference Fix, Reviews Moderation Authorization & Users Table Responsive Sizing
+
+- **Catalog Item Variant Matrix Fix (`catalog-item.js`):**
+  - Resolved `Uncaught ReferenceError: isVarActive is not defined` at line 885 during `renderVariantMatrix`.
+  - Added `const isVarActive = v.isActive !== false;` prior to checking `isVarActive` when appending variant pills to the container, enabling error-free variant loading, color syncing, and pill removal.
+- **Reviews Moderation Role Authorization (`ReviewsController.cs`, `api.js`):**
+  - Changed `[StaffAuthorize(adminOnly: true)]` to `[StaffAuthorize]` on `AdminGetReviews` (`/api/v1/reviews/admin`) and `ToggleReviewVisibility` (`/api/v1/reviews/admin/{id}/toggle-visibility`), allowing Staff members to inspect and moderate customer feedback without triggering HTTP 403 Forbidden.
+  - Hardened `ApiClient.request` in `api.js` to safely read response body text and handle non-JSON or empty error responses gracefully without throwing `SyntaxError: Unexpected end of JSON input`.
+- **Users Table Fluid Sizing & Responsive Overflow (`admin.css`, `Portal.master`):**
+  - Adjusted `.admin-table-users` from rigid `min-width: 920px; table-layout: fixed` to `width: 100%; min-width: 740px; table-layout: auto`.
+  - Proportioned UID, Contact, Role, Status, and Action columns while allowing User Details and Email to fill available space on normal desktop displays.
+  - Preserved `.admin-table-wrapper` horizontal scrolling (`overflow-x: auto`) for compact tablet or mobile viewports below 740px.
+
+## [2026-10-07] — Staff Role Authorization, User Access Control Modal & New Staff Account Setup
+
+- **Staff Account Creation & Promotion (`dbo.sp_AdminUpdateUserRole`, `51_staff_role_and_user_update.sql`):**
+  - Created new staff user `staff@gmail.com` with password `staff@gmail.com` (salted SHA-256 hash, RoleId = 2 `Staff`, active account).
+  - Promoted `kevs@gmail.com` and `staffmember@helmetcartel.com` to the `Staff` role in `HelmetCartelDB`.
+  - Verified login via `POST /api/v1/auth/login` for both accounts, returning JWT tokens with claims `role: "Staff"`.
+- **Granular Staff Authorization & Section Access Control (`Global.asax.cs`, `Portal.master`, `StaffAuthorizeAttribute.cs`):**
+  - **Authorized Staff Sections:** Staff accounts are authorized to open the operations portal including `Dashboard`, `Orders`, `POS Counter`, `Inventory`, `Returns`, `Catalog`, `Reviews`, and `Reports`.
+  - **Admin-Only Restrictions:** Restricted `Users & Access Control` (`Users.aspx`) and `Vouchers` (`Vouchers.aspx`) strictly to `Admin` users. Non-admin staff attempting to open these URLs are redirected safely to `Inventory.aspx` in `Global.asax.cs`.
+  - **Dynamic Navigation:** Updated `Portal.master` sidebar so `Users` and `Vouchers` navigation items are rendered only for users with the `Admin` role.
+- **Edit System Role Modal in Users & Access Control (`Users.aspx`, `Users.aspx.cs`, `Users.aspx.designer.cs`, `AdminDataRepository.cs`, `admin.css`):**
+  - Added an "Edit Role" button on each user row in `Users.aspx`.
+  - Added a modal allowing administrators to reassign user roles between `Customer`, `Staff`, and `Admin`.
+  - Added self-demotion guards on both the client (disabling role reduction for the current logged-in user) and database level (`dbo.sp_AdminUpdateUserRole`), preventing lockout of the final active admin.
+  - Linked to `AdminDataRepository.UpdateUserRoleAsync` and wired PostBack execution with instant status toast notifications.
+
+## [2026-10-07] — Academic presentation business-process corrections
+
+- Added authenticated customer ownership filters for order tracking/cancellation, reviews, and returns, and staff/admin restrictions for administrative return/review routes.
+- Added an account-scoped customer SignalR hub and post-commit notifications for order, cancellation, cash/POS, and return/exchange operations, including Web Forms fulfillment buttons.
+- Added server checkout validation and province-based shipping pricing, and inline checkout order/terms feedback.
+- Added migrations 51–52: reservation-safe paid fulfillment/cancellation, method-specific fulfillment transitions, cash/COD collection timing, sale/restock audits and persistent low-stock alerts, inspected manual return processing, equal-price replacement stock deduction, and consistent settled merchandise reporting.
+- Preserved completed payment history on cancellation. Refund and exchange completion now records a staff-confirmed manual action rather than claiming automatic gateway settlement. Added replacement size/color selection to staff return processing.
+- Updated the fresh installer through structural migration 52, skipped optional destructive demo cleanup 47, and required explicit upgrade ranges. Applied 51–52 to the local database after a verified COPY_ONLY backup.
+- Removed page inline style attributes in favor of CSS classes, corrected unsupported homepage claims/order metrics, and aligned architecture/setup documentation with the implemented presentation behavior.
+- Build, disposable-database business/voucher tests, compiled C# checkout-policy tests, receipt tests, JavaScript syntax checks, guest API restrictions, and public page HTTP checks passed. Browser automation failed to initialize; interactive UI and two-browser SignalR verification remain manual checks.
+- HitPay integration, electronic payment simulations, and demonstration catalog/review data were excluded by the user and left unchanged. Existing uncommitted changes were preserved. See `docs/ACADEMIC_FIX_STATUS.md` for the full correction scope and limitations.
+
+## [2026-10-07] — Order HitPay Reference Display, Activity Feed Direct Inspect Routing, Restock Audit Navigation, Daily Sales Chart-Only View & User Password Update
+
+- **Storefront & Admin Toast Notification System (`components.css`, `admin.css`, `admin.js`, `realtime.js`, `Site.Master`, `Portal.master`):**
+  - **Storefront Card Deck Integration:** Storefront toasts emitted via `RealtimeManager.showToast` (`realtime.js`) render inside `.toast-container` in `Site.Master` with identical top-middle stacked card deck positioning (`top: 24px; left: 50%; transform: translateX(-50%); display: grid`).
+  - **Fixed Storefront DOM Append:** Corrected `container.appendChild(toast)` in `realtime.js` so client toasts (cart adds, wishlist updates, stock alerts) immediately mount and display.
+  - **Stacked Card Deck Layout (Sonner Style):** Replaced vertical list stacking with CSS Grid overlapping card deck (`grid-area: 1 / 1` and `place-items: start center`).
+    - *Front Card (`:last-child`):* `transform: translateY(0) scale(1)`, `z-index: 30`, full opacity, smooth top slide-in (`slideInToastTop`).
+    - *2nd Card (`:nth-last-child(2)`):* `transform: translateY(11px) scale(0.94)`, `z-index: 20`, `opacity: 0.94`, peeking symmetrically underneath.
+    - *3rd Card (`:nth-last-child(3)`):* `transform: translateY(21px) scale(0.88)`, `z-index: 10`, `opacity: 0.85`, peeking further underneath.
+    - *4th+ Cards:* Softly concealed behind the stack (`opacity: 0`) to prevent visual overload.
+  - **Interactive Hover & Exit Polish:** Subtle hover depth separation (`translateY(14px)` and `translateY(25px)`), click-to-dismiss support, and a smooth `toast--exit` fade/slide transition.
+  - **Zero UI Disruption:** Preserved all existing visual tokens, pure white `#FFFFFF` surface, typography, SVG status icons, and color highlights without modifying toast content structure.
+
+- **Standard Motorcycle Helmet Size Sequence Ordering: XS to 2XL (`ProductFilterControl.ascx`, `Shop.aspx.cs`, `ProductDetail.aspx`, `ProductDetail.aspx.cs`, `product-detail.js`):**
+  - **Shop Filter Pills (`ProductFilterControl.ascx`):** Reordered size filter pills strictly from smallest to largest: `XS` &rarr; `S` &rarr; `M` &rarr; `L` &rarr; `XL` &rarr; `2XL` &rarr; `3XL`.
+  - **Backend Filter Normalization (`Shop.aspx.cs`):** Registered `AllowedSizes = { "XS", "S", "M", "L", "XL", "2XL", "XXL", "3XL" }`. Enhanced `NormalizeCsv` so selecting `2XL` or `XXL` automatically includes both aliases for SQL queries in `sp_GetProductsPaged`.
+  - **Product Detail Backend Ordering (`ProductDetail.aspx.cs`):** Implemented canonical `SizeOrderMap` and `GetSizeOrder` so helmet variants are extracted and sorted in strict `XS` &rarr; `S` &rarr; `M` &rarr; `L` &rarr; `XL` &rarr; `2XL` sequence rather than random database insertion order. Added `NormalizeDisplaySize` to present `XXL` as `2XL` consistently.
+  - **Product Detail Fallback Pills (`ProductDetail.aspx`):** Replaced legacy fallback labels (`Small`, `Medium`, `Large`, `X-Large`) with standard abbreviations (`XS`, `S`, `M`, `L`, `XL`, `2XL`).
+  - **Variant Matching Equivalence (`product-detail.js`):** Added `areSizesEqual` helper function to equate `2XL` and `XXL` (and `3XL` with `XXXL`) across quantity steppers, cart additions, and UI variant state updates so selecting `2XL` seamlessly resolves database variants named `XXL`.
+
+- **Resolved Payment Simulation 500 Error (`/api/v1/payments/simulate`):**
+  - **Root Cause:** In Migration 50 (`dbo.sp_GetOrderDetails`), Result Set 2 (Order Items) returned `rr.Status AS LatestRmaStatus` instead of `AS RmaStatus`. When `_orderService.ConfirmOnlinePaymentAsync` invoked `_orderRepository.GetOrderByOrderNumberAsync(orderNumber)`, `reader.GetOrdinal("RmaStatus")` threw `IndexOutOfRangeException`, causing an unhandled HTTP 500 response from `POST /api/v1/payments/simulate`.
+  - **Stored Procedure Fix:** Updated `dbo.sp_GetOrderDetails` in `50_activity_redirects_and_order_hitpay_ref.sql` to output `rr.Status AS RmaStatus` in Result Set 2 and applied it to SQL Server.
+  - **Defensive Reader Resilience (`OrderRepository.cs`):** Introduced `GetOrdinalOrDefault` helper to safely look up column ordinals with fallback (`RmaStatus` or `LatestRmaStatus`), eliminating exceptions if stored procedure column aliases vary.
+  - **Diagnostic Logging & Exception Handling (`PaymentsController.cs`):** Wrapped `SimulatePayment` in a structured try-catch block with `System.Diagnostics.Trace.TraceError` logging to ensure clear error reporting and prevent untraced 500 faults.
+  - **Verified End-to-End:** Executed payment simulation for pending online order `HC-20261007-BD1B48AA68` via `POST /api/v1/payments/simulate`, returning HTTP 200 with `status: "Processing"` and `paymentStatus: "Completed"`.
+
+- **HitPay Reference Display in Order Detail (`OrderDetail.aspx`, `OrderDetail.aspx.cs`, `OrderDetail.aspx.designer.cs`):**
+  - Exposed and rendered the HitPay / Payment Reference number (`order.GatewayReference`) directly in the financial summary box beneath Payment Method and Status with styled monospace typography (`.admin-cell-mono`).
+  - Added support for loading orders by HitPay reference, order number, or search query (`?paymentRef=...`, `?orderNumber=...`, `?ref=...`) via `LoadOrderByLookupAsync`, allowing direct deep-linking from activity feed logs or search queries.
+  - Updated `OrderRepository.cs` and `sp_GetOrderDetails` to resolve orders seamlessly by either order number or gateway payment reference.
+
+- **Activity Feed Deep-Link Routing (`Dashboard.aspx.cs`, `dashboard.js`, `50_activity_redirects_and_order_hitpay_ref.sql`):**
+  - **Payment Transactions:** Clicking "Inspect" on payment logs now redirects directly to the specific order in `OrderDetail.aspx?paymentRef={GatewayReference}` rather than a generic list.
+  - **Order Events:** Clicking "Inspect" on order logs routes directly to `OrderDetail.aspx?orderNumber={OrderNumber}`.
+  - **Customer Reviews:** Updated `sp_AdminRecentActivity` to output Review reference as `REV-{Id}`. The inspect button now links directly to `Reviews.aspx?reviewId={Id}`, which automatically scrolls to, highlights with a pulsing outline, and opens the review moderation modal for that exact review.
+  - **Stock Restocks & Purchase Orders (`PO-DIST-...`):** Contextually detects purchase order and restock reference patterns (e.g. `PO-DIST-2026-X1`), automatically routing to `/Pages/Admin/Inventory/Inventory.aspx?view=audit&search={Reference}`.
+  - Updated `Inventory.aspx.cs` to automatically activate the Stock In & Audit History view when a search starts with `PO-` or `RESTOCK-`, eliminating empty results when inspecting purchase order restocks.
+
+- **Daily Sales Performance Log — Chart-Only Modern Visualization (`Reports.aspx`, `reports.js`, `Reports.aspx.cs`):**
+  - Removed the raw table log and segmented view switcher tabs (`Velocity Chart`, `Split View`, `Table Log`) as requested.
+  - Fixed and expanded the Dual-Axis Velocity Chart container (`height: 340px`) to render cleanly at full width, remaining fully responsive with interactive points that still open the itemized daily orders drawer upon click.
+  - Safely guarded backend repeater bindings in `Reports.aspx.cs` to prevent null references while preserving Excel reporting generation.
+
+- **User Security & Credentials (`kevs@gmail.com`):**
+  - Reset and synchronized password for user account `kevs@gmail.com` to `kevs@gmail.com`, computing the salted SHA-256 hash matching `AuthService.cs` authentication standards.
+
 ## [2026-10-06] — Modern Analytics Visualizations (Dual-Axis Spline/Column Velocity & Brand Stacked Bullet Charts), Click-to-Drawer Drilldown, and Multi-Sheet Excel SpreadsheetML Export
 
 - **Daily Sales Performance Log Modern Visualization (`Reports.aspx`, `reports.js`, `Reports.aspx.cs`):**

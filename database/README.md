@@ -3,7 +3,22 @@
 The database folder contains SQL Server source scripts and setup tools. The web
 application calls the stored procedures they install; it does not run these files.
 
-## Fresh development database
+## Standalone Database Script (for other devices / fresh setup)
+
+The file `database/setup/HelmetCartelDB_Complete.sql` is a self-contained SQL script containing:
+- Creation of `HelmetCartelDB` (if not exists)
+- All 28 active application tables, primary keys, indexes, and constraints
+- Full seed and catalog data (users with Admin/Staff/Customer roles, 36 products, 440 variants, stock inventory, categories, brands, specifications, orders, and vouchers)
+- Table-valued types (`SaleLineInput`), scalar functions (`fn_BaseColorFromHex`, `fn_CalculateEffectivePrice`), views (`v_VisibleProducts`, etc.), and triggers (`tr_Orders_ReleaseVoucher`)
+- All 104 actively referenced stored procedures (excluding obsolete/one-time seed procedures)
+
+To install on a new device:
+1. Open SQL Server Management Studio (SSMS) or Visual Studio.
+2. Open `database/setup/HelmetCartelDB_Complete.sql`.
+3. Execute the script (`F5`).
+4. Ensure your `Web.config` connection string points to `.\SQLEXPRESS;Initial Catalog=HelmetCartelDB;Integrated Security=True;`.
+
+## Fresh development database (Legacy builder)
 
 From the repository root, build the installer for an unused database name:
 
@@ -11,11 +26,8 @@ From the repository root, build the installer for an unused database name:
 powershell -File .\database\setup\Build-MinimalDatabase.ps1 -DatabaseName HelmetCartelMinimalDB
 ```
 
-Run the complete `setup/new_database_minimal.sql` in SSMS, then point the
-application connection string at that database. The builder only writes a file;
-it does not connect to SQL Server. The generated installer includes migrations
-through 35 and compact development samples. It must not be run on an existing
-database. Edit source scripts rather than the generated installer.
+Run `setup/new_database_minimal.sql` in SSMS, then point the
+application connection string at that database. Edit source scripts rather than the generated installer.
 
 ## Existing database
 
@@ -29,6 +41,10 @@ For a configured `HelmetCartelDB` already at migration 17 or later, use
 for the unapplied range. The runner backs up before applying changes. Its
 `-DryRun` option still executes SQL inside a transaction before rolling it back;
 it is not a static or read-only check. Do not blindly replay earlier migrations.
+The range parameters are mandatory. Migration 47 is skipped unless
+`-IncludeDemoContent` is supplied; it deletes/replaces demonstration reviews and
+must not be treated as a routine structural upgrade. For a database already at
+50, apply only 51–52 for the academic business-process corrections.
 
 ## Folder roles
 

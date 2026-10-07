@@ -264,6 +264,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                         return new OrderSummaryDto
                         {
                             Id = orderId,
+                            UserId = userId,
                             OrderNumber = orderNumber,
                             CustomerName = request.CustomerName,
                             CustomerEmail = request.CustomerEmail,
@@ -318,7 +319,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.Parameters.Add(new SqlParameter("@OrderId", SqlDbType.Int) { Value = (object)orderId ?? DBNull.Value });
-                    cmd.Parameters.Add(new SqlParameter("@OrderNumber", SqlDbType.NVarChar, 50) { Value = (object)orderNumber ?? DBNull.Value });
+                    cmd.Parameters.Add(new SqlParameter("@OrderNumber", SqlDbType.NVarChar, 100) { Value = (object)orderNumber ?? DBNull.Value });
 
                     using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
                     {
@@ -330,6 +331,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             summary = new OrderSummaryDto
                             {
                                 Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                                UserId = reader.IsDBNull(reader.GetOrdinal("UserId")) ? (int?)null : reader.GetInt32(reader.GetOrdinal("UserId")),
                                 OrderNumber = reader.GetString(reader.GetOrdinal("OrderNumber")),
                                 CustomerName = reader.GetString(reader.GetOrdinal("CustomerName")),
                                 CustomerEmail = reader.GetString(reader.GetOrdinal("CustomerEmail")),
@@ -367,6 +369,13 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                             while (await reader.ReadAsync().ConfigureAwait(false))
                             {
                                 string mainImg = reader.IsDBNull(reader.GetOrdinal("MainImageUrl")) ? null : reader.GetString(reader.GetOrdinal("MainImageUrl"));
+                                int rmaIdOrd = GetOrdinalOrDefault(reader, "RmaId");
+                                int rmaNumOrd = GetOrdinalOrDefault(reader, "RmaNumber");
+                                int rmaTypeOrd = GetOrdinalOrDefault(reader, "RmaType");
+                                int rmaStatusOrd = GetOrdinalOrDefault(reader, "RmaStatus", "LatestRmaStatus");
+                                int rmaResOrd = GetOrdinalOrDefault(reader, "RmaResolution");
+                                int reviewIdOrd = GetOrdinalOrDefault(reader, "ReviewId");
+
                                 summary.Items.Add(new OrderItemSummaryDto
                                 {
                                     Id = reader.GetInt32(reader.GetOrdinal("Id")),
@@ -381,12 +390,12 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                                     TotalPrice = reader.GetDecimal(reader.GetOrdinal("TotalPrice")),
                                     MainImageUrl = mainImg,
                                     ImageUrl = mainImg,
-                                    RmaId = reader.IsDBNull(reader.GetOrdinal("RmaId")) ? (int?)null : reader.GetInt32(reader.GetOrdinal("RmaId")),
-                                    RmaNumber = reader.IsDBNull(reader.GetOrdinal("RmaNumber")) ? null : reader.GetString(reader.GetOrdinal("RmaNumber")),
-                                    RmaType = reader.IsDBNull(reader.GetOrdinal("RmaType")) ? null : reader.GetString(reader.GetOrdinal("RmaType")),
-                                    RmaStatus = reader.IsDBNull(reader.GetOrdinal("RmaStatus")) ? null : reader.GetString(reader.GetOrdinal("RmaStatus")),
-                                    RmaResolution = reader.IsDBNull(reader.GetOrdinal("RmaResolution")) ? null : reader.GetString(reader.GetOrdinal("RmaResolution")),
-                                    ReviewId = reader.IsDBNull(reader.GetOrdinal("ReviewId")) ? (int?)null : reader.GetInt32(reader.GetOrdinal("ReviewId"))
+                                    RmaId = (rmaIdOrd >= 0 && !reader.IsDBNull(rmaIdOrd)) ? reader.GetInt32(rmaIdOrd) : (int?)null,
+                                    RmaNumber = (rmaNumOrd >= 0 && !reader.IsDBNull(rmaNumOrd)) ? reader.GetString(rmaNumOrd) : null,
+                                    RmaType = (rmaTypeOrd >= 0 && !reader.IsDBNull(rmaTypeOrd)) ? reader.GetString(rmaTypeOrd) : null,
+                                    RmaStatus = (rmaStatusOrd >= 0 && !reader.IsDBNull(rmaStatusOrd)) ? reader.GetString(rmaStatusOrd) : null,
+                                    RmaResolution = (rmaResOrd >= 0 && !reader.IsDBNull(rmaResOrd)) ? reader.GetString(rmaResOrd) : null,
+                                    ReviewId = (reviewIdOrd >= 0 && !reader.IsDBNull(reviewIdOrd)) ? reader.GetInt32(reviewIdOrd) : (int?)null
                                 });
                             }
                         }
@@ -454,14 +463,15 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             {
                 await conn.OpenAsync().ConfigureAwait(false);
 
-                using (var cmd = new SqlCommand("dbo.sp_UpdateOrderStatus", conn))
+                using (var cmd = new SqlCommand("dbo.sp_AdminUpdateOrderStatus", conn))
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.Parameters.Add(new SqlParameter("@OrderId", SqlDbType.Int) { Value = orderId });
                     cmd.Parameters.Add(new SqlParameter("@NewStatus", SqlDbType.NVarChar, 50) { Value = newStatus });
 
-                    var rows = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-                    return rows > 0;
+                    cmd.Parameters.Add(new SqlParameter("@Notes", SqlDbType.NVarChar, 500) { Value = (object)notes ?? DBNull.Value });
+                    await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    return true;
                 }
             }
         }
@@ -488,6 +498,24 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                 string err = errorParam.Value as string;
                 return (success, err);
             }
+        }
+
+        private static int GetOrdinalOrDefault(IDataRecord reader, string primaryName, string fallbackName = null)
+        {
+            for (int i = 0; i < reader.FieldCount; i++)
+            {
+                if (string.Equals(reader.GetName(i), primaryName, StringComparison.OrdinalIgnoreCase))
+                    return i;
+            }
+            if (!string.IsNullOrEmpty(fallbackName))
+            {
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    if (string.Equals(reader.GetName(i), fallbackName, StringComparison.OrdinalIgnoreCase))
+                        return i;
+                }
+            }
+            return -1;
         }
     }
 }

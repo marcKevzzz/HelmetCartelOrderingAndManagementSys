@@ -283,7 +283,7 @@
                             </svg>
                             <span>Back to Payment</span>
                         </button>
-                        <button type="button" class="btn btn--primary" id="btn-place-order">
+                        <button type="button" class="btn btn--primary" id="btn-place-order" aria-describedby="checkout-order-error">
                             <span class="btn-spinner" aria-hidden="true"></span>
                             <span id="btn-place-order-text">Place Order &amp; Pay</span>
                             <svg class="btn-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -292,6 +292,7 @@
                             </svg>
                         </button>
                     </div>
+                    <span id="checkout-order-error" class="inline-error-msg" role="alert"></span>
                 </div>
             </div>
 
@@ -516,5 +517,5 @@
     </div>
 
     <!-- External Storefront Checkout Script -->
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/checkout.js?v=20261004-3") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/checkout.js?v=20261007_return1") %>'></script>
 </asp:Content>

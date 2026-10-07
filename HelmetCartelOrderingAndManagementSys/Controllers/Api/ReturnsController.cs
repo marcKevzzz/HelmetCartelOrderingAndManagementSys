@@ -1,10 +1,13 @@
 using System;
-using System.Security.Claims;
+using System.Linq;
+using System.Data.SqlClient;
 using System.Threading.Tasks;
 using System.Web.Http;
 using HelmetCartelOrderingAndManagementSys.Infrastructure;
 using HelmetCartelOrderingAndManagementSys.Models.DTOs;
 using HelmetCartelOrderingAndManagementSys.Repositories;
+using HelmetCartelOrderingAndManagementSys.Services;
+using HelmetCartelOrderingAndManagementSys.Constants;
 
 namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
 {
@@ -12,6 +15,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
     public class ReturnsController : ApiController
     {
         private readonly IReturnRepository _returnRepository;
+        private readonly IUserRepository _users = new UserRepository(new DbConnectionFactory());
 
         public ReturnsController()
         {
@@ -25,6 +29,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
 
         [HttpPost]
         [Route("")]
+        [CustomerAuthorize]
         public async Task<IHttpActionResult> CreateReturn([FromBody] CreateReturnRequestDto request)
         {
             if (request == null || request.OrderId <= 0 || request.OrderItemId <= 0)
@@ -44,6 +49,9 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
 
             try
             {
+                request.UserId = (int)Request.Properties[StaffAuthorizeAttribute.UserIdKey];
+                if (await _users.GetUserOrderDetailsAsync(request.UserId.Value, request.OrderId, null).ConfigureAwait(false) == null)
+                    return NotFound();
                 var result = await _returnRepository.CreateReturnRequestAsync(request).ConfigureAwait(false);
 
                 if (!result.Success)
@@ -71,9 +79,14 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
 
         [HttpGet]
         [Route("order/{orderId:int}")]
+        [CustomerAuthorize]
         public async Task<IHttpActionResult> GetByOrderId(int orderId)
         {
             if (orderId <= 0) return BadRequest("Invalid Order ID.");
+
+            var userId = (int)Request.Properties[StaffAuthorizeAttribute.UserIdKey];
+            if (await _users.GetUserOrderDetailsAsync(userId, orderId, null).ConfigureAwait(false) == null)
+                return NotFound();
 
             var items = await _returnRepository.GetCustomerReturnRequestsAsync(orderId: orderId).ConfigureAwait(false);
             return Ok(ApiResponse<System.Collections.Generic.List<ReturnRequestDto>>.Ok(items));
@@ -81,9 +94,11 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
 
         [HttpGet]
         [Route("user/{userId:int}")]
+        [CustomerAuthorize]
         public async Task<IHttpActionResult> GetByUserId(int userId)
         {
             if (userId <= 0) return BadRequest("Invalid User ID.");
+            if (userId != (int)Request.Properties[StaffAuthorizeAttribute.UserIdKey]) return NotFound();
 
             var items = await _returnRepository.GetCustomerReturnRequestsAsync(userId: userId).ConfigureAwait(false);
             return Ok(ApiResponse<System.Collections.Generic.List<ReturnRequestDto>>.Ok(items));
@@ -91,6 +106,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
 
         [HttpGet]
         [Route("~/api/v1/admin/returns")]
+        [StaffAuthorize]
         public async Task<IHttpActionResult> AdminGetReturns([FromUri] string status = "ALL", [FromUri] string search = null)
         {
             var items = await _returnRepository.AdminGetReturnRequestsAsync(status, search).ConfigureAwait(false);
@@ -99,6 +115,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
 
         [HttpPost]
         [Route("~/api/v1/admin/returns/{id:int}/process")]
+        [StaffAuthorize]
         public async Task<IHttpActionResult> AdminProcessReturn(int id, [FromBody] ProcessReturnRequestDto request)
         {
             if (id <= 0 || request == null || string.IsNullOrWhiteSpace(request.NewStatus))
@@ -106,18 +123,11 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                 return BadRequest("Valid RMA ID and NewStatus are required.");
             }
 
-            int? processedBy = null;
-            if (User?.Identity is ClaimsIdentity claimsIdentity)
-            {
-                var idClaim = claimsIdentity.FindFirst(ClaimTypes.NameIdentifier);
-                if (idClaim != null && int.TryParse(idClaim.Value, out int uid))
-                {
-                    processedBy = uid;
-                }
-            }
+            int? processedBy = (int)Request.Properties[StaffAuthorizeAttribute.UserIdKey];
 
             try
             {
+                var snapshot = (await _returnRepository.AdminGetReturnRequestsAsync().ConfigureAwait(false)).FirstOrDefault(x => x.Id == id);
                 var result = await _returnRepository.AdminProcessReturnRequestAsync(id, request, processedBy).ConfigureAwait(false);
 
                 if (!result.Success)
@@ -129,6 +139,14 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                     });
                 }
 
+                if (snapshot != null)
+                {
+                    var order = await new OrderRepository(new DbConnectionFactory()).GetOrderByIdAsync(snapshot.OrderId).ConfigureAwait(false);
+                    var replacement = request.ExchangeVariantId ?? snapshot.ExchangeVariantId;
+                    if (replacement.HasValue && order != null && !order.Items.Any(x => x.VariantId == replacement.Value))
+                        order.Items.Add(new OrderItemSummaryDto { VariantId = replacement.Value });
+                    await OrderNotifications.PublishAsync(order, AppConstants.StockAuditChangeType.Return).ConfigureAwait(false);
+                }
                 return Ok(new
                 {
                     success = true,
@@ -139,6 +157,16 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
             {
                 return InternalServerError(ex);
             }
+        }
+
+        [HttpGet]
+        [Route("~/api/v1/admin/returns/{id:int}/replacements")]
+        [StaffAuthorize]
+        public async Task<IHttpActionResult> GetReplacements(int id)
+        {
+            var rows = await new AdminDataRepository(new DbConnectionFactory()).QueryAsync(
+                "dbo.sp_AdminReturnReplacements", new SqlParameter("@RmaId", id)).ConfigureAwait(false);
+            return Ok(ApiResponse<object>.Ok(rows));
         }
     }
 }

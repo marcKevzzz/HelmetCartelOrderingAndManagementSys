@@ -193,6 +193,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
                     cmd.Parameters.Add(new SqlParameter("@RestockItem", SqlDbType.Bit) { Value = dto.RestockItem });
                     cmd.Parameters.Add(new SqlParameter("@AdminNotes", SqlDbType.NVarChar, 1000) { Value = string.IsNullOrWhiteSpace(dto.AdminNotes) ? (object)DBNull.Value : dto.AdminNotes.Trim() });
                     cmd.Parameters.Add(new SqlParameter("@ProcessedBy", SqlDbType.Int) { Value = (object)processedBy ?? DBNull.Value });
+                    cmd.Parameters.Add(new SqlParameter("@ExchangeVariantId", SqlDbType.Int) { Value = (object)dto.ExchangeVariantId ?? DBNull.Value });
 
                     var successParam = new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output };
                     var errorParam = new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 255) { Direction = ParameterDirection.Output };

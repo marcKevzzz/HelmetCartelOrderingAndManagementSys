@@ -111,7 +111,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                 try
                 {
                     var order = await _orders.GetOrderByIdAsync(id).ConfigureAwait(false);
-                    if (order != null) OrderHub.NotifyOrderStatusChanged(id, order.OrderNumber, request.Status);
+                    await OrderNotifications.PublishAsync(order, AppConstants.StockAuditChangeType.OnlineSale).ConfigureAwait(false);
                 }
                 catch (Exception ex) { System.Diagnostics.Trace.TraceWarning($"Committed order notification failed: {ex}"); }
             }
@@ -137,7 +137,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                 try
                 {
                     var order = await _orders.GetOrderByIdAsync(id).ConfigureAwait(false);
-                    if (order != null) OrderHub.NotifyOrderStatusChanged(id, order.OrderNumber, AppConstants.OrderStatus.Shipped);
+                    await OrderNotifications.PublishAsync(order, AppConstants.StockAuditChangeType.OnlineSale).ConfigureAwait(false);
                 }
                 catch (Exception ex) { System.Diagnostics.Trace.TraceWarning($"Committed order notification failed: {ex}"); }
             }

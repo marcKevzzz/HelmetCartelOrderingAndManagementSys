@@ -71,6 +71,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
 
         [HttpPost]
         [Route("")]
+        [CustomerAuthorize]
         public async Task<IHttpActionResult> AddReview([FromBody] AddReviewRequestDto request)
         {
             if (request == null || request.ProductId <= 0 || string.IsNullOrWhiteSpace(request.ReviewerName) || string.IsNullOrWhiteSpace(request.Comment))
@@ -78,10 +79,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                 return BadRequest("Product ID, Reviewer Name, and Review Comment are required.");
             }
 
-            if (!request.UserId.HasValue)
-            {
-                request.UserId = GetAuthenticatedUserId();
-            }
+            request.UserId = (int)Request.Properties[StaffAuthorizeAttribute.UserIdKey];
 
             if (request.Rating < 1 || request.Rating > 5)
             {
@@ -106,6 +104,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
 
         [HttpGet]
         [Route("admin")]
+        [StaffAuthorize]
         public async Task<IHttpActionResult> AdminGetReviews([FromUri] string filter = "ALL", [FromUri] string search = null)
         {
             var reviews = await _reviewRepository.AdminGetReviewsAsync(filter, search).ConfigureAwait(false);
@@ -114,6 +113,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
 
         [HttpPost]
         [Route("admin/{id:int}/toggle-visibility")]
+        [StaffAuthorize]
         public async Task<IHttpActionResult> ToggleReviewVisibility(int id)
         {
             if (id <= 0) return BadRequest("Invalid review ID.");
@@ -127,6 +127,29 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                     reviewId = id,
                     isHidden = isHidden,
                     message = isHidden ? "Review has been hidden from storefront." : "Review is now visible on storefront."
+                });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpDelete]
+        [Route("admin/{id:int}")]
+        [StaffAuthorize(adminOnly: true)]
+        public async Task<IHttpActionResult> AdminDeleteReview(int id)
+        {
+            if (id <= 0) return BadRequest("Invalid review ID.");
+
+            try
+            {
+                bool success = await _reviewRepository.DeleteReviewAsync(id).ConfigureAwait(false);
+                return Ok(new
+                {
+                    success = true,
+                    reviewId = id,
+                    message = "Customer review has been permanently deleted."
                 });
             }
             catch (Exception ex)

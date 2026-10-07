@@ -114,7 +114,7 @@ Set `HELMET_CARTEL_JWT_SECRET` to a private value of at least 32 characters in p
 
 ### Small fresh database (same current schema)
 
-First run the builder below with an unused database name, then open `database/setup/new_database_minimal.sql` in a normal SSMS query window and execute the complete file. SQLCMD Mode is not required. The installer creates the database named in the builder argument with tables, constraints, indexes, functions and stored procedures, including migrations through 35. It refuses to run if that database already exists. If installation fails midway, use a different new database name after correcting the error. See `database/README.md` for script responsibilities and existing-database upgrade guidance.
+First run the builder below with an unused database name, then open `database/setup/new_database_minimal.sql` in a normal SSMS query window and execute the complete file. SQLCMD Mode is not required. The installer includes structural migrations through 52 and skips optional demo-content cleanup migration 47. It refuses to run if the database already exists. If installation fails midway, use a different unused name after correcting the error. See `database/README.md` for existing-database guidance.
 
 The compact sample contains three roles, three brands, four categories, five image-backed products, ten SKUs, 51 current warehouse units, twelve gallery images, and six orders spread across the previous week. Two of the original variants remain low-stock so the dashboard alert state is visible. The product details and image paths come from the existing project catalog. Users and reviews remain empty; register an account through the application because no shared demo password is installed.
 
@@ -144,7 +144,18 @@ powershell -File .\database\setup\Update-LatestSchema.ps1 -StartMigration 40 -En
 
 The installation creates and verifies a backup before applying changes. Build the application afterward. Open `/Pages/Admin/Vouchers/Vouchers.aspx` as an Admin to create your own codes; no default voucher is installed. Customers apply codes in the checkout order summary. Existing orders continue to display their saved totals.
 
-The compact fresh installer includes both migration 39 files and migration 40. The upgrade runner executes same-number scripts in filename order. SQL dates use UTC; the voucher editor accepts local time and converts it to UTC.
+The compact fresh installer includes both migration 39 files and subsequent structural migrations through 52. The upgrade runner requires explicit start and end migrations and executes same-number scripts in filename order. It skips migration 47 unless `-IncludeDemoContent` is explicitly supplied. SQL dates use UTC; the voucher editor accepts local time and converts it to UTC.
+
+### Academic business-process upgrade (51–52)
+
+For a database already containing the structural changes through 50:
+
+```powershell
+powershell -File .\database\setup\Update-LatestSchema.ps1 -StartMigration 51 -EndMigration 52 -DryRun
+powershell -File .\database\setup\Update-LatestSchema.ps1 -StartMigration 51 -EndMigration 52
+```
+
+The second command creates and verifies a SQL Server backup before committing the upgrade. It updates procedures and reporting views without resetting catalog, order, review, or simulation data. Run `Test-BusinessIntegrity.ps1` and `Test-Vouchers.ps1` for disposable-database regressions, and `Test-CheckoutPolicy.ps1` after building the web project for C# pricing validation. See `ACADEMIC_FIX_STATUS.md` for presentation behavior and remaining limits.
 
 Verification commands:
 

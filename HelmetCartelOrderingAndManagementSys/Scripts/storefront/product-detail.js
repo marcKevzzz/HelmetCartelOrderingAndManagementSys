@@ -43,6 +43,16 @@ function initProductDetailPage() {
             : Math.max(0, Number(variant.currentStock || 0));
     };
 
+    const areSizesEqual = (sizeA, sizeB) => {
+        if (!sizeA || !sizeB) return false;
+        const a = String(sizeA).trim().toLowerCase();
+        const b = String(sizeB).trim().toLowerCase();
+        if (a === b) return true;
+        if ((a === '2xl' && b === 'xxl') || (a === 'xxl' && b === '2xl')) return true;
+        if ((a === '3xl' && b === 'xxxl') || (a === 'xxxl' && b === '3xl')) return true;
+        return false;
+    };
+
     // -------------------------------------------------------------
     // 2. GALLERY THUMBNAIL SWITCHER
     // -------------------------------------------------------------
@@ -203,7 +213,7 @@ function initProductDetailPage() {
             const size = document.querySelector('.size-pill.active')?.textContent.trim();
             const color = document.querySelector('.color-swatch.active')?.getAttribute('data-color');
             const variant = serverProduct?.variants?.find(v =>
-                v.size?.toLowerCase() === size?.toLowerCase() &&
+                areSizesEqual(v.size, size) &&
                 v.color?.toLowerCase() === color?.toLowerCase()
             );
             const maxStock = getAvailableStock(variant);
@@ -668,7 +678,7 @@ function initProductDetailPage() {
         let matchedVariant = null;
         if (serverProduct && serverProduct.variants && serverProduct.variants.length > 0) {
             matchedVariant = serverProduct.variants.find(v =>
-                v.size?.toLowerCase() === selectedSize?.toLowerCase() &&
+                areSizesEqual(v.size, selectedSize) &&
                 v.color?.toLowerCase() === selectedColor?.toLowerCase()
             );
         }
@@ -711,7 +721,7 @@ function initProductDetailPage() {
             const s = pill.textContent.trim();
             const v = serverProduct.variants?.find(item =>
                 item.color?.toLowerCase() === activeColor.toLowerCase() &&
-                item.size?.toLowerCase() === s.toLowerCase()
+                areSizesEqual(item.size, s)
             );
             const stock = getAvailableStock(v);
             if (stock <= 0) {
@@ -736,7 +746,7 @@ function initProductDetailPage() {
         const size = document.querySelector('.size-pill.active')?.textContent.trim();
         const color = activeColor;
         const variant = serverProduct.variants?.find(v =>
-            v.size?.toLowerCase() === size?.toLowerCase() &&
+            areSizesEqual(v.size, size) &&
             v.color?.toLowerCase() === color?.toLowerCase()
         );
 

@@ -58,7 +58,16 @@ $files = @(
     'schema/40_vouchers_and_receipts.sql',
     'schema/41_fix_catalog_save_pricing.sql',
     'schema/42_admin_global_search_expansion.sql',
-    'schema/43_activity_feed_load_more_and_actor_role.sql'
+    'schema/43_activity_feed_load_more_and_actor_role.sql',
+    'schema/44_orders_rmas_reviews_activity_enhancements.sql',
+    'schema/45_free_shipping_vouchers_and_activity_qrph.sql',
+    'schema/46_user_orders_items_json_optimization.sql',
+    'schema/48_database_shopping_state.sql',
+    'schema/48_fix_profile_vouchers_revenue_and_stepper.sql',
+    'schema/49_settled_daily_orders.sql',
+    'schema/50_activity_redirects_and_order_hitpay_ref.sql',
+    'schema/51_academic_business_integrity.sql',
+    'schema/52_returns_and_report_integrity.sql'
 )
 $builder = New-Object System.Text.StringBuilder
 [void]$builder.AppendLine(@"

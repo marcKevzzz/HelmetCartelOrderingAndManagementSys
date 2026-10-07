@@ -12,8 +12,8 @@
     <link rel="icon" type="image/svg+xml" href="/Content/images/favicon.svg" />
     <link rel="stylesheet" href="/Content/css/variables.css" />
     <link rel="stylesheet" href="/Content/css/reset.css" />
-    <link rel="stylesheet" href="/Content/css/components.css?v=2" />
-    <link rel="stylesheet" href="/Content/css/admin/admin.css?v=16" />
+    <link rel="stylesheet" href="/Content/css/components.css?v=4" />
+    <link rel="stylesheet" href="/Content/css/admin/admin.css?v=20" />
     <asp:ContentPlaceHolder ID="HeadContent" runat="server" />
 </head>
 <body class="admin-body">
@@ -30,6 +30,9 @@
             bool isReviews = currentPath.IndexOf("Reviews", StringComparison.OrdinalIgnoreCase) >= 0;
             bool isVouchers = currentPath.IndexOf("Vouchers", StringComparison.OrdinalIgnoreCase) >= 0;
             bool isReturns = currentPath.IndexOf("Returns", StringComparison.OrdinalIgnoreCase) >= 0;
+            var authCookieVal = Request.Cookies[HelmetCartelOrderingAndManagementSys.Constants.AppConstants.JwtConfiguration.AuthCookieName]?.Value;
+            var currentTokenUser = new HelmetCartelOrderingAndManagementSys.Infrastructure.JwtTokenProvider().ValidateToken(authCookieVal);
+            bool isAdmin = currentTokenUser != null && currentTokenUser.Role == HelmetCartelOrderingAndManagementSys.Constants.AppConstants.Roles.Admin;
         %>
         <div class="admin-app">
             <!-- Sidebar -->
@@ -115,7 +118,7 @@
                                     <span>Catalog</span>
                                 </a>
                             </li>
-                            <% if (new HelmetCartelOrderingAndManagementSys.Infrastructure.JwtTokenProvider().ValidateToken(Request.Cookies[HelmetCartelOrderingAndManagementSys.Constants.AppConstants.JwtConfiguration.AuthCookieName]?.Value)?.Role == HelmetCartelOrderingAndManagementSys.Constants.AppConstants.Roles.Admin) { %>
+                            <% if (isAdmin) { %>
                             <li>
                                 <a href="/Pages/Admin/Vouchers/Vouchers.aspx" class="admin-nav-link <%= isVouchers ? "active" : "" %>" title="Vouchers — Promotional Codes">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -144,6 +147,7 @@
                                     <span>Reports</span>
                                 </a>
                             </li>
+                            <% if (isAdmin) { %>
                             <li>
                                 <a href="/Pages/Admin/Users/Users.aspx" class="admin-nav-link <%= isUsers ? "active" : "" %>" title="Users — Accounts and Access Control">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -155,6 +159,7 @@
                                     <span>Users</span>
                                 </a>
                             </li>
+                            <% } %>
                         </ul>
                     </div>
 
@@ -203,13 +208,13 @@
                             </svg>
                             <input type="text" id="adminGlobalSearch" class="admin-topbar-search-input" placeholder="Search brand, helmet model, SKU, order, or staff..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" />
                             <span class="admin-topbar-shortcut-pill" id="adminSearchShortcut">&#8984;+K</span>
-                            <button type="button" class="admin-topbar-search-clear" id="adminSearchClear" aria-label="Clear search and filters" title="Clear search &amp; filters" style="display: none;">
+                            <button type="button" class="admin-topbar-search-clear admin-search-initially-hidden" id="adminSearchClear" aria-label="Clear search and filters" title="Clear search &amp; filters">
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="18" y1="6" x2="6" y2="18"></line>
                                     <line x1="6" y1="6" x2="18" y2="18"></line>
                                 </svg>
                             </button>
-                            <div id="adminSearchDropdown" class="admin-search-dropdown" style="display: none;"></div>
+                            <div id="adminSearchDropdown" class="admin-search-dropdown admin-search-initially-hidden"></div>
                         </div>
                     </div>
 
@@ -356,7 +361,7 @@
             </div>
         </div>
     </form>
-    <script src="/Scripts/admin/admin.js?v=19"></script>
+    <script src="/Scripts/admin/admin.js?v=20"></script>
     <script src="/Scripts/admin/search-history.js?v=1"></script>
     <asp:ContentPlaceHolder ID="ScriptsContent" runat="server" />
 </body>

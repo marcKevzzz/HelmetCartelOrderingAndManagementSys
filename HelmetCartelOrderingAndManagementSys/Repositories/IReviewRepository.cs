@@ -11,6 +11,7 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
         Task<int> AddReviewAsync(AddReviewRequestDto request);
         Task<List<AdminReviewDto>> AdminGetReviewsAsync(string filter = "ALL", string search = null);
         Task<bool> ToggleReviewVisibilityAsync(int reviewId);
+        Task<bool> DeleteReviewAsync(int reviewId);
         Task<List<ProductReviewDto>> GetTopCustomerReviewsAsync(int limit = 6);
     }
 }

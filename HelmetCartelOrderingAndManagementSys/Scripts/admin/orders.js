@@ -31,13 +31,13 @@ function openDispatchModal(orderId, orderNo, customerName, city) {
         errSpan.textContent = '';
         errSpan.style.display = 'none';
     }
-    if (modalBackdrop) modalBackdrop.style.display = 'flex';
+    if (modalBackdrop) modalBackdrop.classList.remove('is-hidden');
 }
 
 
 function closeDispatchModal() {
     const modalBackdrop = document.getElementById('dispatchModalBackdrop');
-    if (modalBackdrop) modalBackdrop.style.display = 'none';
+    if (modalBackdrop) modalBackdrop.classList.add('is-hidden');
 }
 
 async function confirmDispatch() {

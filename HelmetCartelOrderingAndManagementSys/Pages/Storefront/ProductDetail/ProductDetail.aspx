@@ -107,10 +107,12 @@
                                <% firstSize = false;
                                }
                            } else { %>
-                               <button type="button" class="size-pill">Small</button>
-                               <button type="button" class="size-pill">Medium</button>
-                               <button type="button" class="size-pill active">Large</button>
-                               <button type="button" class="size-pill">X-Large</button>
+                               <button type="button" class="size-pill">XS</button>
+                               <button type="button" class="size-pill">S</button>
+                               <button type="button" class="size-pill active">M</button>
+                               <button type="button" class="size-pill">L</button>
+                               <button type="button" class="size-pill">XL</button>
+                               <button type="button" class="size-pill">2XL</button>
                         <% } %>
                     </div>
                 </div>
@@ -542,5 +544,5 @@
     <script type="application/json" id="product-detail-data">
         <%= ProductJson %>
     </script>
-    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/product-detail.js?v=20261004") %>'></script>
+    <script type="module" src='<%= ResolveUrl("~/Scripts/storefront/product-detail.js?v=20261007") %>'></script>
 </asp:Content>

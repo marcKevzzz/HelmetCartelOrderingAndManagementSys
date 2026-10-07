@@ -882,6 +882,7 @@
       });
 
 
+      const isVarActive = v.isActive !== false;
       if (!isVarActive) {
         pill.classList.add('is-inactive');
       }

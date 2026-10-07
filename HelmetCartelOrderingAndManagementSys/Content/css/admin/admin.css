@@ -1574,8 +1574,6 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
   gap: 4px;
   padding: 5px 12px;
   border-radius: var(--radius-pill);
-  background-color: var(--color-surface-card);
-  border: 1px solid var(--color-border-subtle);
   font-size: 11px;
   font-weight: var(--weight-bold);
   text-transform: uppercase;
@@ -1589,8 +1587,8 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
 
 .admin-activity-inspect-btn:hover {
   background-color: var(--color-brand-primary);
-  color: #FFFFFF;
-  border-color: var(--color-brand-primary);
+  color: var(--color-primary-hover);
+  border-color: var(--color-surface-subtle);
   transform: translateX(2px);
 }
 
@@ -2110,22 +2108,27 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
 }
 
 /* ==========================================================================
-   TOAST NOTIFICATION SYSTEM
+   TOAST NOTIFICATION SYSTEM — Modern Top-Middle Stacked Card Deck Layout
    ========================================================================== */
-.admin-toast-container {
+.admin-toast-container,
+#adminToastContainer {
   position: fixed;
   top: 24px;
-  right: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  right: auto;
   z-index: 999999;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  place-items: start center;
   pointer-events: none;
-  max-width: 420px;
-  width: calc(100% - 48px);
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  margin: 0 auto;
 }
 
-.admin-toast {
+.admin-toast,
+#adminToastContainer .toast {
+  grid-area: 1 / 1;
   pointer-events: auto;
   display: flex;
   align-items: center;
@@ -2136,15 +2139,142 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
   border: 1px solid #27272A;
   color: #F4F4F5;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
-  animation: adminToastIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   font-size: var(--text-body-sm);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  min-width: 300px;
+  max-width: 440px;
+  box-sizing: border-box;
+  cursor: pointer;
+  user-select: none;
+  transform-origin: top center;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.22s ease,
+              box-shadow 0.25s ease,
+              max-height 0.25s ease,
+              padding 0.2s ease,
+              margin 0.2s ease;
+  will-change: transform, opacity;
+}
+
+/* Stacked Card Deck rules for admin-toast */
+.admin-toast:last-child,
+#adminToastContainer .toast:last-child {
+  z-index: 30;
+  transform: translateY(0) scale(1);
+  opacity: 1;
+  animation: adminToastIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.admin-toast:nth-last-child(2),
+#adminToastContainer .toast:nth-last-child(2) {
+  z-index: 20;
+  transform: translateY(11px) scale(0.94);
+  opacity: 0.94;
+}
+
+.admin-toast:nth-last-child(3),
+#adminToastContainer .toast:nth-last-child(3) {
+  z-index: 10;
+  transform: translateY(21px) scale(0.88);
+  opacity: 0.85;
+}
+
+.admin-toast:nth-last-child(n+4),
+#adminToastContainer .toast:nth-last-child(n+4) {
+  z-index: 5;
+  transform: translateY(28px) scale(0.82);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+/* Hover State: Expand Stack into Vertical Column */
+.admin-toast-container:hover,
+#adminToastContainer:hover {
+  display: flex !important;
+  flex-direction: column-reverse !important;
+  gap: var(--space-2, 8px) !important;
+  pointer-events: auto !important;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px;
+}
+
+.admin-toast-container::-webkit-scrollbar,
+#adminToastContainer::-webkit-scrollbar {
+  width: 4px;
+}
+
+.admin-toast-container::-webkit-scrollbar-thumb,
+#adminToastContainer::-webkit-scrollbar-thumb {
+  background: rgba(150, 150, 150, 0.3);
+  border-radius: 4px;
+}
+
+.admin-toast-container:hover .admin-toast,
+.admin-toast-container:hover .toast,
+#adminToastContainer:hover .admin-toast,
+#adminToastContainer:hover .toast {
+  grid-area: auto !important;
+  transform: translateY(0) scale(1) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  filter: none !important;
+  z-index: 10 !important;
+}
+
+.admin-toast-container:hover .admin-toast:not(:last-child),
+.admin-toast-container:hover .toast:not(:last-child),
+#adminToastContainer:hover .admin-toast:not(:last-child),
+#adminToastContainer:hover .toast:not(:last-child) {
+  animation: adminToastUnfold 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.admin-toast-container:hover .admin-toast:hover,
+.admin-toast-container:hover .toast:hover,
+#adminToastContainer:hover .admin-toast:hover,
+#adminToastContainer:hover .toast:hover {
+  transform: translateY(-2px) scale(1.01) !important;
+  box-shadow: 0 14px 28px -4px rgba(0, 0, 0, 0.5), 0 8px 14px -4px rgba(0, 0, 0, 0.4) !important;
+}
+
+@keyframes adminToastUnfold {
+  from {
+    opacity: 0.7;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.admin-toast.is-fading,
+.admin-toast.toast--exit,
+#adminToastContainer .toast.toast--exit,
+#adminToastContainer .toast.is-fading,
+.admin-toast-container:hover .admin-toast.is-fading,
+.admin-toast-container:hover .admin-toast.toast--exit,
+#adminToastContainer:hover .toast.toast--exit,
+#adminToastContainer:hover .toast.is-fading {
+  opacity: 0 !important;
+  transform: translateY(-8px) scale(0.95) !important;
+  pointer-events: none !important;
+  max-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  overflow: hidden !important;
+  border-width: 0 !important;
+  transition: opacity 0.2s ease, transform 0.2s ease, max-height 0.2s ease, padding 0.2s ease, margin 0.2s ease, border-width 0.2s ease !important;
 }
 
 @keyframes adminToastIn {
   from {
     opacity: 0;
-    transform: translateY(-12px) scale(0.96);
+    transform: translateY(-16px) scale(0.94);
   }
 
   to {
@@ -2199,35 +2329,43 @@ html.admin-sidebar-collapsed .admin-sidebar .admin-sub-list {
   color: #FFFFFF;
 }
 
-.admin-toast--success {
+.admin-toast--success,
+#adminToastContainer .toast--success {
   border-left: 4px solid #10B981;
 }
 
-.admin-toast--success .admin-toast-icon {
+.admin-toast--success .admin-toast-icon,
+#adminToastContainer .toast--success .toast__icon {
   color: #10B981;
 }
 
-.admin-toast--error {
+.admin-toast--error,
+#adminToastContainer .toast--error {
   border-left: 4px solid #EF4444;
 }
 
-.admin-toast--error .admin-toast-icon {
+.admin-toast--error .admin-toast-icon,
+#adminToastContainer .toast--error .toast__icon {
   color: #EF4444;
 }
 
-.admin-toast--warning {
+.admin-toast--warning,
+#adminToastContainer .toast--warning {
   border-left: 4px solid #F59E0B;
 }
 
-.admin-toast--warning .admin-toast-icon {
+.admin-toast--warning .admin-toast-icon,
+#adminToastContainer .toast--warning .toast__icon {
   color: #F59E0B;
 }
 
-.admin-toast--info {
+.admin-toast--info,
+#adminToastContainer .toast--info {
   border-left: 4px solid #3B82F6;
 }
 
-.admin-toast--info .admin-toast-icon {
+.admin-toast--info .admin-toast-icon,
+#adminToastContainer .toast--info .toast__icon {
   color: #3B82F6;
 }
 
@@ -3657,7 +3795,64 @@ textarea::placeholder,
 }
 
 .admin-table-users {
-  min-width: 920px;
+  width: 100%;
+  min-width: 740px;
+  table-layout: auto;
+}
+
+.admin-table-users th,
+.admin-table-users td {
+  padding: var(--space-3) var(--space-3);
+  vertical-align: middle;
+}
+
+.admin-table-users .admin-cell-mono-muted {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.admin-table-users .users-admin-actions-cell-presentation {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.admin-table-users .users-table-column-1 {
+  width: 70px;
+}
+
+.admin-table-users .col-user-details {
+  width: auto;
+  min-width: 140px;
+}
+
+.admin-table-users .col-email {
+  width: auto;
+  min-width: 160px;
+}
+
+.admin-table-users .users-table-column-2 {
+  width: 130px;
+}
+
+.admin-table-users .users-table-column-3 {
+  width: 110px;
+}
+
+.admin-table-users .col-status {
+  width: 95px;
+}
+
+.admin-table-users .col-actions.users {
+  width: 195px !important;
+  min-width: 185px;
+  text-align: right;
 }
 
 .col-thumb {
@@ -3725,6 +3920,17 @@ textarea::placeholder,
   width: 220px;
   text-align: right;
 }
+.col-actions.users {
+  min-width: 140px;
+  width: 180px !important;
+  text-align: right;
+}
+.col-actions.reviews {
+  min-width: 220px;
+  width: 280px !important;
+  text-align: right;
+}
+
 
 .col-order-num {
   min-width: 130px;
@@ -3743,7 +3949,7 @@ textarea::placeholder,
 }
 
 .col-email {
-  min-width: 180px;
+  min-width: 240px;
 }
 
 .btn-pill--icon-only {
@@ -3765,6 +3971,34 @@ textarea::placeholder,
   border-color: var(--color-accent-red, #EF4444);
 }
 
+.btn-pill--danger-fill {
+  background-color: var(--color-accent-red, #EF4444);
+  color: #FFFFFF !important;
+  border-color: var(--color-accent-red, #EF4444);
+}
+
+.btn-pill--danger-fill:hover {
+  background-color: #DC2626;
+  border-color: #DC2626;
+}
+
+.btn--danger {
+  background-color: var(--color-accent-red, #EF4444);
+  color: #FFFFFF !important;
+  border: 1px solid var(--color-accent-red, #EF4444);
+}
+
+.btn--danger:hover {
+  background-color: #DC2626;
+  border-color: #DC2626;
+}
+
+.admin-modal-icon-circle--danger {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: var(--color-accent-red, #EF4444);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
 .btn-pill--disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -3777,7 +4011,7 @@ textarea::placeholder,
 .admin-delete-preview-card {
   display: flex;
   gap: var(--space-4);
-  background-color: var(--color-surface-subtle);
+  background-color: var(--color-surface-card);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
@@ -7240,4 +7474,79 @@ textarea::placeholder,
     width: 100vw;
     max-width: 100vw;
   }
+}
+
+/* Row Highlight for Direct Action / Activity Log Navigation */
+.admin-table tbody tr.admin-row-highlighted {
+  background-color: rgba(225, 29, 72, 0.12) !important;
+  outline: 2px solid var(--color-brand-primary, #e11d48);
+  outline-offset: -2px;
+  animation: adminRowPulse 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes adminRowPulse {
+  0% {
+    background-color: rgba(225, 29, 72, 0.16);
+  }
+  100% {
+    background-color: rgba(225, 29, 72, 0.05);
+  }
+}
+
+/* Edit System Role Modal Styling */
+.edit-role-user-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background-color: var(--color-surface-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-4);
+}
+
+.edit-role-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-hover);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-main);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.edit-role-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.edit-role-user-name {
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-body);
+  color: var(--color-text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.edit-role-user-email {
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono, monospace);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.edit-role-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }

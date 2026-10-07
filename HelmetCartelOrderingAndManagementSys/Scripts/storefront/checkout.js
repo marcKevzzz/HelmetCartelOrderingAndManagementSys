@@ -149,22 +149,17 @@ function computeShippingDetails(cityInput, provinceInput) {
         return { fee: 150, region: 'Metro Manila (NCR)', eta: '1\u20132 Business Days' };
     }
 
-    const ncrCities = [
-        'manila', 'quezon city', 'qc', 'caloocan', 'las pinas', 'las pi\u00F1as',
-        'makati', 'malabon', 'mandaluyong', 'marikina', 'muntinlupa', 'navotas',
-        'paranaque', 'para\u00F1aque', 'pasay', 'pasig', 'san juan', 'taguig',
-        'valenzuela', 'pateros'
-    ];
-    const isNcr = ncrCities.some(c => city.includes(c)) ||
-                  prov.includes('metro manila') || prov.includes('ncr');
+    const isNcr = prov === 'metro manila' || prov === 'ncr';
     if (isNcr) {
-        return { fee: 150, region: 'Metro Manila (NCR)', eta: '1\u20132 Business Days' };
+        const tier = APP_CONSTANTS.SHIPPING_TIERS.NCR;
+        return { fee: tier.fee, region: tier.name, eta: tier.eta };
     }
 
     const gmaProvinces = ['cavite', 'laguna', 'batangas', 'rizal', 'bulacan'];
-    const isGma = gmaProvinces.some(p => prov.includes(p) || city.includes(p));
+    const isGma = gmaProvinces.some(p => prov.includes(p));
     if (isGma) {
-        return { fee: 250, region: 'Greater Manila Area', eta: '2\u20133 Business Days' };
+        const tier = APP_CONSTANTS.SHIPPING_TIERS.GMA;
+        return { fee: tier.fee, region: tier.name, eta: tier.eta };
     }
 
     const luzonProvinces = [
@@ -175,18 +170,20 @@ function computeShippingDetails(cityInput, provinceInput) {
         'oriental mindoro', 'palawan', 'romblon', 'abra', 'apayao', 'ifugao',
         'kalinga', 'mountain province'
     ];
-    const isLuzon = luzonProvinces.some(p => prov.includes(p) || city.includes(p));
+    const isLuzon = luzonProvinces.some(p => prov.includes(p));
     if (isLuzon) {
-        return { fee: 350, region: 'Rest of Luzon', eta: '3\u20135 Business Days' };
+        const tier = APP_CONSTANTS.SHIPPING_TIERS.LUZON;
+        return { fee: tier.fee, region: tier.name, eta: tier.eta };
     }
 
     const visayasProvinces = [
         'cebu', 'bohol', 'iloilo', 'negros', 'leyte', 'samar', 'panay',
         'capiz', 'aklan', 'boracay', 'antique', 'guimaras', 'biliran', 'siquijor'
     ];
-    const isVisayas = visayasProvinces.some(p => prov.includes(p) || city.includes(p));
+    const isVisayas = visayasProvinces.some(p => prov.includes(p));
     if (isVisayas) {
-        return { fee: 450, region: 'Visayas', eta: '5\u20137 Business Days' };
+        const tier = APP_CONSTANTS.SHIPPING_TIERS.VISAYAS;
+        return { fee: tier.fee, region: tier.name, eta: tier.eta };
     }
 
     const mindanaoProvinces = [
@@ -195,9 +192,10 @@ function computeShippingDetails(cityInput, provinceInput) {
         'lanao', 'agusan', 'surigao', 'sultan kudarat', 'sarangani', 'basilan',
         'sulu', 'tawi-tawi', 'maguindanao'
     ];
-    const isMindanao = mindanaoProvinces.some(p => prov.includes(p) || city.includes(p));
+    const isMindanao = mindanaoProvinces.some(p => prov.includes(p));
     if (isMindanao) {
-        return { fee: 500, region: 'Mindanao', eta: '5\u20138 Business Days' };
+        const tier = APP_CONSTANTS.SHIPPING_TIERS.MINDANAO;
+        return { fee: tier.fee, region: tier.name, eta: tier.eta };
     }
 
     return { fee: 175, region: 'Standard Nationwide Delivery', eta: '3\u20136 Business Days' };
@@ -411,7 +409,7 @@ function validateStep1() {
     setFieldError('checkout-address', '');
 
     if (selectedFulfillment === 'delivery') {
-        if (!selectedAddress || !selectedAddress.streetAddress || !selectedAddress.city) {
+        if (!selectedAddress || !selectedAddress.streetAddress || !selectedAddress.city || !selectedAddress.province || !selectedAddress.recipientName || !selectedAddress.phoneNumber) {
             setFieldError('checkout-address', 'Please select or add a delivery address with recipient name and phone in your profile.');
             isValid = false;
         }
@@ -588,7 +586,12 @@ function bindCheckoutEvents() {
         });
     });
 
-    document.getElementById('chk-agree-terms')?.addEventListener('change', () => {
+    document.getElementById('chk-agree-terms')?.addEventListener('change', (event) => {
+        if (event.target.checked) {
+            event.target.classList.remove('is-invalid');
+            const error = document.getElementById('checkout-order-error');
+            if (error) error.textContent = '';
+        }
         saveCheckoutState();
     });
 
@@ -601,9 +604,15 @@ function bindCheckoutEvents() {
 
     // Place Order via live C# Web API (POST /api/v1/orders)
     document.getElementById('btn-place-order')?.addEventListener('click', async () => {
+        const orderError = document.getElementById('checkout-order-error');
+        if (orderError) orderError.textContent = '';
+        if (!validateStep1()) { setStep(1); document.getElementById('checkout-address')?.focus(); return; }
         const termsCheckbox = document.getElementById('chk-agree-terms');
         const agreed = termsCheckbox ? termsCheckbox.checked : false;
         if (!agreed) {
+            if (orderError) orderError.textContent = 'Agree to the Terms of Sale before placing your order.';
+            termsCheckbox?.classList.add('is-invalid');
+            termsCheckbox?.focus();
             RealtimeManager.showToast('Please agree to the Terms of Sale to proceed.', 'alert');
             return;
         }
@@ -765,6 +774,7 @@ function bindCheckoutEvents() {
             // Direct fulfillment (COD / Cash In-Store)
             await completeOrderDisplay();
         } catch (err) {
+            if (orderError) orderError.textContent = err.message || 'Order could not be placed. Review your details and try again.';
             console.error('[Checkout Error]', err);
             if (err.errorCode === APP_CONSTANTS.ERROR_CODES.INVALID_VOUCHER) { appliedVoucher = null; voucherError(err.message); }
             RealtimeManager.showToast(err.message || 'Error processing order. Please check stock.', 'alert');
@@ -933,6 +943,16 @@ function initAuthCheck() {
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
     initAuthCheck();
+    const checkoutUrl = window.location.pathname + window.location.search;
+    sessionStorage.setItem('hc_checkout_return_url', checkoutUrl);
+    const addressLink = document.getElementById('checkoutAddressComponent') || document.getElementById('checkout-address-component');
+    if (addressLink) {
+        addressLink.href = `/Pages/Storefront/Profile/Profile.aspx?tab=addresses&returnUrl=${encodeURIComponent(checkoutUrl)}`;
+        addressLink.addEventListener('click', () => {
+            sessionStorage.setItem('hc_checkout_return_url', checkoutUrl);
+        });
+    }
+
     bindCheckoutEvents();
     adaptBuyNowUi();
     loadSavedAddresses();

@@ -2842,3 +2842,105 @@
 
 
 
+
+/* ==========================================================================
+   CHECKOUT RETURN BANNER & ACTION POLISH
+   ========================================================================== */
+.checkout-return-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  background: linear-gradient(135deg, #18181B 0%, #09090B 100%);
+  color: #FFFFFF;
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-5);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  animation: fadeInBanner 0.25s ease-out;
+}
+
+.checkout-return-banner__info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.checkout-return-banner__icon {
+  flex-shrink: 0;
+  color: #FACC15;
+}
+
+.checkout-return-banner__title {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--weight-bold);
+  color: #FFFFFF;
+}
+
+.checkout-return-banner__desc {
+  margin: 2px 0 0 0;
+  font-size: var(--text-body-sm);
+  color: #A1A1AA;
+}
+
+.checkout-return-banner__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+  border: 1px solid #FFFFFF !important;
+  font-weight: var(--weight-bold);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.checkout-return-banner__btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.25);
+  background-color: #F4F4F5 !important;
+  color: #000000 !important;
+}
+
+.profile-section-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.btn-address-action--checkout {
+  background-color: #000000 !important;
+  color: #FFFFFF !important;
+  border-color: #000000 !important;
+  font-weight: var(--weight-bold);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-address-action--checkout:hover {
+  background-color: #27272A !important;
+  color: #FFFFFF !important;
+  border-color: #27272A !important;
+}
+
+.address-phone-subtle {
+  font-weight: normal;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body-sm);
+  margin-left: 4px;
+}
+
+@keyframes fadeInBanner {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

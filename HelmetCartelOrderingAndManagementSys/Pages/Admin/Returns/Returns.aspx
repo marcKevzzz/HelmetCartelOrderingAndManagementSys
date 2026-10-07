@@ -129,7 +129,6 @@
                         <select id="rma-decision-resolution" class="modal-select admin-rma-select">
                             <option value="REFUND">Refund</option>
                             <option value="REPLACEMENT">Replacement / Exchange</option>
-                            <option value="STORE_CREDIT">Store Credit</option>
                         </select>
                     </div>
 
@@ -137,8 +136,14 @@
                         <label for="rma-decision-refund" class="modal-field-label">Refund / Settlement Amount (&#8369;)</label>
                         <div class="admin-rma-currency-field">
                             <span class="admin-rma-currency-addon">&#8369;</span>
-                            <input type="number" id="rma-decision-refund" class="modal-input admin-rma-input admin-rma-currency-input" step="0.01" min="0" placeholder="0.00" />
+                            <input type="number" id="rma-decision-refund" class="modal-input admin-rma-input admin-rma-currency-input" step="0.01" min="0" placeholder="Leave blank for discounted item total" />
                         </div>
+                    </div>
+
+                    <div class="modal-field-group admin-rma-field--full is-hidden" id="rma-replacement-group">
+                        <label for="rma-decision-replacement" class="modal-field-label">Replacement Size / Color</label>
+                        <select id="rma-decision-replacement" class="modal-select admin-rma-select" aria-describedby="rma-replacement-help"></select>
+                        <span id="rma-replacement-help" class="admin-cell-subtext">Select an equal-price variant. Confirm handover in notes before completing.</span>
                     </div>
 
                     <div class="admin-rma-restock-card" id="rma-restock-group">
@@ -146,14 +151,14 @@
                             <input type="checkbox" id="rma-decision-restock" class="admin-rma-checkbox" />
                             <div class="admin-rma-checkbox-text">
                                 <span class="admin-rma-checkbox-title">Return item to sellable inventory</span>
-                                <span class="admin-rma-checkbox-desc">Atomic stock increment (`UPDLOCK`) and verified RESTOCK audit log entry.</span>
+                                <span class="admin-rma-checkbox-desc">Restock inspected, sellable goods when completing the return or exchange.</span>
                             </div>
                         </label>
                     </div>
 
                     <div class="modal-field-group admin-rma-field--full">
                         <label for="rma-decision-notes" class="modal-field-label">Admin Notes &amp; Customer Feedback</label>
-                        <textarea id="rma-decision-notes" class="modal-textarea admin-rma-textarea" rows="3" placeholder="Explain disposition decision or provide instructions for customer..."></textarea>
+                        <textarea id="rma-decision-notes" class="modal-textarea admin-rma-textarea" rows="3" placeholder="For completion, record manual refund reference or replacement handover confirmation."></textarea>
                     </div>
                 </div>
 

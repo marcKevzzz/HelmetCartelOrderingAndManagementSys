@@ -1,5 +1,25 @@
 # REST API Specification: Helmet Cartel System
 
+## Academic correction update (7 October 2026)
+
+The following implemented routes supersede earlier public-access descriptions in this document. Authentication uses the JWT cookie or Bearer header; customer IDs are derived from the active account.
+
+| Route | Access and behavior |
+| --- | --- |
+| `POST /api/v1/orders` | Signed-in customer; validates pickup/delivery and online payment combinations, computes shipping fees on the server, and reserves inventory. |
+| `GET /api/v1/orders/track/{orderNumber}` | Signed-in owner only. |
+| `POST /api/v1/orders/{id}/cancel` | Signed-in owner; eligible pending/processing order only. Cancellation preserves completed payment history. |
+| `PUT /api/v1/orders/{id}/status` | Staff/Admin; accepts `Status`, `Notes`, `Courier`, `TrackingNumber`. SQL enforces fulfillment transitions and dispatch metadata. |
+| `POST /api/v1/returns` and `GET /api/v1/returns/order/{id}` | Signed-in owner only. |
+| `GET /api/v1/returns/user/{id}` | Current signed-in account only. |
+| `GET /api/v1/admin/returns` | Staff/Admin. |
+| `GET /api/v1/admin/returns/{id}/replacements` | Staff/Admin; returns equal-price size/color variants of the original product and their available stock. |
+| `POST /api/v1/admin/returns/{id}/process` | Staff/Admin; includes optional `ExchangeVariantId`. Requires approval and receipt before completion. Completion notes confirm manual refund/handover; restocking requires inspected sellable goods. |
+| `POST /api/v1/reviews` | Signed-in account; server verifies purchase eligibility. |
+| `GET /api/v1/reviews/admin` and review visibility toggle | Admin only. |
+
+`CustomerOrderHub.WatchMyOrders` joins a server-selected authenticated account group. `orderStatusChanged` includes `orderId`, `orderNumber`, and `newStatus`; clients reload their owned order details. No guest tracking disclosure or client-selected customer group is provided. HitPay/simulation routes were excluded from these corrections; their descriptions below are not live gateway validation evidence.
+
 **Base URL:** `/api/v1`  
 **Standard Headers:**  
 - `Content-Type: application/json`

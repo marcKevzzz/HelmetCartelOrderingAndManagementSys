@@ -208,6 +208,23 @@ namespace HelmetCartelOrderingAndManagementSys.Repositories
             }
         }
 
+        public async Task<bool> DeleteReviewAsync(int reviewId)
+        {
+            using (var conn = (SqlConnection)_dbFactory.CreateConnection())
+            {
+                await conn.OpenAsync().ConfigureAwait(false);
+
+                using (var cmd = new SqlCommand("dbo.sp_AdminDeleteReview", conn))
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.Parameters.Add(new SqlParameter("@ReviewId", SqlDbType.Int) { Value = reviewId });
+
+                    int rows = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    return rows > 0;
+                }
+            }
+        }
+
         public async Task<List<ProductReviewDto>> GetTopCustomerReviewsAsync(int limit = 6)
         {
             var list = new List<ProductReviewDto>();

@@ -10,11 +10,18 @@ export const RealtimeManager = {
   hubConnection: null,
 
   init() {
+    if (this.hubConnection) return;
     console.log('[RealtimeManager] Initializing real-time listener...');
 
     if (window.$ && window.$.hubConnection) {
       this.hubConnection = window.$.hubConnection('/signalr');
       const inventoryHubProxy = this.hubConnection.createHubProxy('inventoryHub');
+      const customerOrderProxy = this.hubConnection.createHubProxy('customerOrderHub');
+      customerOrderProxy.on(APP_CONSTANTS.SIGNALR_EVENTS.ORDER_STATUS_CHANGED, (data) => {
+        window.dispatchEvent(new CustomEvent(APP_CONSTANTS.SIGNALR_EVENTS.ORDER_STATUS_CHANGED, { detail: data }));
+      });
+      const watchOrders = () => customerOrderProxy.invoke('WatchMyOrders').fail(() => {});
+      this.hubConnection.reconnected(watchOrders);
 
       inventoryHubProxy.on(APP_CONSTANTS.SIGNALR_EVENTS.STOCK_UPDATED, (data) => {
         this.handleStockUpdated(data);
@@ -27,6 +34,7 @@ export const RealtimeManager = {
 
       this.hubConnection.start()
         .done(() => {
+          watchOrders();
           this.updateConnectionStatus(true);
         })
         .fail(() => {
@@ -46,6 +54,7 @@ export const RealtimeManager = {
         if (event.persisted && this.hubConnection && typeof this.hubConnection.start === 'function') {
           this.hubConnection.start()
             .done(() => {
+              watchOrders();
               this.updateConnectionStatus(true);
             })
             .fail(() => {
@@ -98,6 +107,21 @@ export const RealtimeManager = {
       document.body.appendChild(container);
     }
 
+    if (!container.dataset.hoverBound) {
+      container.dataset.hoverBound = 'true';
+      container.addEventListener('mouseenter', () => {
+        container.dataset.isHovered = 'true';
+      });
+      container.addEventListener('mouseleave', () => {
+        container.dataset.isHovered = 'false';
+        container.querySelectorAll('.toast').forEach(t => {
+          if (typeof t.__resumeDismiss === 'function') {
+            t.__resumeDismiss();
+          }
+        });
+      });
+    }
+
     let iconSvg = '';
     if (type === 'cart') {
       iconSvg = `
@@ -145,8 +169,30 @@ export const RealtimeManager = {
       <span class="toast__icon">${iconSvg}</span>
       <span class="toast__message">${message}</span>
     `;
+    const dismissToast = () => {
+      if (toast.dataset.dismissing === 'true') return;
+      toast.dataset.dismissing = 'true';
+      toast.classList.add('toast--exit');
+      setTimeout(() => {
+        if (toast.parentNode) toast.remove();
+      }, 250);
+    };
+
+    toast.addEventListener('click', dismissToast);
     container.appendChild(toast);
 
-    setTimeout(() => toast.remove(), 4000);
+    let dismissTimeoutId = null;
+    const scheduleAutoDismiss = (delay = 4000) => {
+      clearTimeout(dismissTimeoutId);
+      dismissTimeoutId = setTimeout(() => {
+        if (container.dataset.isHovered === 'true') {
+          toast.__resumeDismiss = () => scheduleAutoDismiss(2500);
+          return;
+        }
+        if (toast.isConnected) dismissToast();
+      }, delay);
+    };
+
+    scheduleAutoDismiss(4000);
   }
 };

@@ -40,6 +40,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
 
         [HttpPost]
         [Route("")]
+        [CustomerAuthorize]
         public async Task<IHttpActionResult> CreateOnlineOrder([FromBody] CreateOrderRequestDto request)
         {
             if (request == null || request.Items == null || request.Items.Count == 0)
@@ -49,7 +50,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
 
             try
             {
-                int? userId = GetAuthenticatedUserId();
+                int userId = (int)Request.Properties[StaffAuthorizeAttribute.UserIdKey];
                 var result = await _orderService.CreateOnlineOrderAsync(request, userId).ConfigureAwait(false);
                 if (!result.Success)
                 {
@@ -68,6 +69,7 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
 
         [HttpGet]
         [Route("track/{orderNumber}")]
+        [CustomerAuthorize]
         public async Task<IHttpActionResult> TrackOrder(string orderNumber)
         {
             if (string.IsNullOrWhiteSpace(orderNumber))
@@ -75,7 +77,8 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
                 return BadRequest("Order number is required.");
             }
 
-            var order = await _orderService.GetOrderByOrderNumberAsync(orderNumber.Trim()).ConfigureAwait(false);
+            var order = await _userRepository.GetUserOrderDetailsAsync(
+                (int)Request.Properties[StaffAuthorizeAttribute.UserIdKey], null, orderNumber.Trim()).ConfigureAwait(false);
             if (order == null)
             {
                 return NotFound();
@@ -141,9 +144,11 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
             {
                 var rows = await new AdminDataRepository(new DbConnectionFactory()).QueryAsync("dbo.sp_AdminUpdateOrderStatus",
                     new SqlParameter("@OrderId", id), new SqlParameter("@NewStatus", dto.Status),
-                    new SqlParameter("@Notes", (object)dto.Notes ?? System.DBNull.Value)).ConfigureAwait(false);
+                    new SqlParameter("@Notes", (object)dto.Notes ?? System.DBNull.Value),
+                    new SqlParameter("@Courier", (object)dto.Courier ?? System.DBNull.Value),
+                    new SqlParameter("@TrackingNumber", (object)dto.TrackingNumber ?? System.DBNull.Value)).ConfigureAwait(false);
                 var order = await _orderService.GetOrderByIdAsync(id).ConfigureAwait(false);
-                if (order != null) OrderHub.NotifyOrderStatusChanged(id, order.OrderNumber, dto.Status);
+                await OrderNotifications.PublishAsync(order, AppConstants.StockAuditChangeType.OnlineSale).ConfigureAwait(false);
                 return Ok(ApiResponse<object>.Ok(rows));
             }
             catch (SqlException e) { return BadRequest(e.Message); }
@@ -151,9 +156,10 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
 
         [HttpPost]
         [Route("{id:int}/cancel")]
+        [CustomerAuthorize]
         public async Task<IHttpActionResult> CancelOrder(int id, [FromBody] CancelOrderRequestDto dto)
         {
-            int? userId = GetAuthenticatedUserId();
+            int? userId = (int)Request.Properties[StaffAuthorizeAttribute.UserIdKey];
             string userEmail = null;
             if (userId.HasValue)
             {
@@ -170,30 +176,11 @@ namespace HelmetCartelOrderingAndManagementSys.Controllers.Api
             var order = await _orderRepository.GetOrderByIdAsync(id).ConfigureAwait(false);
             if (order != null)
             {
-                OrderHub.NotifyOrderStatusChanged(id, order.OrderNumber, AppConstants.OrderStatus.Cancelled);
+                await OrderNotifications.PublishAsync(order, AppConstants.StockAuditChangeType.Return).ConfigureAwait(false);
             }
 
-            return Ok(new { success = true, message = "Order cancelled successfully and reserved stock released." });
+            return Ok(new { success = true, message = "Order cancelled successfully. Any paid refund requires manual staff confirmation." });
         }
 
-        private int? GetAuthenticatedUserId()
-        {
-            var authHeader = Request.Headers.Authorization;
-            if (authHeader != null && string.Equals(authHeader.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase))
-            {
-                var token = authHeader.Parameter;
-                var user = new JwtTokenProvider().ValidateToken(token);
-                if (user != null) return user.Id;
-            }
-
-            var cookieToken = System.Web.HttpContext.Current?.Request?.Cookies?[AppConstants.JwtConfiguration.AuthCookieName]?.Value;
-            if (!string.IsNullOrEmpty(cookieToken))
-            {
-                var user = new JwtTokenProvider().ValidateToken(cookieToken);
-                if (user != null) return user.Id;
-            }
-
-            return null;
-        }
     }
 }
